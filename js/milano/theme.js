@@ -35,3 +35,20 @@ export const THEME_REPLACED = {
   light: { hemi: 0.95, sun: 0.85, sky: '#f0f4f6', ground: '#5c656c', sunColor: '#fff0dc', sunPos: [-7, 6, 2] },
 };
 export const PIXEL_SCALE = 0.5; // risoluzione di disegno rispetto allo schermo nello stile REPLACED
+
+// Variante Firewatch: niente pixel, colori piatti e nebbia colorata che dà profondità. Due momenti: tramonto e sera piovosa.
+// I colori di gioco (spot, bordi, basi delle bande) restano fuori dalla nebbia, così non si confondono con l'atmosfera.
+export const THEME_FIREWATCH = {
+  tramonto: {
+    sky: ['#f7c08a', '#f2a877'], fog: { color: '#f0a676', range: [9, 24] },
+    ground: { city: '#c58b72', outside: '#8e5c5a' }, building: { city: '#f4d9b8', outside: '#b98273' },
+    park: '#a77e5c', rural: '#7a6048', water: '#4cb4c4',
+    light: { hemi: 0.9, sun: 1.15, sky: '#ffd9ae', ground: '#5b4a82', sunColor: '#ffb066', sunPos: [-9, 3.2, 1.5] },
+  },
+  pioggia: {
+    sky: ['#4d6b7b', '#466574'], fog: { color: '#4f707e', range: [8, 22] },
+    ground: { city: '#5d7882', outside: '#3b525b' }, building: { city: '#b3c6cc', outside: '#647d86' },
+    park: '#536f64', rural: '#3e584b', water: '#8fdcec',
+    light: { hemi: 0.95, sun: 0.55, sky: '#a9cbd8', ground: '#273440', sunColor: '#d3ebf5', sunPos: [4, 7, -3] },
+  },
+};

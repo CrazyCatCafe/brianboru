@@ -49,7 +49,7 @@ function ribbon(pts, width, y) {
 const over = (m, order) => {
   m.traverse(c => {
     c.renderOrder = order;
-    if (c.material) Object.assign(c.material, { depthTest: false, depthWrite: false, transparent: true, side: THREE.DoubleSide });
+    if (c.material) Object.assign(c.material, { depthTest: false, depthWrite: false, transparent: true, side: THREE.DoubleSide, fog: false }); // colori di gioco puri, fuori dalla nebbia
   });
   return m;
 };

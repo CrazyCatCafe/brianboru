@@ -1,5 +1,5 @@
 // Mockup delle bande: cinque fazioni animate, un presidio di polizia e un progetto urbano sulla mappa, vista ravvicinata.
-import { THEME, THEME_REPLACED as REPLACED, PIXEL_SCALE } from './milano/theme.js';
+import { THEME, THEME_REPLACED as REPLACED, THEME_FIREWATCH, PIXEL_SCALE } from './milano/theme.js';
 import { GANGS } from './milano/lore.js';
 import { createCity } from './milano/city3d.js';
 import { factionFigure, policePost, communityProject, triangles } from './milano/figures.js';
@@ -14,11 +14,16 @@ if (q.get('focus')) {
   const x = (t.x - 550) / 100, z = (t.y - 511.5) / 100, d = +(q.get('d') || 1);
   Object.assign(view, { target: [x, 0.12, z], camera: [x + 0.15 * d, 0.12 + 0.5 * d, z + 0.75 * d] });
 }
+// ?stile=firewatch&ora=tramonto|pioggia (senza pixel); di base lo stile REPLACED attuale
+const fw = q.get('stile') === 'firewatch', ora = q.get('ora') || 'tramonto';
+const style = fw ? { theme: { ...THEME_FIREWATCH[ora], fog: { ...THEME_FIREWATCH[ora].fog, range: [2.6, 9] } }, pixel: 0 }
+  : { theme: REPLACED, pixel: +(q.get('pixel') || PIXEL_SCALE) };
+if (fw) document.body.classList.add('firewatch');
 const city = await createCity($('city'), $('labels'), {
-  theme: REPLACED, pixel: +(q.get('pixel') || PIXEL_SCALE), quality: q.get('q') || 'alta', minDistance: 0.4, nearFigures: 6, ...view,
+  ...style, quality: q.get('q') || 'alta', minDistance: 0.4, nearFigures: 6, ...view,
   ...(q.has('clock') ? { clock: () => now } : {}),
 });
-city.setWeather(q.get('meteo') || 'nuvoloso');
+city.setWeather(q.get('meteo') || (fw ? (ora === 'pioggia' ? 'pioggia' : 'sereno') : 'nuvoloso'));
 $('loading').remove();
 if (q.has('clean')) document.body.classList.add('clean');
 const at = id => city.towns.findIndex(t => t.id === id);

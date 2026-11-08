@@ -34,7 +34,7 @@ const beat = t => Math.max(0, Math.sin(t * Math.PI * 4)) ** 6; // cassa dritta a
 
 // --- pezzi comuni ---
 function base(root, color) {
-  M(cyl(0.55, 0.58, 0.08, 16), lam(color), 0, 0.04, 0, root);
+  M(cyl(0.55, 0.58, 0.08, 16), (mats['base' + color] ??= new THREE.MeshLambertMaterial({ color, flatShading: true, fog: false })), 0, 0.04, 0, root); // base: colore della banda puro
   if (new THREE.Color(color).getHSL({}).l < 0.2) M(torus(0.555, 0.018, 16), lam('#c9cfd4'), 0, 0.08, 0, root).rotation.x = Math.PI / 2; // base scura: bordo chiaro
 }
 // sagoma umana: gambe, busto con perno sui fianchi, testa con perno sul collo, braccia con perno sulle spalle (mano a y -0.36)
