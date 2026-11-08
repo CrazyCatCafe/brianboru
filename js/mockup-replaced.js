@@ -1,6 +1,6 @@
 // Mockup della plancia in stile REPLACED (schizzo del 08/11): stato di partita finto, solo per vedere l'aspetto.
 import { CARDS, MARRIAGE_TRACK } from './game/data.js';
-import { THEME } from './milano/theme.js';
+import { THEME, THEME_REPLACED as REPLACED, PIXEL_SCALE } from './milano/theme.js';
 import { cardSVG } from './milano/card.js';
 import { icon } from './milano/icons.js';
 import { createCity } from './milano/city3d.js';
@@ -8,15 +8,8 @@ import { createCity } from './milano/city3d.js';
 const $ = id => document.getElementById(id);
 const q = new URLSearchParams(location.search);
 
-// Tema 3D REPLACED: nebbia grigia, terreno bagnato e scuro, edifici chiari, luce bassa; reso a bassa risoluzione (pixel art)
-const REPLACED = {
-  sky: ['#b3bbc1', '#a3acb2'], fog: { color: '#a7b0b6', range: [10, 26] },
-  ground: { city: '#868f95', outside: '#626a70' }, building: { city: '#e6eaec', outside: '#8f979c' },
-  park: '#737c82', rural: '#56604f', water: '#6fd0ff',
-  light: { hemi: 0.95, sun: 0.85, sky: '#f0f4f6', ground: '#5c656c', sunColor: '#fff0dc', sunPos: [-7, 6, 2] },
-};
 const city = await createCity($('city'), $('labels'), {
-  theme: REPLACED, pixel: +(q.get('pixel') || 0.5),
+  theme: REPLACED, pixel: +(q.get('pixel') || PIXEL_SCALE),
   ...(q.get('view') === 'close' ? { camera: [1.6, 1.9, 2.6], target: [0.6, 0, 0.3] } : {}),
 });
 city.setWeather(q.get('meteo') || 'pioggia');

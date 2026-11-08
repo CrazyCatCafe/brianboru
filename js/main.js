@@ -1,7 +1,7 @@
 // Brian Boru · Milano 2077: accesso, lobby, amici e partita (online o locale).
 import { move as applyMove, current, emptyTowns, ownTowns, expandTargets, vikingTowns, newGame } from './game/engine.js';
 import { CARDS, MARRIAGES, TOWNS, REGIONS, MARRIAGE_TRACK } from './game/data.js';
-import { THEME } from './milano/theme.js';
+import { THEME, THEME_REPLACED, PIXEL_SCALE } from './milano/theme.js';
 import { cardSVG, characterSVG } from './milano/card.js';
 import { icon, setIconSet } from './milano/icons.js';
 import { STORIES, ESTRID, SYMBOLS, CHARACTERS } from './milano/lore.js';
@@ -150,13 +150,14 @@ async function enterGame(s) {
   if (!city) {
     $('loading').hidden = false;
     let quality = 'auto'; try { quality = localStorage.getItem('bb-quality') || 'auto'; } catch {}
-    city = await createCity($('city'), $('labels'), { compass: $('compass'), quality });
+    city = await createCity($('city'), $('labels'), { compass: $('compass'), quality, theme: THEME_REPLACED, pixel: innerWidth < 900 ? PIXEL_SCALE * 1.5 : PIXEL_SCALE }); // sugli schermi piccoli pixel più fini
     renderQuality();
     $('loading').hidden = true;
   }
   state = s; ingestEvents(s); render();
 }
 $('compass').onclick = () => city?.resetView();
+$('board-toggle').onclick = () => { const open = document.body.classList.toggle('board-open'); $('board-toggle').setAttribute('aria-expanded', open); };
 function renderQuality() { // grafica: Auto scende da sola se il computer fatica
   const q = city.quality();
   $('quality').innerHTML = ['auto', ...Object.keys(QUALITY)].map(k => `<button data-q="${k}" aria-pressed="${k === q.setting}">${k === 'auto' ? `Auto${q.setting === 'auto' ? ' · ' + QUALITY[q.level].label : ''}` : QUALITY[k].label}</button>`).join('');
@@ -203,10 +204,13 @@ const townChip = id => { const t = TOWNS[id], su = THEME.suit[t.color]; return `
 
 // ---------- fasi del round ----------
 const PHASES = [['prep', 'Preparazione'], ['draft', 'Draft'], ['trick', 'Azioni'], ['party', 'Underground Party'], ['guerrilla', 'Guerrilla'], ['community', 'Community Projects'], ['uprising', 'Uprising']];
+let phaseNow = null;
 const PEND_PHASE = { setupTown: 'prep', draft: 'draft', activeTown: 'trick', play: 'trick', action: 'trick', princess: 'party', placeTown: 'party', loseTown: 'guerrilla', monastery: 'community' };
 function renderPhases(s, pd) {
   const cur = showing ? showing.k : pd ? PEND_PHASE[pd.type] : 'uprising';
-  $('phases').innerHTML = PHASES.map(([k, l], i) => `${i === 3 ? '<span class="upkeep">Upkeep</span>' : ''}<span class="ph${k === cur ? ' on' : ''}">${l}</span>`).join('');
+  phaseNow = cur;
+  $('phases').innerHTML = PHASES.map(([k, l], i) => `<span class="chev${k === cur ? ' on' : ''}${i >= 3 ? ' up' : ''}"${k === cur ? ' aria-current="step"' : ''}>${l}</span>`).join('');
+  $('phases').querySelector('.on')?.scrollIntoView({ inline: 'center', block: 'nearest' });
 }
 
 // ---------- racconto dell'upkeep: un evento alla volta, a passi ----------
@@ -221,8 +225,8 @@ function nextEvent() { showing = queue.shift() || null; step = 0; clearTimeout(t
 function advance() { if (!showing) return; if (++step >= steps(showing).length) nextEvent(); else { clearTimeout(timer); timer = setTimeout(advance, 2800); render(); } }
 
 function hypeTrack(pos, { mark = null, note = '' } = {}) { // pos[i] = casella del giocatore i (0..9)
-  return `<div class="track">${MARRIAGE_TRACK.map((b, c) => `<div class="cell${c === mark ? ' mark' : ''}">
-    <span class="n">${c + 1}</span><span class="b">${b === 'CC' ? icon('C', 13) + icon('C', 13) : b ? icon(b, 14) : ''}</span>
+  return `<div class="track">${MARRIAGE_TRACK.map((b, c) => `<div class="cell${c === mark ? ' mark' : ''}" title="Casella ${c + 1}">
+    <span class="b">${b === 'CC' ? icon('C', 13) + icon('C', 13) : b ? icon(b, 14) : ''}</span>
     <span class="tok">${pos.map((p, i) => (p === c ? `<i style="--pc:${THEME.players[i]}" title="${esc(state.players[i].name)}"></i>` : '')).join('')}</span></div>`).join('')}</div>${note}`;
 }
 const BONUS = { C: '+1 credito', CC: '+2 crediti', R: '+1 street cred', T: 'prende un quartiere libero a scelta' };
@@ -284,32 +288,48 @@ function render() {
   if (city.weather() !== wk) city.setWeather(wk);
   city.setClickable(clickable(s, pd), onTown);
   document.querySelectorAll('[data-sort]').forEach(b => b.setAttribute('aria-pressed', b.dataset.sort === handSort));
-  renderPhases(s, pd); renderPlayers(s, pd); renderTurn(s, pd, wk); renderStage(s, pd); renderHand(s, pd);
-  $('hype').innerHTML = `<span class="lbl">Hype</span>${hypeTrack(s.players.map(p => p.mar))}`;
+  renderPhases(s, pd); renderBoard(s, pd); renderTurn(s, pd, wk); renderStage(s, pd); renderHand(s, pd);
   $('log').innerHTML = [...s.log].reverse().map(l => `<li>${esc(l)}</li>`).join('');
 }
 
-function renderPlayers(s, pd) {
-  const stat = (sym, v, label) => `<span class="stat" title="${label}">${icon(sym, 15)}<b>${v}</b></span>`;
+// ---------- plancia a sinistra (schizzo): bande, hype, guerrilla, comunità, uprising ----------
+const pdot = i => `<i class="pd" style="--pc:${THEME.players[i]}"></i>`;
+const pname = (s, i) => `${pdot(i)}<b>${esc(s.players[i].name)}</b>`;
+const ascBy = (s, key) => s.players.map((p, i) => i).sort((a, b) => s.players[a][key] - s.players[b][key]);
+const BONUS_TIP = { C: '+1 credito', CC: '+2 crediti', R: '+1 street cred', T: 'un quartiere a scelta' };
+function renderBoard(s, pd) {
   const waiting = !pd ? [] : pd.type === 'draft' ? s.draft.picks.flatMap((x, i) => (x ? [] : [i])) : [pd.p];
-  $('players').innerHTML = s.players.map((pl, i) => {
-    const terr = pl.claims.map(r => `<span class="terr" style="--rc:${THEME.region[r]}">${REGIONS[r].name}</span>`).join('');
-    return `<li class="pl${waiting.includes(i) ? ' turn' : ''}" style="--pc:${THEME.players[i]}">
-      <span class="sw"></span>
-      <span class="nm">${esc(pl.name)}${i === seat && !local ? '<small>tu</small>' : ''}${i === s.active ? '<span class="mk" title="Ha il segnalino quartiere attivo">▲</span>' : ''}<em>${esc(room.players[i]?.gang || '')}${pl.princess ? ' · con Estrid' : ''}</em></span>
-      <span class="pts">${pl.points}</span>
-      <span class="row">${stat('C', pl.coins, 'Crediti')}${stat('R', pl.renown, 'Street cred')}${stat('A', pl.raiders, 'Unità di polizia neutralizzate')}${stat('X', pl.church, 'Comunità')}<span class="stat" title="Carte in mano"><svg viewBox="0 0 40 40" width="15" height="15"><rect x="9" y="5" width="22" height="30" fill="none" stroke="currentColor" stroke-width="4"/></svg><b>${pl.hand.length}</b></span></span>
-      ${terr || pl.marriages.length ? `<span class="row terrs">${terr}${pl.marriages.map(m => `<span class="terr" style="--rc:${THEME.suit.yellow.fill}">${esc(characterName(m))}</span>`).join('')}</span>` : ''}
-    </li>`;
-  }).join('');
+  const on = (id, k) => ($(id).className = `box${phaseNow === k ? ' on' : ''}`);
+  // bande: solo crediti e punti (il resto nel suggerimento al passaggio del mouse)
+  $('b-players').innerHTML = `<h3>Bande</h3><ul>${s.players.map((p, i) => {
+    const tip = `${room.players[i]?.gang || ''} · street cred ${p.renown} · carte in mano ${p.hand.length}${p.claims.length ? ' · zone: ' + p.claims.map(r => REGIONS[r].name).join(', ') : ''}${p.marriages.length ? ' · personaggi: ' + p.marriages.map(characterName).join(', ') : ''}${p.princess ? ' · con Estrid' : ''}`;
+    return `<li class="${waiting.includes(i) ? 'turn' : ''}" title="${esc(tip)}">${pname(s, i)}${i === seat && !local ? '<small>tu</small>' : ''}${i === s.active ? '<span class="mk" title="Ha il segnalino quartiere attivo">▲</span>' : ''}
+      <span class="num" title="Crediti">${icon('C', 14, 'currentColor', '#0d1114')}${p.coins}</span><span class="num pts" title="Punti">${p.points}</span></li>`;
+  }).join('')}</ul>`;
+  // underground party: solo caselle
+  on('b-party', 'party');
+  $('b-party').innerHTML = `<h3>Underground Party <em>Hype</em></h3><div class="cells">${MARRIAGE_TRACK.map((b, c) =>
+    `<span class="cell${b ? ' bonus' : ''}" title="Casella ${c + 1}: ${b ? BONUS_TIP[b] : 'nessun bonus'}">${s.players.map((p, i) => (p.mar === c ? pdot(i) : '')).join('')}</span>`).join('')}</div>
+    ${s.marriage ? `<div class="sub peek">In palio: <b>${esc(characterName(s.marriage))}</b><figure>${characterSVG(characterIndex(s.marriage))}</figure></div>` : ''}`;
+  // guerrilla: polizia totale, bande in ordine crescente di unità neutralizzate
+  on('b-guerrilla', 'guerrilla');
+  $('b-guerrilla').innerHTML = `<h3>Guerrilla</h3><p class="big">${icon('A', 16, 'currentColor')} <span>Polizia</span> <b>${s.area}</b></p>
+    <ol>${ascBy(s, 'raiders').map(i => `<li>${pname(s, i)}<span class="num">${s.players[i].raiders}</span></li>`).join('')}</ol>`;
+  // community projects: bande in ordine crescente di comunità
+  on('b-community', 'community');
+  $('b-community').innerHTML = `<h3>Community Projects</h3>
+    <ol>${ascBy(s, 'church').map(i => `<li>${pname(s, i)}<span class="num">${icon('X', 13, 'currentColor')}${s.players[i].church}</span></li>`).join('')}</ol>`;
+  // uprising: zone sbloccate e chi le tiene
+  on('b-uprising', 'uprising');
+  const up = Object.entries(s.claims).filter(([, c]) => c.up);
+  $('b-uprising').innerHTML = `<h3>Uprising <em>zone in palio</em></h3>${up.length ? `<ul>${up.map(([r, c]) =>
+    `<li><i class="rz" style="--rc:${THEME.region[r]}"></i><b>${REGIONS[r].name}</b><span class="own">${c.owner === null ? 'contesa' : pname(s, c.owner)}</span></li>`).join('')}</ul>` : '<p class="sub">Nessuna zona ancora in palio.</p>'}`;
 }
 
 function renderTurn(s, pd, wk) {
-  const total = s.players.length === 3 ? 3 : 4, ci = s.marriage ? characterIndex(s.marriage) : null;
-  const turn = !pd ? '<b>Partita finita</b>' : pd.type === 'draft' ? `Draft: ${s.draft.picks.flatMap((x, i) => (x ? [] : [who(s, i)])).join(', ')}` : `Turno di ${who(s, pd.p)}${pd.p === seat && !local ? ' <small>(tu)</small>' : ''}`;
-  $('turn').innerHTML = `<p class="kicker">Turno</p><p class="big">${turn}</p>
-    <dl><dt>Round</dt><dd>${s.round}/${total}</dd><dt>Polizia in allerta</dt><dd>${icon('A', 15)} ${s.area}</dd><dt>Meteo</dt><dd>${WEATHER_TYPES[wk]}</dd>
-    ${s.marriage ? `<dt>Personaggio</dt><dd class="peek">${esc(characterName(s.marriage))}<figure>${characterSVG(ci)}</figure></dd>` : ''}</dl>`;
+  const total = s.players.length === 3 ? 3 : 4;
+  const turn = !pd ? 'Partita finita' : pd.type === 'draft' ? `Draft: ${s.draft.picks.flatMap((x, i) => (x ? [] : [pname(s, i)])).join(' ')}` : `${pname(s, pd.p)}${pd.p === seat && !local ? ' <small>tu</small>' : ''}`;
+  $('turn').innerHTML = `<p class="kicker">Turno</p><p class="big">${turn}</p><p class="sub">Round ${s.round}/${total} · ${WEATHER_TYPES[wk]}</p>`;
 }
 
 function renderHand(s, pd) {

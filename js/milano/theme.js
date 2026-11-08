@@ -26,3 +26,12 @@ export const THEME = {
   },
   players: ['#ff6a00', '#00a6a6', '#6c3bff', '#ff2d87', '#1b1b1b'],
 };
+
+// Variante REPLACED della città 3D: nebbia grigia, terreno bagnato, luce bassa; disegnata a bassa risoluzione (pixel art)
+export const THEME_REPLACED = {
+  sky: ['#b3bbc1', '#a3acb2'], fog: { color: '#a7b0b6', range: [10, 26] },
+  ground: { city: '#868f95', outside: '#626a70' }, building: { city: '#e6eaec', outside: '#8f979c' },
+  park: '#737c82', rural: '#56604f', water: '#6fd0ff',
+  light: { hemi: 0.95, sun: 0.85, sky: '#f0f4f6', ground: '#5c656c', sunColor: '#fff0dc', sunPos: [-7, 6, 2] },
+};
+export const PIXEL_SCALE = 0.5; // risoluzione di disegno rispetto allo schermo nello stile REPLACED

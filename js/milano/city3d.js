@@ -10,9 +10,10 @@ const merge = (a, b) => Object.fromEntries([...new Set([...Object.keys(a), ...Ob
 
 // Livelli di qualità grafica: 'auto' parte da quello adatto al dispositivo e scende se la scena fatica
 export const QUALITY = {
-  alta: { label: 'Alta', pr: 2, shadow: 4096, blur: true, rain: 1 },
-  media: { label: 'Media', pr: 1.25, shadow: 2048, blur: true, rain: 0.6 },
-  bassa: { label: 'Bassa', pr: 0.8, shadow: 0, blur: false, rain: 0.3 },
+  // pixels: tetto ai pixel disegnati per fotogramma, così uno schermo 4K non costa più di uno Full HD
+  alta: { label: 'Alta', pr: 2, pixels: 3.2e6, shadow: 4096, blur: true, rain: 1, fps: 0 },
+  media: { label: 'Media', pr: 1.25, pixels: 1.6e6, shadow: 2048, blur: true, rain: 0.6, fps: 0 },
+  bassa: { label: 'Bassa', pr: 0.8, pixels: 0.7e6, shadow: 0, blur: false, rain: 0.3, fps: 30 },
 };
 const weakDevice = () => /[?&]q=low/.test(location.search) || matchMedia('(pointer: coarse)').matches || (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 4;
 
@@ -366,6 +367,8 @@ export async function createCity(container, overlay, view = {}) {
 
   const resize = () => {
     const { clientWidth: w, clientHeight: h } = container;
+    const want = view.pixel ? Math.min(view.pixel, q.pr) : Math.min(devicePixelRatio, q.pr);
+    renderer.setPixelRatio(Math.max(0.25, Math.min(want, Math.sqrt(q.pixels / Math.max(1, w * h)))));
     renderer.setSize(w, h); camera.aspect = w / h; camera.fov = w < h ? 64 : 36; camera.updateProjectionMatrix();
     const pr = renderer.getPixelRatio(), fw = Math.round(w * pr), fh = Math.round(h * pr);
     half.set(Math.max(1, fw >> 1), Math.max(1, fh >> 1));
@@ -373,7 +376,6 @@ export async function createCity(container, overlay, view = {}) {
   };
   new ResizeObserver(resize).observe(container);
   function applyQuality() {
-    renderer.setPixelRatio(view.pixel ? Math.min(view.pixel, q.pr) : Math.min(devicePixelRatio, q.pr));
     sun.castShadow = q.shadow > 0;
     if (q.shadow && sun.shadow.mapSize.x !== q.shadow) { sun.shadow.mapSize.setScalar(q.shadow); sun.shadow.map?.dispose(); sun.shadow.map = null; }
     rainGeo.setDrawRange(0, Math.round(Math.min(MAXRAIN, weather.rain * q.rain)) * 2);
@@ -385,7 +387,10 @@ export async function createCity(container, overlay, view = {}) {
   // --- ciclo ---
   const v = new THREE.Vector3(), white = new THREE.Color('#ffffff'), still = matchMedia('(prefers-reduced-motion: reduce)').matches;
   let last = 0;
+  let lastFrame = 0;
   renderer.setAnimationLoop(time => {
+    if (q.fps && time - lastFrame < 1000 / q.fps - 2) return; // qualità bassa: al massimo 30 fotogrammi al secondo
+    lastFrame = time;
     const t = time / 1000, real = t - last, dt = Math.min(0.05, real || 0); last = t;
     if (qName === 'auto' && q !== QUALITY.bassa && real > 0 && real < 1) { // in automatico scende di livello se si va sotto i ~28 fotogrammi al secondo
       slowT += real; slowN++;
