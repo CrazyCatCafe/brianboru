@@ -2,6 +2,7 @@
 import assert from 'node:assert/strict';
 import { newGame, move, current, emptyTowns, leadTowns, ownTowns, expandTargets, vikingTowns } from './engine.js';
 import { TOWNS, CARDS, REGIONS } from './data.js';
+import { botMove as smartBot } from './bot.js';
 
 let leadFit = 0, leadMiss = 0;
 const pick = a => a[Math.floor(Math.random() * a.length)];
@@ -83,4 +84,9 @@ for (let seed = 1, checked = 0; checked < 50; seed++) {
   checked++;
 }
 assert.equal(leadMiss, 0, 'chi apre senza carte giocabili');
-console.log('ok: 600 partite simulate');
+// i bot del gioco finiscono partite intere senza mosse illegali
+for (let g = 0; g < 60; g++) {
+  let b = newGame(['A', 'B', 'C', 'D', 'E'].slice(0, 3 + (g % 3)), 9000 + g), n = 0;
+  while (b.stage !== 'end') { const [q, m] = smartBot(b); b = move(b, q, m); assert.ok(++n < 2000, 'bot bloccato'); }
+}
+console.log('ok: 600 partite simulate, 60 partite tra bot');

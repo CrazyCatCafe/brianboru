@@ -1,4 +1,5 @@
 // Brian Boru · Milano 2077: accesso, lobby, amici e partita (online o locale).
+import { botMove } from './game/bot.js';
 import { move as applyMove, current, emptyTowns, leadTowns, ownTowns, expandTargets, vikingTowns, newGame } from './game/engine.js';
 import { CARDS, MARRIAGES, TOWNS, REGIONS, MARRIAGE_TRACK } from './game/data.js';
 import { THEME, THEME_REPLACED, PIXEL_SCALE } from './milano/theme.js';
@@ -25,6 +26,8 @@ function friendly(e) {
 }
 
 let net = null, me = null, roomCode = null, room = null, unwatch = null;
+let human = 0, botTimer = null; // partita locale: ultimo posto umano, timer della mossa del bot
+const isBot = i => local && !!room?.players[i]?.bot;
 let state = null, seat = -1, local = false, ui = {}, city = null, lastTown = null;
 const gang = () => document.querySelector('[name=gang]:checked').value;
 
@@ -137,18 +140,32 @@ $('friend-form').onsubmit = guard(async e => {
 
 // ---------- partita locale ----------
 $('local').onclick = guard(() => {
-  const names = $('local-names').value.split('\n').map(s => s.trim()).filter(Boolean);
-  local = true; roomCode = null;
-  room = { players: names.map((nick, i) => ({ nick, gang: i % 2 ? 'Punk' : 'Technoborghesi' })) };
+  const humans = $('local-names').value.split('\n').map(s => s.trim()).filter(Boolean), bots = +$('local-bots').value;
+  const names = [...humans, ...Array.from({ length: bots }, (_, i) => `Bot ${i + 1}`)];
+  if (!humans.length) throw new Error('Scrivi almeno il tuo nome');
+  if (names.length < 3 || names.length > 5) throw new Error(`Servono da 3 a 5 giocatori in tutto, bot compresi (ora ${names.length})`);
+  local = true; roomCode = null; human = 0;
+  room = { players: names.map((nick, i) => ({ nick, gang: i % 2 ? 'Punk' : 'Technoborghesi', bot: i >= humans.length })) };
   seenN = null; enterGame(newGame(names));
 });
 $('to-lobby').onclick = () => {
   const b = $('to-lobby');
   if (!b.dataset.sure) { b.dataset.sure = 1; b.textContent = 'Esci davvero?'; setTimeout(() => { delete b.dataset.sure; b.textContent = 'Lobby'; }, 3000); return; }
   delete b.dataset.sure; b.textContent = 'Lobby';
-  if (local) { local = false; state = null; }
+  if (local) { local = false; state = null; clearTimeout(botTimer); }
   show(!net || me ? 'lobby' : 'auth');
 };
+
+// ---------- bot (partita locale) ----------
+function botTurn(s, pd) {
+  clearTimeout(botTimer);
+  if (!local || !pd || showing || !isBot(actorOf(s, pd))) return;
+  botTimer = setTimeout(() => {
+    const r = botMove(state); if (!r) return;
+    try { state = applyMove(state, r[0], r[1]); } catch (e) { console.error('bot', e); return; }
+    ingestEvents(state); render();
+  }, pd.type === 'draft' ? 300 : 1100);
+}
 
 // ---------- partita ----------
 async function enterGame(s) {
@@ -294,7 +311,9 @@ function render() {
   const s = state, pd = current(s);
   const key = JSON.stringify(pd) + (pd?.type === 'draft' ? s.draft.packets.join('|') : '');
   if (key !== pendKey) { pendKey = key; if (!local || pd?.type !== 'draft') ui = {}; } // nuova decisione: via le scelte provvisorie
-  seat = local ? actorOf(s, pd) : room.players.findIndex(p => p.uid === net.uid());
+  if (local && !isBot(actorOf(s, pd)) && actorOf(s, pd) >= 0) human = actorOf(s, pd);
+  seat = local ? human : room.players.findIndex(p => p.uid === net.uid()); // in locale si vede sempre la mano di una persona, mai quella dei bot
+  botTurn(s, pd);
   $('code').textContent = local ? 'partita locale' : `partita ${roomCode}`;
   city.update({ towns: s.towns, activeTown: s.trick?.town ?? null });
   // si illumina solo la scelta provvisoria di chi sta giocando: finito il suo turno, si spegne
@@ -346,7 +365,7 @@ function renderBoard(s, pd) {
   const on = (id, k) => ($(id).className = `box${phaseNow === k ? ' on' : ''}`);
   // bande: in vista solo i punti vittoria; il resto si apre toccando la riga
   $('b-players').innerHTML = `<h3>Bande</h3><ul>${s.players.map((p, i) => `<li class="${waiting.includes(i) ? 'turn' : ''}"><details ${openRows.has(i) ? 'open' : ''} data-row="${i}"><summary>
-      ${pname(s, i)}${i === seat && !local ? '<small>tu</small>' : ''}${i === s.active ? `<span class="mk" title="Segnalino quartiere attivo">${icon('T', 12, 'currentColor', HOLE)}</span>` : ''}
+      ${pname(s, i)}${i === seat && !local ? '<small>tu</small>' : ''}${isBot(i) ? '<small>bot</small>' : ''}${i === s.active ? `<span class="mk" title="Segnalino quartiere attivo">${icon('T', 12, 'currentColor', HOLE)}</span>` : ''}
       <span class="num pts" title="Punti vittoria">${p.points}</span></summary>
       <dl class="more"><dt>Banda</dt><dd>${esc(room.players[i]?.gang || '')}</dd><dt>Street cred</dt><dd>${p.renown}</dd><dt>Carte in mano</dt><dd>${p.hand.length}</dd>
       ${p.claims.length ? `<dt>Zone</dt><dd>${p.claims.map(r => REGIONS[r].name).join(', ')}</dd>` : ''}${p.marriages.length ? `<dt>Personaggi</dt><dd>${p.marriages.map(characterName).join(', ')}</dd>` : ''}${p.princess ? '<dt>Estrid</dt><dd>alleata</dd>' : ''}</dl></details></li>`).join('')}</ul>`;
