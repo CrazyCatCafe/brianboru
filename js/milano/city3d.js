@@ -6,7 +6,6 @@ import { THEME } from './theme.js';
 const W = 1100, H = 1023;
 const X = x => (x - W / 2) / 100, Z = y => (y - H / 2) / 100;
 const HS = (1 / 18.2) * 4 / 100; // metri -> unità scena (1 unità canvas ≈ 18,2 m), altezze ×4
-const PED = 0.2;                 // altezza delle torri-città
 
 const rings = d => d.split(/(?=M)/).map(s => [...s.matchAll(/(-?[\d.]+),(-?[\d.]+)/g)].map(m => [+m[1], +m[2]])).filter(r => r.length > 2);
 
@@ -106,14 +105,13 @@ export async function createCity(container, overlay, view = {}) {
   const outer = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.MeshLambertMaterial({ color: THEME.ground.outside }));
   outer.rotation.x = -Math.PI / 2; outer.receiveShadow = true; scene.add(outer);
   scene.add(flat(rings(map.city_outline_path), THEME.ground.city, 0.001));
+  // in sovrimpressione: sempre visibili sopra gli edifici
+  const OV = 0.03;
+  const over = (m, order) => { m.renderOrder = order; Object.assign(m.material, { depthTest: false, depthWrite: false, transparent: true, side: THREE.DoubleSide }); return m; };
   for (const [k, r] of Object.entries(map.regions)) {
-    const tint = flat(rings(r.svg_path), THEME.region[k], 0.002, { transparent: true, opacity: 0.16, depthWrite: false });
-    scene.add(tint);
-    for (const ring of rings(r.svg_path)) {
-      const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([...ring, ring[0]].map(([x, y]) => new THREE.Vector3(X(x), 0.004, Z(y)))),
-        new THREE.LineBasicMaterial({ color: THEME.region[k] }));
-      scene.add(line);
-    }
+    scene.add(flat(rings(r.svg_path), THEME.region[k], 0.002, { transparent: true, opacity: 0.16, depthWrite: false }));
+    for (const ring of rings(r.svg_path))
+      scene.add(over(new THREE.Mesh(ribbon([...ring, ring[0]], 0.014, OV), new THREE.MeshBasicMaterial({ color: THEME.region[k], opacity: 0.9 })), 1));
   }
   scene.add(flat(env.parks, THEME.park, 0.003));
   const waterMat = new THREE.MeshLambertMaterial({ color: THEME.water, emissive: THEME.water, emissiveIntensity: 0.25 });
@@ -123,57 +121,58 @@ export async function createCity(container, overlay, view = {}) {
 
   scene.add(buildingsMesh(bin));
 
-  // città di gioco: torri del colore del seme, collegate da cavi (le strade del grafo)
+  // quartieri: cerchi del colore del seme in sovrimpressione; strade: trattini 3D ad arco
+  const disc = (r0, r1, color, y, order) => {
+    const m = over(new THREE.Mesh(r0 ? new THREE.RingGeometry(r0, r1, 48) : new THREE.CircleGeometry(r1, 48), new THREE.MeshBasicMaterial({ color })), order);
+    m.rotation.x = -Math.PI / 2; m.position.y = y; return m;
+  };
   const towers = towns.map((t, i) => {
-    const color = THEME.suit[t.suit].fill;
     const g = new THREE.Group(); g.position.set(X(t.x), 0, Z(t.y));
-    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.06, PED, 6), new THREE.MeshLambertMaterial({ color }));
-    shaft.position.y = PED / 2; shaft.castShadow = true;
-    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.018, 6), new THREE.MeshLambertMaterial({ color: '#ffffff' }));
-    cap.position.y = PED; cap.castShadow = true;
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.012, 6, 6), new THREE.MeshBasicMaterial({ color }));
-    ring.rotation.x = Math.PI / 2; ring.position.y = PED + 0.01;
-    const hit = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, PED + 0.1, 8), new THREE.MeshBasicMaterial({ visible: false }));
-    hit.position.y = PED / 2; hit.userData.town = i;
-    g.add(shaft, cap, ring, hit); scene.add(g);
+    const hit = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.4, 8), new THREE.MeshBasicMaterial({ visible: false }));
+    hit.position.y = 0.2; hit.userData.town = i;
+    g.add(disc(0, 0.108, THEME.ink, OV, 3), disc(0, 0.094, '#ffffff', OV, 3), disc(0, 0.078, THEME.suit[t.suit].fill, OV, 3), hit);
+    scene.add(g);
     return { g, hit };
   });
-  const cableMat = new THREE.MeshLambertMaterial({ color: THEME.ink });
+  const dashes = [], DASH = 0.04, GAP = 0.028;
   for (const r of map.roads) {
     const a = towns[townIndex[r.a]], b = towns[townIndex[r.b]];
-    const curve = new THREE.QuadraticBezierCurve3(new THREE.Vector3(X(a.x), PED + 0.01, Z(a.y)),
-      new THREE.Vector3(X(r.control[0]), PED - 0.06, Z(r.control[1])), new THREE.Vector3(X(b.x), PED + 0.01, Z(b.y)));
-    const m = new THREE.Mesh(new THREE.TubeGeometry(curve, 24, 0.006, 5), cableMat); m.castShadow = true; scene.add(m);
+    const curve = new THREE.QuadraticBezierCurve3(new THREE.Vector3(X(a.x), OV, Z(a.y)),
+      new THREE.Vector3(X(r.control[0]), OV + 0.16, Z(r.control[1])), new THREE.Vector3(X(b.x), OV, Z(b.y)));
+    const len = curve.getLength(), start = 0.11 / len, end = 1 - 0.11 / len; // non coprire i cerchi
+    for (let u = start; u + DASH / len <= end; u += (DASH + GAP) / len) dashes.push([curve.getPointAt(u), curve.getPointAt(u + DASH / len)]);
   }
+  const dashMesh = over(new THREE.InstancedMesh(new THREE.CylinderGeometry(1, 1, 1, 10), new THREE.MeshLambertMaterial({ color: '#1d1d1f' }), dashes.length), 2);
+  const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), dir = new THREE.Vector3(), mid = new THREE.Vector3();
+  dashes.forEach(([p0, p1], i) => {
+    dir.subVectors(p1, p0); const l = dir.length(); q.setFromUnitVectors(up, dir.normalize());
+    m4.compose(mid.addVectors(p0, p1).multiplyScalar(0.5), q, new THREE.Vector3(0.013, l, 0.013));
+    dashMesh.setMatrixAt(i, m4);
+  });
+  scene.add(dashMesh);
 
   // pedine (aggiornate dallo stato)
   const pieces = new THREE.Group(); scene.add(pieces);
-  const mats = {};
-  const mat = (c, o = {}) => (mats[c + JSON.stringify(o)] ??= new THREE.MeshLambertMaterial({ color: c, ...o }));
-  const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 3, 12, 1, true),
-    new THREE.MeshBasicMaterial({ color: THEME.accent, transparent: true, opacity: 0.55, depthWrite: false }));
-  const halo = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.014, 8, 48), new THREE.MeshBasicMaterial({ color: THEME.accent }));
-  halo.rotation.x = Math.PI / 2; scene.add(beam, halo);
+  const beam = over(new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 3, 12, 1, true),
+    new THREE.MeshBasicMaterial({ color: THEME.accent, opacity: 0.5 })), 0);
+  const halo = disc(0.13, 0.16, THEME.accent, OV, 6);
+  scene.add(beam, halo);
 
   function update(s) {
     pieces.clear();
     s.towns.forEach((st, i) => {
       if (st.owner === null) return;
-      const p = towers[i].g.position;
-      const puck = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.045, 32), mat(THEME.players[st.owner]));
-      puck.position.set(p.x, PED + 0.035, p.z); puck.castShadow = true; pieces.add(puck);
-      if (st.monastery) {
-        const r = new THREE.Mesh(new THREE.TorusGeometry(0.115, 0.016, 8, 40), mat('#ffffff'));
-        r.rotation.x = Math.PI / 2; r.position.set(p.x, PED + 0.04, p.z); pieces.add(r);
-      }
-      if (st.viking) {
-        const v = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.035, 0.1), mat(THEME.ink));
-        v.position.set(p.x, PED + 0.075, p.z); v.rotation.y = Math.PI / 4; pieces.add(v);
+      const p = towers[i].g.position, add = m => { m.position.x = p.x; m.position.z = p.z; pieces.add(m); };
+      if (st.monastery) add(disc(0.108, 0.135, '#ffffff', OV, 4)), add(disc(0.135, 0.147, THEME.ink, OV, 4)); // centro sociale
+      add(disc(0, 0.05, THEME.players[st.owner], OV, 5));
+      if (st.viking) { // presidio di polizia
+        const sq = disc(0, 0.07, THEME.ink, OV, 6); sq.geometry = new THREE.PlaneGeometry(0.1, 0.1); sq.rotation.z = Math.PI / 4; add(sq);
+        add(disc(0, 0.018, THEME.accent, OV, 7)); const b = disc(0, 0.018, THEME.suit.blue.fill, OV, 7); b.position.y = OV; add(b); b.position.x += 0.03; pieces.children.at(-2).position.x -= 0.03;
       }
     });
     const a = s.activeTown != null ? towers[s.activeTown].g.position : null;
     beam.visible = halo.visible = !!a;
-    if (a) { beam.position.set(a.x, PED + 1.5, a.z); halo.position.set(a.x, PED + 0.02, a.z); }
+    if (a) { beam.position.set(a.x, OV + 1.5, a.z); halo.position.set(a.x, OV, a.z); }
   }
 
   // etichette HTML proiettate (nitide a ogni zoom)
@@ -186,7 +185,7 @@ export async function createCity(container, overlay, view = {}) {
     const [lx, ly] = r.label.tx ? [r.label.tx, r.label.ty] : [r.label.x, r.label.y];
     addLabel(`<b style="--rc:${THEME.region[k]}">${r.name}</b><span>${r.municipio}</span><i>${r.threshold}<em>soglia</em></i><i>${r.points}<em>punti</em></i>`, 'rlabel', lx, ly, 0.02);
   }
-  const townLabels = towns.map(t => addLabel(t.name, 'tlabel', t.x, t.y, PED + 0.12));
+  towns.forEach(t => addLabel(t.name, 'tlabel', t.x, t.y, OV + 0.14));
 
   let clickable = new Set(), onPick = () => {}, hover = null;
   const ray = new THREE.Raycaster(), ptr = new THREE.Vector2(), hits = towers.map(t => t.hit);

@@ -3,7 +3,7 @@ export const THEME = {
   name: 'Milano',
   font: "'Saira', system-ui, sans-serif",
   ink: '#111111',
-  muted: '#6b7178',
+  muted: '#5b6168',
   paper: '#ffffff',
   accent: '#e62e2d', // il rosso "runner vision"
   sky: ['#fbfdff', '#d6e7f3'],
