@@ -3,7 +3,7 @@ import { CARDS } from './game/data.js';
 import { THEME } from './milano/theme.js';
 import { cardSVG, characterSVG, policeSVG } from './milano/card.js';
 import { icon, ICON_SETS, setIconSet, iconSet } from './milano/icons.js';
-import { createCity } from './milano/city3d.js';
+import { createCity, WEATHER_TYPES } from './milano/city3d.js';
 
 const $ = id => document.getElementById(id);
 const q = new URLSearchParams(location.search);
@@ -23,10 +23,17 @@ const own = { 0: ['S1', 'S2', 'L3', 'L4', 'M2'], 1: ['N2', 'N5', 'B1', 'C3', 'S4
 const towns = T.map(() => ({ owner: null, viking: false, monastery: false }));
 for (const [p, ids] of Object.entries(own)) ids.forEach(id => (towns[idx[id]].owner = +p));
 towns[idx.S2].monastery = towns[idx.N5].monastery = true;
-towns[idx.C4].viking = true;
+towns[idx.C4].viking = towns[idx.S4].viking = true;
 const claims = { SUN: 0, NUN: 1 };
 const s = { towns, activeTown: T.findIndex((t, i) => t.region === 'SUN' && t.suit === 'red' && towns[i].owner === null) };
 city.update(s);
+city.select(s.activeTown); // nella partita vera: il quartiere scelto dal giocatore
+city.setClickable(T.map((_, i) => i), i => city.select(i));
+if (q.get('meteo')) city.setWeather(q.get('meteo'));
+else setInterval(() => { // nel gioco il meteo cambierà a ogni round; qui ogni 40 s
+  const keys = Object.keys(WEATHER_TYPES).filter(k => k !== city.weather());
+  city.setWeather(keys[Math.floor(Math.random() * keys.length)]); render();
+}, 40000);
 
 const ME = 0, active = T[s.activeTown], suit = THEME.suit[active.suit];
 const hand = [2, 5, 11, 13, 16, 24];
@@ -48,8 +55,11 @@ function render() {
   $('round').innerHTML = `<div><span>Round</span><b>2</b><em>/4</em></div>
     <div class="peek"><span>Polizia in arrivo</span><b>${icon('A', 18)} 9</b><figure>${policeSVG(1)}</figure></div>
     <div class="peek"><span>Personaggio da ingaggiare</span><b>+2 · NORD</b><figure>${characterSVG(4)}</figure></div>
-    <div class="sets"><span>Icone</span><b>${Object.entries(ICON_SETS).map(([k, v]) => `<button data-set="${k}" aria-pressed="${k === iconSet()}">${v.name}</button>`).join('')}</b></div>`;
-  $('round').querySelectorAll('[data-set]').forEach(b => (b.onclick = () => { setIconSet(b.dataset.set); render(); }));
+`;
+  $('tools').innerHTML = `<div class="sets"><span>Meteo</span><b>${Object.entries(WEATHER_TYPES).map(([k, v]) => `<button data-meteo="${k}" aria-pressed="${k === city.weather()}">${v}</button>`).join('')}</b></div>
+<div class="sets"><span>Icone</span><b>${Object.entries(ICON_SETS).map(([k, v]) => `<button data-set="${k}" aria-pressed="${k === iconSet()}">${v.name}</button>`).join('')}</b></div>`;
+  $('tools').querySelectorAll('[data-set]').forEach(b => (b.onclick = () => { setIconSet(b.dataset.set); render(); }));
+  $('tools').querySelectorAll('[data-meteo]').forEach(b => (b.onclick = () => { city.setWeather(b.dataset.meteo); render(); }));
 
   $('prompt').innerHTML = `<p class="kicker">Tocca a te</p>
     <h2>Gioca una storia</h2>

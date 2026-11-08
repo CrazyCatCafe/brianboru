@@ -7,8 +7,10 @@ export const THEME = {
   paper: '#ffffff',
   accent: '#e62e2d', // il rosso "runner vision"
   sky: ['#fbfdff', '#d6e7f3'],
-  ground: { city: '#eef1f3', outside: '#dde1e4' },
-  building: { city: '#fdfdfd', outside: '#c9ced2' },
+  ground: { city: '#eef1f3', outside: '#a9b1a6' },  // fuori dal Comune: grigio verso il verde
+  building: { city: '#fdfdfd', outside: '#b4bab3' },
+  rural: '#62785c',                               // campi e boschi dell'hinterland
+  project: '#2dff9a',                             // anello fluorescente dei progetti urbani
   park: '#d3d8dc',
   water: '#3fb2ff',
   // semi delle carte e delle città (valgono anche per le carte)

@@ -4,6 +4,7 @@
 # Uscite (in assets/milano/): buildings.bin, env.json
 # Uso: python3 tools/build-milano.py <mappa.json> <z14.json> <cartella-uscita>
 import json, re, struct, sys, zlib
+from shapely.ops import unary_union
 from shapely.geometry import Polygon, LineString
 from shapely.prepared import prep
 
@@ -15,6 +16,9 @@ def path_rings(d):  # "M x,y L x,y ... Z M ..." -> liste di anelli
 
 city = max((Polygon(r) for r in path_rings(mappa['city_outline_path']) if len(r) > 3), key=lambda p: p.area).buffer(0)
 city_p = prep(city)
+REG_KEYS = list(mappa['regions'])  # ordine stabile: indice+1 nei bit 1-4 dei flag degli edifici
+reg_full = {k: [Polygon(r).buffer(0) for r in path_rings(mappa['regions'][k]['svg_path']) if len(r) > 3] for k in REG_KEYS}
+regions = [prep(unary_union(reg_full[k])) for k in REG_KEYS]
 frame = Polygon([(-MARGIN, -MARGIN), (W + MARGIN, -MARGIN), (W + MARGIN, H + MARGIN), (-MARGIN, H + MARGIN)])
 
 def h32(s):  # FNV-1a, per altezze stabili quando OSM non le ha
@@ -37,7 +41,9 @@ for i, b in enumerate(osm['buildings']):
         cx = sum(x for x, _ in ring) / len(ring); cy = sum(y for _, y in ring) / len(ring)
         inside = city_p.contains(Polygon(ring).representative_point())
         hm = b['h'] if b['h'] else 9 + h32(f'{cx:.1f},{cy:.1f}') % 16  # 9–24 m se ignota
-        flags = 1 if inside else 0
+        pt = Polygon(ring).representative_point()
+        reg = next((i + 1 for i, r in enumerate(regions) if r.contains(pt)), 0) if inside else 0
+        flags = (1 if inside else 0) | (reg << 1)
         out += struct.pack('<HBB', len(ring), min(255, int(round(hm))), flags)
         out += b''.join(struct.pack('<hh', int(round(x * 10)), int(round(y * 10))) for x, y in ring)
         kept += 1; pts += len(ring)
@@ -54,6 +60,14 @@ for w in osm['water:line']:
         l = LineString(w['pts']).simplify(0.4)
         if frame.intersects(l): rivers.setdefault(w['n'], []).append(rnd(l.coords))
 PARK = {'park', 'garden', 'grass', 'grassland', 'meadow', 'forest', 'wood', 'cemetery', 'village_green', 'recreation_ground', 'golf_course', 'scrub'}
-parks = [rnd(r) for p in osm['landuse'] if p['k'] in PARK for r in clean(p['rings'][0], 0.6) if Polygon(r).area > 6]
-json.dump({'water': water, 'rivers': rivers, 'parks': parks}, open(f'{outdir}/env.json', 'w'), separators=(',', ':'))
-print('acqua', len(water), 'fiumi', {k: len(v) for k, v in rivers.items()}, 'parchi', len(parks))
+RURAL = PARK | {'farmland', 'orchard', 'vineyard', 'allotments'}
+parks, rural = [], []
+for p in osm['landuse']:
+    if p['k'] not in RURAL: continue
+    for r in clean(p['rings'][0], 0.6):
+        if Polygon(r).area <= 6: continue
+        if city_p.contains(Polygon(r).representative_point()):
+            if p['k'] in PARK: parks.append(rnd(r))
+        else: rural.append(rnd(r))
+json.dump({'regionKeys': REG_KEYS, 'water': water, 'rivers': rivers, 'parks': parks, 'rural': rural}, open(f'{outdir}/env.json', 'w'), separators=(',', ':'))
+print('acqua', len(water), 'fiumi', {k: len(v) for k, v in rivers.items()}, 'parchi', len(parks), 'rurale', len(rural))
