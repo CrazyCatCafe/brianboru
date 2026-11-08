@@ -209,8 +209,28 @@ export async function createCity(container, overlay, view = {}) {
     const m = over(new THREE.Mesh(r0 ? new THREE.RingGeometry(r0, r1, 48) : new THREE.CircleGeometry(r1, 48), new THREE.MeshBasicMaterial({ color, ...opts })), order);
     m.rotation.x = -Math.PI / 2; m.position.y = y; return m;
   };
+  // forma dei quartieri (view.markers): 'disco' com'era; proposte 'anello' (vuoto→pieno), 'esagono' (piatto→torre), 'rombo' (piatto→spillo)
+  const MK = view.markers || 'disco', BRIGHT = { red: '#ff1f2d', blue: '#0a84ff', yellow: '#ffd400' };
+  const poly = (r, n, color, y, order, r0 = 0) => {
+    const m = over(new THREE.Mesh(r0 ? new THREE.RingGeometry(r0, r, n, 1, Math.PI / 2) : new THREE.CircleGeometry(r, n, Math.PI / 2), new THREE.MeshBasicMaterial({ color })), order);
+    m.rotation.x = -Math.PI / 2; m.position.y = y; return m;
+  };
+  const freeMarker = (suit, g) => {
+    const c = BRIGHT[suit];
+    if (MK === 'anello') { g.add(poly(0.112, 48, T.ink, OV, 3, 0.05)); return poly(0.1, 48, c, OV, 3.2, 0.062); }
+    const n = MK === 'esagono' ? 6 : 4, r = MK === 'esagono' ? 0.108 : 0.115;
+    g.add(poly(r, n, T.ink, OV, 3)); return poly(r * 0.8, n, c, OV, 3.2);
+  };
   const spots = towns.map((t, i) => {
     const g = new THREE.Group(); g.position.set(X(t.x), 0, Z(t.y));
+    if (MK !== 'disco') {
+      const free = new THREE.Group(), fill = freeMarker(t.suit, free); free.add(fill);
+      const option = disc(0.125, 0.15, T.project, OV, 3.3); option.visible = false;
+      const hit = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.4, 8), new THREE.MeshBasicMaterial({ visible: false }));
+      hit.position.y = 0.2; hit.userData.town = i;
+      g.add(free, option, hit); regions[t.region].g.add(g);
+      return { g, hit, fill, option, free, region: t.region, suit: t.suit };
+    }
     const fill = disc(0, 0.078, T.suit[t.suit].fill, OV, 3.2);
     const option = disc(0.125, 0.15, T.project, OV, 3.3); option.visible = false; // anello delle scelte possibili
     const hit = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.4, 8), new THREE.MeshBasicMaterial({ visible: false }));
@@ -263,12 +283,29 @@ export async function createCity(container, overlay, view = {}) {
     for (const r of Object.values(regions)) r.pieces.clear();
     spinners.length = glows.length = 0;
     s.towns.forEach((st, i) => {
+      if (spots[i].free) spots[i].free.visible = st.owner === null || MK !== 'anello';
       if (st.owner === null) return;
       const p = spots[i].g.position, parent = regions[spots[i].region].pieces;
       const put = (m, y = OV, order = 5) => { over(m, order); m.position.x += p.x; m.position.y += y; m.position.z += p.z; parent.add(m); return m; };
+      const solid = (m, y, order) => { put(m, y, order); m.material.side = THREE.FrontSide; return m; }; // pezzi convessi senza profondità: solo facce davanti
+      const pc = T.players[st.owner], sc = BRIGHT[spots[i].suit];
+      if (MK === 'anello') { // preso: disco pieno della banda, bordino del seme
+        put(poly(0.14, 48, sc, 0, 4, 0.112), OV);
+        solid(new THREE.Mesh(new THREE.CylinderGeometry(0.112, 0.112, 0.04, 48), mat(pc)), OV + 0.02, 5);
+      } else if (MK === 'esagono') { // preso: torretta esagonale della banda sopra l'esagono del seme
+        solid(new THREE.Mesh(new THREE.CylinderGeometry(0.072, 0.072, 0.16, 6), mat(pc)), OV + 0.08, 5);
+        solid(new THREE.Mesh(new THREE.CylinderGeometry(0.073, 0.073, 0.012, 6), mat('#ffffff')), OV + 0.163, 6);
+      } else if (MK === 'rombo') { // preso: spillo da mappa della banda piantato sul rombo del seme
+        const pin = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.16, 16), mat(pc)); pin.rotation.x = Math.PI;
+        solid(pin, OV + 0.08, 5);
+        solid(new THREE.Mesh(new THREE.SphereGeometry(0.066, 20, 14), mat(pc)), OV + 0.2, 6);
+        solid(new THREE.Mesh(new THREE.SphereGeometry(0.024, 12, 8), mat('#ffffff')), OV + 0.2, 7).position.z += 0.05;
+      }
+      if (MK === 'disco') {
       // gettone 3D della banda: copre tutto lo spot
       put(new THREE.Mesh(new THREE.CylinderGeometry(0.118, 0.118, 0.05, 48), T.glowTokens ? new THREE.MeshBasicMaterial({ color: T.players[st.owner] }) : mat(T.players[st.owner])), OV + 0.025);
       put(new THREE.Mesh(new THREE.TorusGeometry(0.104, 0.01, 8, 48), mat('#ffffff')), OV + 0.05).rotation.x = Math.PI / 2;
+      }
       if (st.monastery) { // progetto urbano: anello fluorescente
         put(new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.016, 10, 64), new THREE.MeshBasicMaterial({ color: T.project })), OV + 0.02, 4).rotation.x = Math.PI / 2;
         const g = put(new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.05, 10, 64), new THREE.MeshBasicMaterial({ color: T.project, opacity: 0.35, blending: THREE.AdditiveBlending })), OV + 0.02, 3);
