@@ -63,7 +63,7 @@ const STAGES = {
     s.area += v;
     s.marriage = s.marriageDeck.pop();
     s.final = s.marriageDeck.length === 0;
-    log(s, `Round ${s.round}: arrivano ${v} predoni vichinghi.${s.final ? ' Ultimo round!' : ''}`);
+    log(s, `Round ${s.round}: arrivano ${v} unità di polizia.${s.final ? ' Ultimo round!' : ''}`);
     const n = s.players.length, per = { 3: 8, 4: 6, 5: 5 }[n];
     const deck = shuffle(s, Object.keys(CARDS).map(Number));
     s.draft = { packets: s.players.map((_, i) => deck.slice(i * per, (i + 1) * per)), picks: s.players.map(() => null) };
@@ -108,11 +108,11 @@ const STAGES = {
     const pls = s.players, top = Math.max(...pls.map(pl => pl.mar));
     const card = s.marriage;
     s.marriage = null;
-    if (top === 0) log(s, 'Nessun matrimonio combinato: la carta è scartata.');
+    if (top === 0) log(s, 'Nessuno ha abbastanza hype: il personaggio se ne va.');
     else {
       const w = pls.findIndex(pl => pl.mar === top), pl = pls[w];
       pl.marriages.push(card);
-      log(s, `${name(s, w)} combina un matrimonio${card.princess ? ' con la Principessa di Danimarca' : ''}.`);
+      log(s, `${name(s, w)} ingaggia ${card.princess ? 'la Regina Estrid' : 'un personaggio'}.`);
       if (card.princess) s.pending.push({ type: 'princess', p: w });
       else {
         pl.points += card.points;
@@ -135,13 +135,13 @@ const STAGES = {
     const pls = s.players, r = pls.map(pl => pl.raiders);
     if (s.area > 0) {
       const min = Math.min(...r), max = Math.max(...r), most = r.flatMap((x, i) => (x === max ? [i] : []));
-      log(s, 'Incursione vichinga!');
+      log(s, 'Retata della polizia!');
       r.forEach((x, i) => {
         if (x !== min || !ownTowns(s, i).length) return;
         const chooser = most.length === 1 && most[0] !== i ? most[0] : i;
         s.pending.push({ type: 'loseTown', p: chooser, victim: i });
       });
-    } else log(s, 'I vichinghi sono stati respinti.');
+    } else log(s, 'La polizia è stata respinta.');
     s.area = 0;
     spoils(s, 'raiders', p => { pls[p].renown++; pls[p].points += pls[p].renown; pls[p].raiders = 0; });
     s.stage = 'church';
@@ -166,12 +166,12 @@ const STAGES = {
     for (const [r, c] of Object.entries(REGIONS)) {
       const cl = s.claims[r], counts = regionCounts(s, r, 'military');
       const total = Object.values(regionCounts(s, r)).reduce((a, b) => a + b, 0);
-      if (!cl.up && total >= c.threshold) { cl.up = true; log(s, `Il segnalino di ${c.name} è scoperto.`); }
+      if (!cl.up && total >= c.threshold) { cl.up = true; log(s, `${c.name} è in palio.`); }
       if (!cl.up) continue;
       const max = Math.max(...Object.values(counts)), top = Object.keys(counts).filter(k => counts[k] === max);
       if (top.length !== 1) continue;
       const owner = top[0] === 'V' ? null : Number(top[0]);
-      if (owner !== cl.owner) { cl.owner = owner; log(s, `${c.name}: ${owner === null ? 'torna sul tabellone' : 'va a ' + name(s, owner)}.`); }
+      if (owner !== cl.owner) { cl.owner = owner; log(s, `${c.name}: ${owner === null ? 'nessuno la controlla' : 'la controlla ' + name(s, owner)}.`); }
     }
     s.players.forEach((pl, i) => (pl.claims = Object.keys(REGIONS).filter(r => s.claims[r].owner === i)));
     if (s.final) { score(s); s.stage = 'end'; } else s.stage = 'prep';
@@ -262,13 +262,13 @@ const MOVES = {
   setupTown(s, p, { town }) {
     needTown(s, town, (st, t) => st.owner === null &&
       !TOWNS.some(o => o.region === t.region && s.towns[o.id].owner !== null && s.towns[o.id].owner !== p),
-    'Scegli una città libera in una regione senza altri giocatori');
+    'Scegli un quartiere libero in una zona senza altre bande');
     s.towns[town].owner = p;
     s.setupDone++;
-    log(s, `${name(s, p)} parte da una città in ${REGIONS[TOWNS[town].region].name}.`);
+    log(s, `${name(s, p)} parte da ${TOWNS[town].name} (${REGIONS[TOWNS[town].region].name}).`);
   },
   activeTown(s, p, { town }) {
-    needTown(s, town, st => st.owner === null, 'Scegli una città libera');
+    needTown(s, town, st => st.owner === null, 'Scegli un quartiere libero');
     s.trick.town = town;
   },
   play(s, p, { card }) {
@@ -276,7 +276,7 @@ const MOVES = {
     if (!hand.includes(card)) fail('Carta non in mano');
     if (p === t.leader) {
       const fits = c => CARDS[c].color === color || CARDS[c].color === 'white';
-      if (!fits(card) && hand.some(fits)) fail('Chi apre deve giocare il colore della città o una carta reale');
+      if (!fits(card) && hand.some(fits)) fail('Chi apre deve giocare il colore del quartiere o Briano Borro');
     }
     hand.splice(hand.indexOf(card), 1);
     t.plays.push({ p, card });
@@ -285,34 +285,34 @@ const MOVES = {
   action(s, p, m, pend) {
     const card = CARDS[pend.card];
     let syms;
-    if (m.opt === 'p') { if (!pend.won) fail('Solo chi vince la presa usa l\'azione principale'); syms = card.primary; }
-    else { if (pend.won) fail('Hai vinto: usa l\'azione principale'); syms = card.secondary[m.opt] || fail('Azione non valida'); }
+    if (m.opt === 'p') { if (!pend.won) fail('Solo chi vince la presa usa l\'azione VINCI'); syms = card.primary; }
+    else { if (pend.won) fail('Hai vinto: usa l\'azione VINCI'); syms = card.secondary[m.opt] || fail('Azione non valida'); }
     const pl = s.players[p], extra = Math.max(0, m.extra | 0);
     syms.forEach((sym, i) => {
-      const last = syms.lastIndexOf(sym) === i, buy = n => { if (pl.coins < 2 * n) fail('Monete insufficienti'); pl.coins -= 2 * n; return n; };
+      const last = syms.lastIndexOf(sym) === i, buy = n => { if (pl.coins < 2 * n) fail('Crediti insufficienti'); pl.coins -= 2 * n; return n; };
       if (sym === 'T') { s.towns[s.trick.town].owner = p; s.active = p; }
       if (sym === 'C') pl.coins++;
       if (sym === 'P') { if (pl.coins) pl.coins--; else pl.points = Math.max(0, pl.points - 2); }
       if (sym === 'X') pl.church += 1 + (last ? buy(extra) : 0);
       if (sym === 'A') {
         const k = Math.min(s.area, 1 + (last ? extra : 0));
-        if (last && extra > Math.max(0, s.area - 1)) fail('Non ci sono abbastanza predoni');
+        if (last && extra > Math.max(0, s.area - 1)) fail('Non ci sono abbastanza unità di polizia');
         if (last) buy(extra);
         s.area -= k; pl.raiders += k;
       }
       if (sym === 'M') {
         const steps = 1 + (last ? extra : 0);
-        if (last && pl.mar + steps > 9 && extra) fail('Oltre la cima del tracciato');
+        if (last && pl.mar + steps > 9 && extra) fail('Oltre il massimo dell\'hype');
         if (last) buy(extra);
         pl.mar = Math.min(9, pl.mar + steps);
       }
       if (sym === 'E' && m.expand != null) {
-        if (pl.coins < 5) fail('Servono 5 monete per espandersi');
-        if (!expandTargets(s, p).includes(m.expand)) fail('Città non collegata da una strada a una tua città');
+        if (pl.coins < 5) fail('Servono 5 crediti per espandersi');
+        if (!expandTargets(s, p).includes(m.expand)) fail('Quartiere non collegato a un tuo quartiere');
         pl.coins -= 5; s.towns[m.expand].owner = p;
       }
       if (sym === 'V' && vikingTowns(s).length) {
-        needTown(s, m.viking, st => st.viking, 'Scegli una città controllata dai vichinghi');
+        needTown(s, m.viking, st => st.viking, 'Scegli un quartiere con un presidio di polizia');
         s.towns[m.viking].viking = false;
       }
     });
@@ -320,18 +320,18 @@ const MOVES = {
     s.trick.done++;
   },
   placeTown(s, p, { town }, pend) {
-    needTown(s, town, (st, t) => st.owner === null && (!pend.region || t.region === pend.region), 'Scegli una città libera valida');
+    needTown(s, town, (st, t) => st.owner === null && (!pend.region || t.region === pend.region), 'Scegli un quartiere libero valido');
     s.towns[town].owner = p;
   },
   loseTown(s, p, { town }, pend) {
-    needTown(s, town, st => st.owner === pend.victim && !st.viking, `Scegli una città di ${name(s, pend.victim)}`);
+    needTown(s, town, st => st.owner === pend.victim && !st.viking, `Scegli un quartiere di ${name(s, pend.victim)}`);
     s.towns[town].viking = true;
-    log(s, `${name(s, pend.victim)} perde una città a favore dei vichinghi.`);
+    log(s, `La polizia presidia un quartiere di ${name(s, pend.victim)}.`);
   },
   monastery(s, p, { town }) {
-    needTown(s, town, st => st.owner === p && !st.viking && !st.monastery, 'Scegli una tua città senza monastero');
+    needTown(s, town, st => st.owner === p && !st.viking && !st.monastery, 'Scegli un tuo quartiere senza progetto urbano');
     s.towns[town].monastery = true;
-    log(s, `${name(s, p)} costruisce un monastero.`);
+    log(s, `${name(s, p)} avvia un progetto urbano.`);
   },
   princess(s, p, { choice }) {
     if (!['military', 'trade', 'spurn'].includes(choice)) fail('Scelta non valida');

@@ -1,46 +1,46 @@
-# Piano di deployment
+# Deploy
 
-Architettura: sito statico su **GitHub Pages** + **Firebase** (Auth anonima e Realtime Database) per lo stato delle partite online.
-Costo: zero. Il piano gratuito Spark di Firebase basta largamente per un gruppo di amici.
+Architettura: sito statico su **GitHub Pages** + **Firebase** (Authentication e Realtime Database). Costo: zero (piano Spark).
 
 ```
-Browser (GitHub Pages)  ──  Firebase Auth (anonimo)
-        │
-        └── Realtime Database: games/{CODICE} = { host, uids, players, state(JSON) }
-             ogni mossa = transazione: legge lo stato, applica le regole (js/game/engine.js), riscrive
+Browser (GitHub Pages: index.html, Three.js e font inclusi nel repo)
+  ├─ Firebase Auth: Google o email/password (registrazione obbligatoria)
+  └─ Realtime Database
+       users/{uid}            profilo { nick }
+       nicks/{nick}           uid (nickname unici)
+       presence/{uid}         online sì/no
+       friends/{uid}/{altro}  'out' | 'in' | 'ok'
+       invites/{uid}/{codice} invito a una partita
+       games/{codice}         { host, status, players, uids, state (JSON) }
 ```
+Ogni mossa è una transazione: legge lo stato, applica le regole (`js/game/engine.js`) nel browser, riscrive.
 
-## 1. GitHub Pages (5 minuti)
-1. Repo su GitHub → **Settings → Pages**.
-2. In "Build and deployment", Source: **Deploy from a branch**, Branch: **main**, cartella **/ (root)**, poi **Save**.
-3. Dopo 1–2 minuti il sito è su `https://crazycatcafe.github.io/brianboru/`.
+## 1. Firebase (progetto `brianboru-e3add`)
+1. **Authentication → Metodo di accesso**: Google ed Email/password attivi. Anonimo si può disattivare.
+2. **Authentication → Impostazioni → Domini autorizzati**: deve esserci `crazycatcafe.github.io`.
+3. **Realtime Database → Regole**: incolla il contenuto di [`database.rules.json`](database.rules.json) e scegli **Pubblica**.
+   Va ripubblicato ogni volta che il file cambia.
 
-Da subito funziona la modalità **"Stesso dispositivo"**: tutti i giocatori a turno sullo stesso schermo.
+## 2. GitHub Pages
+1. Repo → **Settings → Pages**.
+2. Source: **Deploy from a branch**, Branch **main**, cartella **/ (root)**, poi **Save**.
+3. Dopo 1–2 minuti il gioco è su https://crazycatcafe.github.io/brianboru/
 
-## 2. Firebase (10 minuti)
-1. Vai su https://console.firebase.google.com e scegli **Aggiungi progetto** (Google Analytics non serve).
-2. **Sicurezza → Authentication → Inizia → Sign-in method → Anonimo → Abilita**.
-3. **Authentication → Impostazioni → Domini autorizzati → Aggiungi dominio**: `crazycatcafe.github.io`.
-4. **Database e storage → Realtime Database → Crea database**: località **Belgio (europe-west1)**, avvio in **modalità bloccata**.
-5. **Realtime Database → Regole**: incolla il contenuto di [`database.rules.json`](database.rules.json) e scegli **Pubblica**.
-6. **Impostazioni progetto (⚙) → Le tue app → Web (`</>`)**: registra l'app con un nome qualsiasi, senza Hosting, e copia l'oggetto `firebaseConfig`.
+Ogni push su `main` aggiorna il sito da solo.
 
-## 3. Collegare il sito a Firebase
-1. Copia `js/firebase-config.example.js` in `js/firebase-config.js` e incolla i valori.
-2. Fai commit e push su `main`.
+## 3. Giocare
+1. Apri il sito, entra con Google o con email, scegli il nickname.
+2. **Amici**: aggiungi gli amici per nickname; loro accettano dalla stessa lista.
+3. **Crea partita** (scegli Technoborghesi o Punk), poi **Invita** gli amici dalla sala d'attesa o manda il link.
+4. Con 3–5 bande, chi ha creato la partita sceglie **Inizia**.
 
-La config web di Firebase **non è un segreto**: è pubblica per design e finisce comunque nel browser di chi gioca. La protezione sta nelle regole del database (solo chi partecipa a una partita può modificarla) e nei domini autorizzati.
-Facoltativo: in Google Cloud Console → Credenziali, limita la API key ai referrer `https://crazycatcafe.github.io/*` e `http://localhost:*`.
+Pagine di servizio: `preview-milano.html` (mockup) e `catalogo-milano.html` (tutte le carte e i set di icone).
 
-## 4. Giocare
-1. Apri il sito, scrivi il tuo nome e scegli **Crea partita**.
-2. Manda il link della sala d'attesa agli amici (contiene il codice).
-3. Quando ci sono 3–5 giocatori, chi ha creato la partita sceglie **Inizia la partita**.
+## Rigenerare i dati di Milano
+- Grafo di gioco da `assets/milano/mappa.json`: `node tools/build-board.mjs`
+- Edifici, acqua, parchi da OpenStreetMap: `tools/extract-pmtiles.py` e `tools/build-milano.py` (servono `pmtiles`, `mapbox-vector-tile`, `shapely`).
 
-Ricaricando la pagina si rientra nella partita: l'identità anonima resta salvata nel browser.
-
-## Limiti noti del prototipo
-- **Informazioni nascoste**: le mani sono nello stato condiviso. Chi apre gli strumenti sviluppatore può sbirciarle. Va bene tra amici; la correzione è spostare le mani in documenti per giocatore o in una Cloud Function (piano Blaze).
-- **Fiducia nei client**: ogni client applica le regole nel proprio browser. Un giocatore smaliziato potrebbe scrivere uno stato falso. Si risolve con la stessa Cloud Function.
-- **Mappa**: regioni e strade sono state ricavate dalla foto del tabellone, quindi vanno verificate (`js/game/data.js`).
-- **Nessuna pulizia automatica** delle vecchie partite nel database: con l'uso tra amici restano nei limiti gratuiti per anni.
+## Limiti noti
+- **Mani visibili a chi smanetta**: lo stato della partita è condiviso, quindi con gli strumenti sviluppatore si vedono le carte altrui. Tra amici va bene; la correzione è una Cloud Function (piano Blaze).
+- **Fiducia nei client**: le regole sono applicate nel browser; il database controlla solo chi può scrivere, non se la mossa è legale.
+- **Partite vecchie**: restano nel database; con l'uso tra amici restano nei limiti gratuiti.

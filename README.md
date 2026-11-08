@@ -1,15 +1,15 @@
-# Brian Boru
+# Brian Boru · Milano 2077
 
-Versione digitale online del gioco da tavolo Brian Boru (Peer Sylvester, Osprey Games), da giocare con gli amici.
-Prototipo: regole complete, grafica provvisoria sopra la foto del tabellone.
+Versione digitale online del gioco da tavolo Brian Boru (Peer Sylvester, Osprey Games), ambientata in una Milano cyberpunk:
+bande di technoborghesi e punk si contendono i quartieri tra retate della polizia, progetti di comunità e rave clandestini.
 
-- Hosting: GitHub Pages (sito statico, nessun build step)
-- Partite online: Firebase Auth anonima + Realtime Database
-- Modalità "stesso dispositivo" senza alcuna configurazione
+- Città 3D con edifici reali (OpenStreetMap), Three.js incluso nel repo
+- Account Google/email, amici, inviti, lobby e partite online su Firebase Realtime Database
+- Partita locale sullo stesso dispositivo
 
-Deploy: vedi [DEPLOY.md](DEPLOY.md).
+Deploy: [DEPLOY.md](DEPLOY.md). Prompt per le illustrazioni: [docs/prompt-illustrazioni.md](docs/prompt-illustrazioni.md).
 
-## Sviluppo locale
+## Sviluppo
 ```bash
 python3 -m http.server 8000
 ```
@@ -18,11 +18,10 @@ Apri http://localhost:8000.
 ```bash
 npm test
 ```
-Simula 600 partite complete (3, 4 e 5 giocatori) con mosse casuali e controlla gli invarianti delle regole.
+Simula 600 partite complete sul grafo di Milano e controlla le regole.
 
 ## Struttura
-- `js/game/data.js`: città, regioni, strade, carte, tracciati.
-- `js/game/engine.js`: regole come funzioni pure (`newGame`, `move`).
-- `js/net.js`: Firebase (sala d'attesa, mosse in transazione).
-- `js/app.js`, `css/style.css`, `index.html`: interfaccia.
-- `assets/board`, `assets/docs`: tabellone e regolamenti originali.
+- `js/game/`: regole (`engine.js`), carte (`data.js`), grafo dei quartieri (`board.js`, generato).
+- `js/milano/`: tema, icone, carte, illustrazioni, città 3D (`city3d.js`), Firebase (`online.js`).
+- `js/main.js`, `index.html`, `css/milano.css`: l'app.
+- `assets/milano/`: mappa e dati 3D; `assets/docs/`: regolamento originale.

@@ -3,55 +3,107 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Brian Boru</title>
-  <link rel="stylesheet" href="css/style.css">
+  <title>Brian Boru · Milano 2077</title>
+  <link rel="stylesheet" href="css/milano.css">
+  <script type="importmap">{ "imports": { "three": "./vendor/three/three.module.min.js" } }</script>
 </head>
-<body>
-  <main id="lobby">
-    <h1>Brian Boru</h1>
-    <p class="sub">Re d'Irlanda: prototipo online</p>
-
-    <section id="online">
-      <h2>Online</h2>
-      <label>Il tuo nome <input id="name" maxlength="16" autocomplete="nickname"></label>
-      <div class="row">
-        <button id="create">Crea partita</button>
-        <input id="code" placeholder="CODICE" maxlength="5" aria-label="Codice partita">
-        <button id="join">Entra</button>
+<body class="app">
+  <!-- accesso -->
+  <main id="auth" class="screen center" hidden>
+    <section class="panel narrow">
+      <p class="kicker">Milano 2077</p>
+      <h1 class="title">Brian Boru</h1>
+      <p class="lead">Bande di technoborghesi e punk si contendono i quartieri tra retate, progetti di comunità e rave clandestini.</p>
+      <div id="auth-online">
+        <button id="google" class="btn wide">Entra con Google</button>
+        <p class="or">oppure con email</p>
+        <form id="email-form" class="stack">
+          <label class="field">Email <input id="email" type="email" autocomplete="email" required></label>
+          <label class="field">Password <input id="password" type="password" autocomplete="current-password" minlength="6" required></label>
+          <div class="row">
+            <button class="btn" data-mode="login">Accedi</button>
+            <button class="btn ghost" data-mode="signup">Registrati</button>
+          </div>
+          <button type="button" id="reset" class="link">Password dimenticata?</button>
+        </form>
       </div>
-      <p id="online-off" class="note" hidden>Online non ancora configurato: manca <code>js/firebase-config.js</code> (vedi DEPLOY.md).</p>
-    </section>
-
-    <section>
-      <h2>Stesso dispositivo</h2>
-      <label>Giocatori (3–5, uno per riga) <textarea id="local-names" rows="4">Brian
-Máel
-Sitric</textarea></label>
-      <button id="local">Inizia partita locale</button>
-    </section>
-
-    <section id="room" hidden>
-      <h2>Sala d'attesa <span id="room-code"></span></h2>
-      <p class="note">Condividi questo link: <a id="room-link"></a></p>
-      <ol id="room-players"></ol>
-      <button id="start" hidden>Inizia la partita</button>
+      <p id="auth-msg" class="msg" role="alert"></p>
     </section>
   </main>
 
-  <div id="game" hidden>
-    <div class="board">
-      <img src="assets/board/board.jpg" alt="Tabellone di Brian Boru">
-      <svg id="towns" viewBox="0 0 1024 1026"></svg>
+  <!-- nickname -->
+  <main id="nick" class="screen center" hidden>
+    <form id="nick-form" class="panel narrow stack">
+      <p class="kicker">Benvenuto in strada</p>
+      <h2>Scegli il tuo nickname</h2>
+      <p class="note">È il nome con cui gli amici ti trovano. Non si può cambiare.</p>
+      <label class="field">Nickname <input id="nick-input" maxlength="16" required autocomplete="nickname"></label>
+      <button class="btn wide">Conferma</button>
+      <p id="nick-msg" class="msg" role="alert"></p>
+    </form>
+  </main>
+
+  <!-- lobby -->
+  <main id="lobby" class="screen" hidden>
+    <header class="topbar">
+      <span class="brand">Brian Boru <em>Milano 2077</em></span>
+      <span id="me" class="me"></span>
+      <button id="logout" class="btn ghost small online-only">Esci</button>
+      <p class="note offline-only">Server online non raggiungibile: puoi giocare in locale.</p>
+    </header>
+    <div class="lobby-grid">
+      <section class="panel online-only">
+        <h2>Gioca</h2>
+        <fieldset class="gang">
+          <legend>La tua banda</legend>
+          <label><input type="radio" name="gang" value="Technoborghesi" checked> Technoborghesi</label>
+          <label><input type="radio" name="gang" value="Punk"> Punk</label>
+        </fieldset>
+        <button id="create" class="btn wide">Crea partita</button>
+        <div id="room" class="room" hidden></div>
+        <h3>Inviti</h3>
+        <ul id="invites" class="list"><li class="empty">Nessun invito.</li></ul>
+        <h3>Partite aperte</h3>
+        <ul id="games" class="list"><li class="empty">Nessuna partita aperta.</li></ul>
+      </section>
+      <section class="panel online-only">
+        <h2>Amici</h2>
+        <form id="friend-form" class="row">
+          <input id="friend-nick" placeholder="Nickname" aria-label="Nickname dell'amico" maxlength="16">
+          <button class="btn">Aggiungi</button>
+        </form>
+        <p id="friend-msg" class="msg" role="alert"></p>
+        <ul id="friends" class="list"><li class="empty">Ancora nessun amico.</li></ul>
+      </section>
+      <section class="panel">
+        <h2>Partita locale</h2>
+        <p class="note">Tutti sullo stesso schermo, a turno. Utile per provare.</p>
+        <label class="field">Giocatori (da 3 a 5, uno per riga) <textarea id="local-names" rows="4">Luigi
+Giulia
+Marco</textarea></label>
+        <button id="local" class="btn ghost wide">Inizia in locale</button>
+      </section>
     </div>
-    <aside>
+  </main>
+
+  <!-- partita -->
+  <div id="game" hidden>
+    <div id="city" class="city"></div>
+    <div id="labels" class="labels"></div>
+    <section class="hud-players" aria-label="Giocatori"><ol id="players"></ol>
+      <div class="tools"><button id="to-lobby" class="btn ghost small">Lobby</button> <span id="code"></span></div>
+    </section>
+    <header class="hud-round" id="round"></header>
+    <aside class="hud-side">
       <div id="prompt" class="prompt" aria-live="polite"></div>
-      <div id="hand" class="hand"></div>
-      <div id="status"></div>
-      <table id="players"></table>
-      <details><summary>Registro</summary><ol id="log"></ol></details>
+      <div id="trick" class="trick" hidden></div>
+      <details class="log"><summary>Cronaca</summary><ol id="log"></ol></details>
     </aside>
+    <section id="hand" class="hand" aria-label="La tua mano"></section>
   </div>
 
-  <script type="module" src="js/app.js"></script>
+  <p id="toast" class="toast" role="status" hidden></p>
+  <p id="loading" class="loading">Carico…</p>
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>
