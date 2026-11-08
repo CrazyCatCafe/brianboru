@@ -91,7 +91,11 @@ export const iconAt = (sym, x, y, size, color, hole = '#fff') =>
 const FIST = c => `<rect x="10" y="7" width="5.5" height="12" rx="2.75" fill="${c}"/><rect x="15.5" y="5" width="5.5" height="14" rx="2.75" fill="${c}"/>
   <rect x="21" y="6" width="5.5" height="13" rx="2.75" fill="${c}"/><rect x="26.5" y="8" width="5" height="11" rx="2.5" fill="${c}"/>
   <path d="M10 16h21.5v9c0 6-4.5 10-10.75 10S10 31 10 25Z" fill="${c}"/><path d="M11 23h10" stroke="${H}" stroke-width="2.5" stroke-linecap="round"/>`;
-export const LOGO_COLORS = { guerrilla: '#e62e2d', community: '#14a04b', uprising: '#111111' };
-const LOGOS = { guerrilla: c => SOLID.A(c), community: c => SOLID.X(c), uprising: FIST };
+const CUP = c => `<path d="M11 5h18v9a9 9 0 0 1-18 0Z" fill="${c}"/><path d="M11 8H5c0 6 3 9 7 9M29 8h6c0 6-3 9-7 9" fill="none" stroke="${c}" stroke-width="3"/>
+  <path d="M18 22h4v7h-4Z" fill="${c}"/><path d="M12 30h16v5H12Z" fill="${c}"/>`;
+const HELMET = c => `<path d="M6 25a14 14 0 0 1 28 0v3H6Z" fill="${c}"/><path d="M9 21h22v6H9Z" fill="${H}"/><path d="M11 23h8M21 23h8" stroke="${c}" stroke-width="2"/><path d="M20 6v6" stroke="${H}" stroke-width="2.5"/>`;
+export const LOGO_COLORS = { guerrilla: '#e62e2d', community: '#14a04b', uprising: '#111111', punti: '#111111', crediti: '#d9a400', polizia: '#1f4e79' };
+const LOGOS = { guerrilla: c => SOLID.A(c), community: c => SOLID.X(c), uprising: FIST, punti: CUP, crediti: c => SOLID.C(c), polizia: HELMET };
+export const LOGO_NAMES = { guerrilla: 'Guerrilla', community: 'Community Projects', uprising: 'Uprising', punti: 'Punti vittoria', crediti: 'Crediti', polizia: 'Polizia in allerta' };
 export const logo = (kind, size = 20) =>
-  `<span class="logo" style="--hole:#eef1f3"><svg viewBox="0 0 40 40" width="${size}" height="${size}" aria-hidden="true">${LOGOS[kind](LOGO_COLORS[kind])}</svg></span>`;
+  `<span class="logo" style="--hole:#eef1f3" title="${LOGO_NAMES[kind]}"><svg viewBox="0 0 40 40" width="${size}" height="${size}" aria-hidden="true">${LOGOS[kind](LOGO_COLORS[kind])}</svg></span>`;
