@@ -20,7 +20,8 @@ function friendly(e) {
   return { 'auth/invalid-credential': 'Email o password errate', 'auth/wrong-password': 'Password errata', 'auth/user-not-found': 'Account inesistente',
     'auth/email-already-in-use': 'Email già registrata: usa Accedi', 'auth/weak-password': 'Password troppo corta (almeno 6 caratteri)',
     'auth/invalid-email': 'Email non valida', 'auth/popup-closed-by-user': 'Accesso annullato', 'auth/unauthorized-domain': 'Dominio non autorizzato in Firebase',
-    'PERMISSION_DENIED': 'Permesso negato dal database: controlla le regole' }[c] || e.message;
+    'PERMISSION_DENIED': 'Permesso negato dal database: controlla le regole' }[c]
+    || (/permission denied/i.test(e.message) ? 'Il database rifiuta l\'accesso: vanno pubblicate le regole di database.rules.json' : e.message);
 }
 
 let net = null, me = null, roomCode = null, room = null, unwatch = null;
@@ -33,12 +34,14 @@ if (config) {
   try { net = await connect(config); } catch (e) { console.error(e); }
 }
 if (!net) { document.body.classList.add('offline'); show('lobby'); } // senza Firebase resta la partita locale
-else net.onAuth(guard(async user => {
+else net.onAuth(async user => {
   if (!user) return show('auth');
-  me = await net.profile();
+  try { me = await net.profile(); } catch (e) { // es. regole del database non pubblicate: non lasciare la pagina vuota
+    console.error(e); show('auth'); $('auth-msg').textContent = friendly(e); return;
+  }
   if (!me) return show('nick');
   enterLobby();
-}));
+});
 
 // ---------- accesso ----------
 $('google').onclick = guard(() => net.signInGoogle());
