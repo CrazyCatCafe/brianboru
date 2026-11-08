@@ -4,7 +4,7 @@ import { move as applyMove, current, emptyTowns, leadTowns, ownTowns, expandTarg
 import { CARDS, MARRIAGES, TOWNS, REGIONS, MARRIAGE_TRACK } from './game/data.js';
 import { THEME, THEME_REPLACED, PIXEL_SCALE } from './milano/theme.js';
 import { cardSVG, characterSVG } from './milano/card.js';
-import { icon, setIconSet, logo } from './milano/icons.js';
+import { icon, setIconSet, logo, LOGO_NAMES } from './milano/icons.js';
 import { ESTRID, SYMBOLS, CHARACTERS } from './milano/lore.js';
 import { createCity, WEATHER_TYPES, QUALITY } from './milano/city3d.js';
 import { connect } from './milano/online.js';
@@ -173,8 +173,8 @@ async function enterGame(s) {
   if (!city) {
     $('loading').hidden = false;
     let quality = 'auto'; try { quality = localStorage.getItem('bb-quality') || 'auto'; } catch {}
-    city = await createCity($('city'), $('labels'), { compass: $('compass'), quality, theme: THEME_REPLACED, pixel: innerWidth < 900 ? PIXEL_SCALE * 1.5 : PIXEL_SCALE }); // sugli schermi piccoli pixel più fini
-    renderQuality();
+    city = await createCity($('city'), $('labels'), { compass: $('compass'), quality, theme: THEME_REPLACED, pixel: pixelOn() ? pixelScale() : 0 });
+    renderQuality(); renderPixel();
     $('loading').hidden = true;
   }
   state = s; ingestEvents(s); render();
@@ -184,7 +184,20 @@ $('help').onclick = () => {
   $('glossary-list').innerHTML = Object.entries(SYMBOLS).map(([k, t]) => `<li>${icon(k, 22, 'currentColor', HOLE)}<span>${t}</span></li>`).join('');
   $('glossary').showModal();
 };
+// la plancia è larga quanto la sua griglia: barra delle fasi e pannello centrale partono dopo
+new ResizeObserver(() => { if (innerWidth >= 900) document.body.style.setProperty('--board-w', $('board').offsetWidth + 'px'); else document.body.style.removeProperty('--board-w'); }).observe($('board'));
 $('board-toggle').onclick = () => { const open = document.body.classList.toggle('board-open'); $('board-toggle').setAttribute('aria-expanded', open); };
+// pixel art solo sulla mappa, si può spegnere; la scelta resta sul dispositivo
+const pixelOn = () => { try { return localStorage.getItem('bb-pixel') !== 'no'; } catch { return true; } };
+const pixelScale = () => (innerWidth < 900 ? Math.min(1, PIXEL_SCALE * 1.5) : PIXEL_SCALE); // sugli schermi piccoli pixel più fini
+function renderPixel() {
+  const on = pixelOn();
+  document.body.classList.toggle('noscan', !on);
+  $('pixel').querySelectorAll('[data-px]').forEach(b => {
+    b.setAttribute('aria-pressed', String(+b.dataset.px === +on));
+    b.onclick = () => { try { localStorage.setItem('bb-pixel', +b.dataset.px ? 'si' : 'no'); } catch {} city.setPixel(+b.dataset.px ? pixelScale() : 0); renderPixel(); };
+  });
+}
 function renderQuality() { // grafica: Auto scende da sola se il computer fatica
   const q = city.quality();
   $('quality').innerHTML = ['auto', ...Object.keys(QUALITY)].map(k => `<button data-q="${k}" aria-pressed="${k === q.setting}">${k === 'auto' ? `Auto${q.setting === 'auto' ? ' · ' + QUALITY[q.level].label : ''}` : QUALITY[k].label}</button>`).join('');
@@ -339,17 +352,15 @@ function render() {
 // ---------- plancia a sinistra (schizzo): bande, hype, guerrilla, comunità, uprising ----------
 const pdot = i => `<i class="pd" style="--pc:${THEME.players[i]}"></i>`;
 const pname = (s, i) => `${pdot(i)}<b>${esc(s.players[i].name)}</b>`;
-const ascBy = (s, key) => s.players.map((p, i) => i).sort((a, b) => s.players[a][key] - s.players[b][key]);
-const openRows = new Set();
 // carta del personaggio in hype: si apre di fianco alla plancia, senza coprire gli altri riquadri
 function bindPeek(s) {
-  const b = $('b-party').querySelector('.peek'), card = $('peekcard');
+  const b = $('b-players').querySelector('.peek'), card = $('peekcard');
   card.hidden = true;
   if (!b) return;
   const show = on => {
     if (on) {
       card.innerHTML = characterSVG(characterIndex(s.marriage));
-      const r = $('b-party').getBoundingClientRect();
+      const r = $('b-players').getBoundingClientRect();
       card.style.left = `${Math.min(r.right + 8, innerWidth - 196)}px`;
       card.style.top = `${Math.max(8, Math.min(r.top, innerHeight - 290))}px`;
     }
@@ -359,34 +370,36 @@ function bindPeek(s) {
   b.onmouseleave = b.onblur = () => show(false);
   b.onclick = () => show(card.hidden);
 }
+let bigBoard = (() => { try { return localStorage.getItem('bb-board') === 'big'; } catch { return false; } })();
+const shortName = n => ([...n].length > 7 ? [...n].slice(0, 6).join('') + '.' : n); // nomi lunghi: quello che ci sta, poi il punto
+// iniziale della banda; se due coincidono (Bot 1, Bot 2) si aggiunge l'ultimo carattere: B1, B2
+const initial = (s, i) => {
+  const first = n => [...n][0]?.toUpperCase() || '?', me = first(s.players[i].name);
+  return s.players.some((p, j) => j !== i && first(p.name) === me) ? me + [...s.players[i].name].at(-1) : me;
+};
 const BONUS_TIP = { C: '+1 credito', CC: '+2 crediti', R: '+1 street cred', T: 'un quartiere a scelta' };
 function renderBoard(s, pd) {
   const waiting = !pd ? [] : pd.type === 'draft' ? s.draft.picks.flatMap((x, i) => (x ? [] : [i])) : [pd.p];
   const on = (id, k) => ($(id).className = `box${phaseNow === k ? ' on' : ''}`);
-  // bande: in vista solo i punti vittoria; il resto si apre toccando la riga
-  $('b-players').innerHTML = `<h3>Bande</h3><ul>${s.players.map((p, i) => `<li class="${waiting.includes(i) ? 'turn' : ''}"><details ${openRows.has(i) ? 'open' : ''} data-row="${i}"><summary>
-      ${pname(s, i)}${i === seat && !local ? '<small>tu</small>' : ''}${isBot(i) ? '<small>bot</small>' : ''}${i === s.active ? `<span class="mk" title="Segnalino quartiere attivo">${icon('T', 12, 'currentColor', HOLE)}</span>` : ''}
-      <span class="num pts" title="Punti vittoria">${p.points}</span></summary>
-      <dl class="more"><dt>Banda</dt><dd>${esc(room.players[i]?.gang || '')}</dd><dt>Street cred</dt><dd>${p.renown}</dd><dt>Carte in mano</dt><dd>${p.hand.length}</dd>
-      ${p.claims.length ? `<dt>Zone</dt><dd>${p.claims.map(r => REGIONS[r].name).join(', ')}</dd>` : ''}${p.marriages.length ? `<dt>Personaggi</dt><dd>${p.marriages.map(characterName).join(', ')}</dd>` : ''}${p.princess ? '<dt>Estrid</dt><dd>alleata</dd>' : ''}</dl></details></li>`).join('')}</ul>`;
-  $('b-players').querySelectorAll('details').forEach(d => (d.ontoggle = () => (d.open ? openRows.add(+d.dataset.row) : openRows.delete(+d.dataset.row))));
-  // crediti: riquadro a parte, con la moneta gialla
-  $('b-coins').innerHTML = `<h3>Crediti</h3><ul>${s.players.map((p, i) => `<li>${pname(s, i)}<span class="num coin">${icon('C', 15, THEME.suit.yellow.fill, HOLE)}${p.coins}</span></li>`).join('')}</ul>`;
-  // underground party: solo caselle
-  on('b-party', 'party');
-  $('b-party').innerHTML = `<h3>Underground Party</h3><div class="party"><div class="cells">${MARRIAGE_TRACK.map((b, c) =>
-    `<span class="cell${b ? ' bonus' : ''}" title="Casella ${c + 1}: ${b ? BONUS_TIP[b] : 'nessun bonus'}"><span class="g">${b ? icon(b === 'CC' ? 'C' : b, 11, 'currentColor', HOLE) + (b === 'CC' ? '<sup>2</sup>' : '') : ''}</span>${s.players.map((p, i) => (p.mar === c ? pdot(i) : '')).join('')}</span>`).join('')}</div>
-    ${s.marriage ? `<button class="peek" type="button" aria-label="Vedi il personaggio: ${esc(characterName(s.marriage))}">${characterSVG(characterIndex(s.marriage))}</button>` : ''}</div>
-    ${s.marriage ? `<p class="sub">Hype: <b>${esc(characterName(s.marriage))}</b></p>` : ''}`;
+  // bande: griglia verticale, una colonna per banda e una riga per logo; accanto l'Hype in verticale.
+  // Il tastino ingrandisce: compaiono i nomi (al massimo 7 caratteri, poi il punto) e i nomi dei loghi.
+  $('b-players').classList.toggle('big', bigBoard); document.body.classList.toggle('board-big', bigBoard);
+  const lab = kind => `${logo(kind, 16)}${bigBoard ? `<span class="lname">${LOGO_NAMES[kind]}</span>` : ''}`;
+  const row = (kind, key, k) => `<tr${phaseNow === k ? ' class="on"' : ''}><th scope="row">${lab(kind)}</th>${s.players.map(p => `<td${key === 'points' ? ' class="pts"' : ''}>${p[key]}</td>`).join('')}</tr>`;
+  const tip = (p, i) => [p.name, isBot(i) ? 'bot' : i === seat && !local ? 'tu' : '', room.players[i]?.gang, `street cred ${p.renown}`, `${p.hand.length} carte in mano`,
+    p.claims.length ? 'zone: ' + p.claims.map(r => REGIONS[r].name).join(', ') : '', p.marriages.length ? 'personaggi: ' + p.marriages.map(characterName).join(', ') : '',
+    p.princess ? 'Estrid alleata' : '', i === s.active ? 'ha il segnalino del quartiere attivo' : ''].filter(Boolean).join(' · ');
+  $('b-players').innerHTML = `<button class="zoom" type="button" aria-pressed="${bigBoard}" aria-label="${bigBoard ? 'Rimpicciolisci la plancia' : 'Ingrandisci la plancia'}">${bigBoard ? '−' : '+'}</button>
+    <div class="vgrid"><table aria-label="Bande">
+    <thead><tr><td></td>${s.players.map((p, i) => `<th scope="col"><span class="ini${waiting.includes(i) ? ' turn' : ''}" style="--pc:${THEME.players[i]}" title="${esc(tip(p, i))}">${esc(bigBoard ? shortName(p.name) : initial(s, i))}</span>${i === s.active ? `<i class="mk" title="Segnalino quartiere attivo">${icon('T', 11, 'currentColor', HOLE)}</i>` : ''}</th>`).join('')}</tr></thead>
+    <tbody>${row('punti', 'points')}${row('crediti', 'coins')}${row('guerrilla', 'raiders', 'guerrilla')}${row('community', 'church', 'community')}</tbody>
+    <tfoot><tr${phaseNow === 'guerrilla' ? ' class="on"' : ''}><th scope="row">${lab('polizia')}</th><td colspan="${s.players.length}">${s.area}</td></tr></tfoot>
+    </table>
+    <div class="vhype${phaseNow === 'party' ? ' on' : ''}" role="img" aria-label="Hype: ${s.players.map(p => `${esc(p.name)} casella ${p.mar + 1}`).join(', ')}">${MARRIAGE_TRACK.map((b, c) => [b, c]).reverse().map(([b, c]) =>
+      `<span class="vc${b ? ' bonus' : ''}" title="Hype ${c + 1}: ${b ? BONUS_TIP[b] : 'nessun bonus'}"><span class="g">${b ? icon(b === 'CC' ? 'C' : b, 10, 'currentColor', HOLE) + (b === 'CC' ? '<sup>2</sup>' : '') : ''}</span>${s.players.map((p, i) => (p.mar === c ? pdot(i) : '')).join('')}</span>`).join('')}</div></div>
+    ${s.marriage ? `<p class="sub hypeline">Hype: <b>${esc(characterName(s.marriage))}</b><button class="peek" type="button" aria-label="Vedi il personaggio: ${esc(characterName(s.marriage))}">${characterSVG(characterIndex(s.marriage))}</button></p>` : ''}`;
+  $('b-players').querySelector('.zoom').onclick = () => { bigBoard = !bigBoard; try { localStorage.setItem('bb-board', bigBoard ? 'big' : 'small'); } catch {} render(); };
   bindPeek(s);
-  // guerrilla: polizia totale, bande in ordine crescente di unità neutralizzate
-  on('b-guerrilla', 'guerrilla');
-  $('b-guerrilla').innerHTML = `<h3>${logo('guerrilla')}Guerrilla</h3><p class="big">${icon('A', 16, 'currentColor', HOLE)} <span>Polizia in allerta</span> <b>${s.area}</b></p>
-    <ol>${ascBy(s, 'raiders').map(i => `<li>${pname(s, i)}<span class="num">${s.players[i].raiders}</span></li>`).join('')}</ol>`;
-  // community projects: bande in ordine crescente di comunità
-  on('b-community', 'community');
-  $('b-community').innerHTML = `<h3>${logo('community')}Community Projects</h3>
-    <ol>${ascBy(s, 'church').map(i => `<li>${pname(s, i)}<span class="num">${icon('X', 13, 'currentColor', HOLE)}${s.players[i].church}</span></li>`).join('')}</ol>`;
   // uprising: zone sbloccate e chi le tiene
   on('b-uprising', 'uprising');
   const up = Object.entries(s.claims).filter(([, c]) => c.up);

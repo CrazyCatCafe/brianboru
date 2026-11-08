@@ -7,63 +7,12 @@
   <link rel="stylesheet" href="css/milano.css">
   <link rel="stylesheet" href="css/replaced.css">
   <script type="importmap">{ "imports": { "three": "./vendor/three/three.module.min.js" } }</script>
-  <style>.noscan .scan { display: none; } .pxtoggle { position: fixed; right: 12px; bottom: 12px; z-index: 5; }
-    /* prova: griglia unica in alto, sopra la barra delle fasi */
-    .griglia #b-players, .griglia #b-party, .griglia #b-guerrilla, .griglia #b-community { display: none; }
-    .topgrid { position: fixed; top: 12px; left: 50%; translate: -50% 0; width: min(620px, calc(100vw - 600px)); z-index: 3; padding: 8px 12px 10px; }
-    .griglia .rp-phases { top: calc(12px + var(--gh, 180px) + 6px); }
-    .griglia .rp-stage { top: calc(12px + var(--gh, 180px) + 50px); }
-    .topgrid table { width: 100%; border-collapse: collapse; font-size: 13px; }
-    .topgrid th { font: 400 10.5px var(--pix); letter-spacing: .05em; text-transform: uppercase; color: var(--rp-muted); text-align: right; padding: 0 8px 5px; white-space: nowrap; }
-    .topgrid th:first-child, .topgrid td:first-child { text-align: left; padding-left: 0; }
-    .topgrid th svg, .topgrid th .logo { vertical-align: -3px; }
-    .topgrid th .logo { width: 17px; height: 17px; display: inline-grid; place-items: center; background: #eef1f3; }
-    .topgrid td { text-align: right; padding: 3px 8px; font: 600 15px var(--num); color: var(--rp-ink); border-top: 1px solid var(--rp-line); }
-    .topgrid td:first-child { font: 13px var(--font); }
-    .topgrid .nm { display: flex; align-items: center; gap: 6px; }
-    .topgrid td.pts { font-size: 18px; color: #fff; }
-    .topgrid .on { background: rgba(214, 35, 42, .18); }
-    .topgrid th.on { color: #fff; box-shadow: inset 0 2px 0 var(--rp-red); }
-    .topgrid tfoot td { font: 400 11px var(--pix); color: var(--rp-muted); text-transform: uppercase; border-top: 1px solid var(--rp-line); padding-top: 4px; }
-    .topgrid tfoot b { color: var(--rp-police, #8fd3ff); font: 600 14px var(--num); }
-    .topgrid .hype { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--rp-line); }
-    .topgrid .hype.on { box-shadow: inset 0 2px 0 var(--rp-red); }
-    .topgrid .hype .lab { font: 400 10.5px var(--pix); text-transform: uppercase; letter-spacing: .05em; color: var(--rp-muted); }
-    .topgrid .hype .cells { flex: 1; }
-    .topgrid .hype .cell { height: 28px; aspect-ratio: auto; }
-    .topgrid .hype .who { font-size: 12px; color: var(--rp-ink); white-space: nowrap; }
-    /* prova 2: griglia verticale a sinistra, solo loghi; tastino per ingrandire */
+  <style>
+    /* plancia verticale (stili in css/replaced.css): qui solo l'impaginazione del mockup */
     .colonne #b-party, .colonne #b-guerrilla, .colonne #b-community { display: none; }
-    .colonne #b-players { position: relative; width: max-content; min-width: 0; }
-    .colonne .rp-left { width: auto; display: flex; flex-direction: column; align-items: flex-start; }
-    .colonne #b-uprising { width: var(--lw, auto); box-sizing: border-box; } /* largo come la plancia sopra */
-    .colonne .rp-turn { top: 56px; } /* sotto la barra delle fasi */
-    .colonne:not(.biggrid) #b-uprising h3 em { display: none; } /* compatta: niente sottotitolo che va a capo */
-    .vgrid { display: flex; gap: 8px; align-items: stretch; }
-    .vgrid table { border-collapse: collapse; }
-    .vgrid th, .vgrid td { padding: 5px 5px; border-top: 1px solid var(--rp-line); }
-    .vgrid thead th { border-top: 0; padding-top: 0; }
-    .vgrid tbody th, .vgrid tfoot th { text-align: left; }
-    .vgrid th .logo { width: 22px; height: 22px; display: inline-grid; place-items: center; background: #eef1f3; }
-    .vgrid td { text-align: center; font: 600 15px var(--num); color: var(--rp-ink); min-width: 30px; }
-    .vgrid td.pts { font-size: 19px; color: #fff; }
-    .vgrid tfoot td { color: var(--rp-police, #8fd3ff); }
-    .vgrid .ini { display: inline-grid; place-items: center; min-width: 24px; height: 24px; padding: 0 5px; background: var(--pc); color: #fff; font: 700 13px var(--num); white-space: nowrap; }
-    .big .vgrid td { min-width: 64px; font-size: 17px; }
-    .big .vgrid td.pts { font-size: 22px; }
-    .big .vgrid .ini { font-size: 13px; max-width: 8ch; }
-    .vgrid tr.on { background: rgba(214, 35, 42, .18); box-shadow: inset 2px 0 0 var(--rp-red); }
-    .vhype { display: flex; flex-direction: column; gap: 2px; width: 34px; padding-top: 28px; }
-    .big .vhype { width: 44px; }
-    .vhype.on { outline: 2px solid var(--rp-red); outline-offset: 2px; }
-    .vhype .vc { flex: 1; min-height: 14px; border: 1px solid var(--rp-line); background: rgba(255, 255, 255, .04); display: flex; align-items: center; justify-content: center; gap: 2px; }
-    .vhype .vc.bonus { background: rgba(255, 255, 255, .1); }
-    .vhype .vc .g { display: flex; align-items: center; color: var(--rp-muted); font-size: 8px; }
-    .vhype .vc .pd { width: 7px; height: 7px; }
-    .vgrid th .lname { font: 400 10.5px var(--pix); text-transform: uppercase; letter-spacing: .04em; color: var(--rp-muted); margin-left: 7px; vertical-align: 6px; white-space: nowrap; }
+    .colonne .rp-left { width: max-content; }
     .colonne .rp-phases { left: calc(var(--lw, 300px) + 24px); translate: none; max-width: calc(100vw - var(--lw, 300px) - 36px); }
-    .zoom { position: absolute; top: 6px; left: 8px; width: 24px; height: 24px; border: 1px solid var(--rp-line); background: rgba(255, 255, 255, .06); color: var(--rp-ink); font: 700 16px/1 var(--num); cursor: pointer; }
-    .zoom:hover, .zoom:focus-visible { border-color: var(--rp-ink); }
+    .colonne .rp-turn { top: 56px; }
   </style>
 </head>
 <body class="rp">

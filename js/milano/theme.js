@@ -34,30 +34,5 @@ export const THEME_REPLACED = {
   park: '#737c82', rural: '#56604f', water: '#6fd0ff',
   light: { hemi: 0.95, sun: 0.85, sky: '#f0f4f6', ground: '#5c656c', sunColor: '#fff0dc', sunPos: [-7, 6, 2] },
 };
-export const PIXEL_SCALE = 0.5; // risoluzione di disegno rispetto allo schermo nello stile REPLACED
+export const PIXEL_SCALE = 0.75; // risoluzione di disegno della mappa nello stile REPLACED (si può spegnere dal gioco)
 
-// Alternative alla città pixel (da scegliere): nitide a ogni risoluzione, i colori di gioco restano gli unici accesi.
-// Tavolo olografico: la mappa è una proiezione sul tavolo della banda, volumi scuri con spigoli ciano.
-export const THEME_HOLO = {
-  sky: ['#05090f', '#05090f'], fog: { color: '#05090f', range: [12, 30] },
-  ground: { city: '#0c1824', outside: '#070c12' }, building: { city: '#1c3550', outside: '#0d1722' },
-  park: '#0f2b28', rural: '#09130f', water: '#1fc8ff', clouds: false, glowTokens: true,
-  edges: { color: '#3fd6ff', opacity: 0.12 },
-  light: { hemi: 1.0, sun: 0.6, sky: '#8fbde0', ground: '#0a1018', sunColor: '#cdeeff', sunPos: [-5, 9, 4] },
-};
-// Plancia stampata, stile mappa della metro: carta, rilievi bassi, niente nuvole né ombre lunghe.
-export const THEME_METRO = {
-  sky: ['#efeae0', '#efeae0'], fog: { color: '#efeae0', range: [40, 80] },
-  ground: { city: '#f5f1e8', outside: '#e4dfd4' }, building: { city: '#e3dccd', outside: '#d8d1c3' },
-  park: '#cde0bd', rural: '#dde2cc', water: '#6cc0ea', clouds: false, shadows: false, heights: 0.3,
-  light: { hemi: 1.15, sun: 0.45, sky: '#ffffff', ground: '#d6cfc0', sunColor: '#ffffff', sunPos: [-3, 9, 4] },
-};
-
-// Prova notturna alla Cyberpunk 2077: palazzi scuri con finestre accese, neon giallo-ciano-magenta solo su pochi elementi.
-export const THEME_NEON = {
-  sky: ['#120a24', '#120a24'], fog: { color: '#1b1033', range: [5, 16] },
-  ground: { city: '#16131f', outside: '#0c0a12' }, building: { city: '#2a2740', outside: '#17151f' },
-  park: '#10261f', rural: '#0b130f', water: '#00e5ff', clouds: false, glowTokens: true,
-  windows: ['#fcee0a', '#00f0ff'], wall: '#ff2a6d',
-  light: { hemi: 0.8, sun: 0.5, sky: '#6b4fa8', ground: '#0a0710', sunColor: '#ff5fa8', sunPos: [-5, 6, 4] },
-};

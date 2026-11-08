@@ -47,7 +47,7 @@ function ribbon(pts, width, y) {
 }
 // Confini tra le aree disegnati una volta sola: i punti di aree vicine a meno di 4 px si fondono, i tratti doppi si tolgono.
 // È un muro continuo con le sue ombre, fermo a terra anche quando un'area si alza: niente linee doppie.
-function sharedBorders(regionRings, width, height, y, color, glow = false) {
+function sharedBorders(regionRings, width, height, y, color) {
   const pts = [], SNAP = 4;
   const snap = ([x, z]) => { const p = pts.find(q => Math.hypot(q[0] - x, q[1] - z) < SNAP); if (p) return p; const n = [x, z]; pts.push(n); return n; };
   const seen = new Set(), segs = [];
@@ -60,7 +60,7 @@ function sharedBorders(regionRings, width, height, y, color, glow = false) {
     });
   }
   // muro continuo: un blocco per tratto più una colonnina per vertice, come un edificio lungo il confine
-  const mat = glow ? new THREE.MeshLambertMaterial({ color, emissive: color, emissiveIntensity: 0.55 }) : new THREE.MeshLambertMaterial({ color }), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
+  const mat = new THREE.MeshLambertMaterial({ color }), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
   const walls = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), mat, segs.length);
   segs.forEach(([[x0, z0], [x1, z1]], i) => {
     const ax = X(x0), az = Z(z0), bx = X(x1), bz = Z(z1), l = Math.hypot(bx - ax, bz - az);
@@ -98,7 +98,7 @@ function buildingMeshes(buf, octs = []) {
     const pos = new Float32Array(gr.nv * 3), col = new Uint8Array(gr.nv * 3), idx = new Uint32Array(gr.ni);
     let v = 0, t = 0;
     for (let off of gr.list) {
-      const k = dv.getUint16(off, true), h = Math.max(4, dv.getUint8(off + 2)) * HS * (T.heights ?? 1), inside = dv.getUint8(off + 3) & 1;
+      const k = dv.getUint16(off, true), h = Math.max(4, dv.getUint8(off + 2)) * HS, inside = dv.getUint8(off + 3) & 1;
       off += 4;
       const base = v, contour = [], c = inside ? cin : cout, shade = inside ? 1 - Math.min(0.06, h * 0.1) : 1;
       for (let j = 0; j < k; j++, off += 4) {
@@ -119,31 +119,11 @@ function buildingMeshes(buf, octs = []) {
     g.setAttribute('color', new THREE.BufferAttribute(col, 3, true));
     g.setIndex(new THREE.BufferAttribute(idx.subarray(0, t), 1));
     const mat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide });
-    if (T.windows) litWindows(mat, T.windows);
     const m = new THREE.Mesh(g, mat);
-    m.castShadow = m.receiveShadow = T.shadows !== false;
-    if (T.edges && +r) m.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 30), new THREE.LineBasicMaterial({ color: T.edges.color, transparent: true, opacity: T.edges.opacity }))); // spigoli luminosi
+    m.castShadow = m.receiveShadow = true;
     meshes[r] = m;
   }
   return meshes;
-}
-
-// Finestre accese sulle facciate (tema notturno): griglia procedurale nello shader, una finestra su quattro circa è accesa
-function litWindows(mat, colors) {
-  mat.onBeforeCompile = sh => {
-    sh.uniforms.winA = { value: new THREE.Color(colors[0]) }; sh.uniforms.winB = { value: new THREE.Color(colors[1]) };
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;')
-      .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP; uniform vec3 winA, winB;')
-      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
-        vec3 fn = normalize(cross(dFdx(vWP), dFdy(vWP)));
-        if (abs(fn.y) < 0.3 && vWP.y > 0.004) {
-          vec2 uv = vec2((abs(fn.x) > abs(fn.z) ? vWP.z : vWP.x) * 70.0, vWP.y * 60.0), id = floor(uv), c = fract(uv);
-          float h = fract(sin(dot(id, vec2(12.9898, 78.233))) * 43758.5453);
-          float win = step(0.25, c.x) * step(c.x, 0.75) * step(0.3, c.y) * step(c.y, 0.8) * step(0.74, h);
-          totalEmissiveRadiance += win * mix(winA, winB, step(0.9, h)) * 1.4;
-        }`);
-  };
 }
 
 // Stemma della polizia: faccia con casco, disegnata su canvas
@@ -243,10 +223,11 @@ export async function createCity(container, overlay, view = {}) {
     for (const l of lines) scene.add(new THREE.Mesh(ribbon(l, name.startsWith('Lambro') ? 0.016 : 0.012, 0.006), waterMat));
 
   // municipi: ognuno è un gruppo (tinta, bordo, edifici, quartieri, pedine) che si può alzare
-  const AREAS = view.areas === 'nero'; // proposta: confini scuri, area velata del suo colore
-  if (AREAS) scene.add(sharedBorders(Object.values(map.regions).map(r => rings(r.svg_path)), 0.016, 0.05, 0, T.wall || '#3d434a', !!T.wall));
-  const OCT = view.markers === 'ottagono', OCT_R = 0.13; // quartieri come ottagoni di palazzi colorati
-  const octs = OCT ? towns.map(t => ({ x: X(t.x), z: Z(t.y), a: OCT_R * Math.cos(Math.PI / 8), blds: [] })) : [];
+  // aree: confini come muro continuo antracite, l'area velata del suo colore
+  scene.add(sharedBorders(Object.values(map.regions).map(r => rings(r.svg_path)), 0.016, 0.05, 0, '#3d434a'));
+  // quartieri: ottagoni; i palazzi che ci cadono dentro prendono il colore del seme (libero) o della banda (preso)
+  const OCT_R = 0.13, BRIGHT = { red: '#ff1f2d', blue: '#0a84ff', yellow: '#ffd400' };
+  const octs = towns.map(t => ({ x: X(t.x), z: Z(t.y), a: OCT_R * Math.cos(Math.PI / 8), blds: [] }));
   const meshes = buildingMeshes(bin, octs);
   const paint = (i, color) => { // colora i palazzi dell'ottagono del quartiere i
     const c = new THREE.Color(color), touched = new Set();
@@ -262,11 +243,10 @@ export async function createCity(container, overlay, view = {}) {
   env.regionKeys.forEach((k, i) => {
     const r = map.regions[k], g = new THREE.Group(), color = new THREE.Color(T.region[k]);
     const tint = flat(rings(r.svg_path), color, 0.002, { transparent: true, opacity: 0.16, depthWrite: false });
-    const borders = AREAS ? [] : rings(r.svg_path).map(ring => over(new THREE.Mesh(ribbon([...ring, ring[0]], 0.014, OV), new THREE.MeshBasicMaterial({ color, opacity: 0.9 })), 1));
     const glow = rings(r.svg_path).map(ring => over(new THREE.Mesh(ribbon([...ring, ring[0]], 0.06, OV - 0.002),
       new THREE.MeshBasicMaterial({ color, opacity: 0, blending: THREE.AdditiveBlending })), 0));
     const bld = meshes[i + 1], pieces = new THREE.Group();
-    g.add(tint, ...borders, ...glow, pieces);
+    g.add(tint, ...glow, pieces);
     if (bld) g.add(bld);
     scene.add(g);
     regions[k] = { g, tint, glow, bld, pieces, color, lift: 0 };
@@ -277,48 +257,24 @@ export async function createCity(container, overlay, view = {}) {
     const m = over(new THREE.Mesh(r0 ? new THREE.RingGeometry(r0, r1, 48) : new THREE.CircleGeometry(r1, 48), new THREE.MeshBasicMaterial({ color, ...opts })), order);
     m.rotation.x = -Math.PI / 2; m.position.y = y; return m;
   };
-  // forma dei quartieri (view.markers): 'disco' com'era; proposte 'anello' (vuoto→pieno), 'esagono' (piatto→torre), 'rombo' (piatto→spillo)
-  const MK = view.markers || 'disco', BRIGHT = { red: '#ff1f2d', blue: '#0a84ff', yellow: '#ffd400' };
   const poly = (r, n, color, y, order, r0 = 0) => {
     const m = over(new THREE.Mesh(r0 ? new THREE.RingGeometry(r0, r, n, 1, Math.PI / 2) : new THREE.CircleGeometry(r, n, Math.PI / 2), new THREE.MeshBasicMaterial({ color })), order);
     m.rotation.x = -Math.PI / 2; m.position.y = y; return m;
   };
-  const freeMarker = (suit, g) => {
-    const c = BRIGHT[suit];
-    if (MK === 'anello') { g.add(poly(0.112, 48, T.ink, OV, 3, 0.05)); return poly(0.1, 48, c, OV, 3.2, 0.062); }
-    const n = MK === 'esagono' ? 6 : 4, r = MK === 'esagono' ? 0.108 : 0.115;
-    g.add(poly(r, n, T.ink, OV, 3)); return poly(r * 0.8, n, c, OV, 3.2);
-  };
   const spots = towns.map((t, i) => {
     const g = new THREE.Group(); g.position.set(X(t.x), 0, Z(t.y));
-    if (OCT) { // ottagono a terra del colore del seme, i palazzi sopra li colora paint()
-      const fill = new THREE.Mesh(new THREE.CircleGeometry(OCT_R, 8, Math.PI / 8), new THREE.MeshLambertMaterial({ color: BRIGHT[t.suit], transparent: true }));
-      fill.rotation.x = -Math.PI / 2; fill.position.y = 0.006; fill.receiveShadow = true; fill.renderOrder = 1;
-      const thin = poly(OCT_R + 0.008, 8, '#3d434a', OV, 2, OCT_R), thick = poly(OCT_R + 0.026, 8, '#ffffff', OV, 2, OCT_R);
-      thin.rotation.z = thick.rotation.z = Math.PI / 8 - Math.PI / 2; thick.visible = false; // contorno: sottile se libero, spesso se preso
-      g.add(thin, thick);
-      const option = disc(OCT_R + 0.015, OCT_R + 0.04, T.project, OV, 3.3); option.visible = false;
-      const hit = new THREE.Mesh(new THREE.CylinderGeometry(OCT_R, OCT_R, 0.4, 8), new THREE.MeshBasicMaterial({ visible: false }));
-      hit.position.y = 0.2; hit.userData.town = i;
-      g.add(fill, option, hit); regions[t.region].g.add(g);
-      paint(i, BRIGHT[t.suit]);
-      return { g, hit, fill, option, region: t.region, suit: t.suit, oct: true, thin, thick };
-    }
-    if (MK !== 'disco') {
-      const free = new THREE.Group(), fill = freeMarker(t.suit, free); free.add(fill);
-      const option = disc(0.125, 0.15, T.project, OV, 3.3); option.visible = false;
-      const hit = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.4, 8), new THREE.MeshBasicMaterial({ visible: false }));
-      hit.position.y = 0.2; hit.userData.town = i;
-      g.add(free, option, hit); regions[t.region].g.add(g);
-      return { g, hit, fill, option, free, region: t.region, suit: t.suit };
-    }
-    const fill = disc(0, 0.078, T.suit[t.suit].fill, OV, 3.2);
-    const option = disc(0.125, 0.15, T.project, OV, 3.3); option.visible = false; // anello delle scelte possibili
-    const hit = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.4, 8), new THREE.MeshBasicMaterial({ visible: false }));
+    // ottagono a terra del colore del seme, i palazzi sopra li colora paint()
+    const fill = new THREE.Mesh(new THREE.CircleGeometry(OCT_R, 8, Math.PI / 8), new THREE.MeshLambertMaterial({ color: BRIGHT[t.suit], transparent: true }));
+    fill.rotation.x = -Math.PI / 2; fill.position.y = 0.006; fill.receiveShadow = true; fill.renderOrder = 1;
+    const thin = poly(OCT_R + 0.008, 8, '#3d434a', OV, 2, OCT_R), thick = poly(OCT_R + 0.026, 8, '#ffffff', OV, 2, OCT_R);
+    thin.rotation.z = thick.rotation.z = Math.PI / 8 - Math.PI / 2; thick.visible = false; // contorno: sottile se libero, spesso se preso
+    g.add(thin, thick);
+    const option = disc(OCT_R + 0.015, OCT_R + 0.04, T.project, OV, 3.3); option.visible = false;
+    const hit = new THREE.Mesh(new THREE.CylinderGeometry(OCT_R, OCT_R, 0.4, 8), new THREE.MeshBasicMaterial({ visible: false }));
     hit.position.y = 0.2; hit.userData.town = i;
-    g.add(disc(0, 0.108, T.ink, OV, 3), disc(0, 0.094, '#ffffff', OV, 3.1), fill, option, hit);
-    regions[t.region].g.add(g);
-    return { g, hit, fill, option, region: t.region };
+    g.add(fill, option, hit); regions[t.region].g.add(g);
+    paint(i, BRIGHT[t.suit]);
+    return { g, hit, fill, option, region: t.region, suit: t.suit, thin, thick, color: BRIGHT[t.suit] };
   });
 
   // strade: trattini 3D ad arco
@@ -364,34 +320,12 @@ export async function createCity(container, overlay, view = {}) {
     for (const r of Object.values(regions)) r.pieces.clear();
     spinners.length = glows.length = 0;
     s.towns.forEach((st, i) => {
-      if (spots[i].free) spots[i].free.visible = st.owner === null || MK !== 'anello';
-      if (spots[i].oct) { // libero: palazzi del seme; preso: palazzi e ottagono del colore della banda
-        const c = st.owner === null ? BRIGHT[spots[i].suit] : T.players[st.owner];
-        paint(i, c); spots[i].fill.material.color.set(c);
-        spots[i].thin.visible = st.owner === null; spots[i].thick.visible = st.owner !== null; spots[i].thick.material.color.set(c);
-      }
+      const sp = spots[i], c = st.owner === null ? BRIGHT[sp.suit] : T.players[st.owner]; // libero: colore del seme; preso: della banda
+      if (sp.color !== c) { sp.color = c; paint(i, c); sp.fill.material.color.set(c); sp.thick.material.color.set(c); } // ridipinge solo se cambia
+      sp.thin.visible = st.owner === null; sp.thick.visible = st.owner !== null;
       if (st.owner === null) return;
       const p = spots[i].g.position, parent = regions[spots[i].region].pieces;
       const put = (m, y = OV, order = 5) => { over(m, order); m.position.x += p.x; m.position.y += y; m.position.z += p.z; parent.add(m); return m; };
-      const solid = (m, y, order) => { put(m, y, order); m.material.side = THREE.FrontSide; return m; }; // pezzi convessi senza profondità: solo facce davanti
-      const pc = T.players[st.owner], sc = BRIGHT[spots[i].suit];
-      if (MK === 'anello') { // preso: disco pieno della banda, bordino del seme
-        put(poly(0.14, 48, sc, 0, 4, 0.112), OV);
-        solid(new THREE.Mesh(new THREE.CylinderGeometry(0.112, 0.112, 0.04, 48), mat(pc)), OV + 0.02, 5);
-      } else if (MK === 'esagono') { // preso: torretta esagonale della banda sopra l'esagono del seme
-        solid(new THREE.Mesh(new THREE.CylinderGeometry(0.072, 0.072, 0.16, 6), mat(pc)), OV + 0.08, 5);
-        solid(new THREE.Mesh(new THREE.CylinderGeometry(0.073, 0.073, 0.012, 6), mat('#ffffff')), OV + 0.163, 6);
-      } else if (MK === 'rombo') { // preso: spillo da mappa della banda piantato sul rombo del seme
-        const pin = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.16, 16), mat(pc)); pin.rotation.x = Math.PI;
-        solid(pin, OV + 0.08, 5);
-        solid(new THREE.Mesh(new THREE.SphereGeometry(0.066, 20, 14), mat(pc)), OV + 0.2, 6);
-        solid(new THREE.Mesh(new THREE.SphereGeometry(0.024, 12, 8), mat('#ffffff')), OV + 0.2, 7).position.z += 0.05;
-      }
-      if (MK === 'disco') {
-      // gettone 3D della banda: copre tutto lo spot
-      put(new THREE.Mesh(new THREE.CylinderGeometry(0.118, 0.118, 0.05, 48), T.glowTokens ? new THREE.MeshBasicMaterial({ color: T.players[st.owner] }) : mat(T.players[st.owner])), OV + 0.025);
-      put(new THREE.Mesh(new THREE.TorusGeometry(0.104, 0.01, 8, 48), mat('#ffffff')), OV + 0.05).rotation.x = Math.PI / 2;
-      }
       if (st.monastery) { // progetto urbano: anello fluorescente
         put(new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.016, 10, 64), new THREE.MeshBasicMaterial({ color: T.project })), OV + 0.02, 4).rotation.x = Math.PI / 2;
         const g = put(new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.05, 10, 64), new THREE.MeshBasicMaterial({ color: T.project, opacity: 0.35, blending: THREE.AdditiveBlending })), OV + 0.02, 3);
@@ -444,7 +378,7 @@ export async function createCity(container, overlay, view = {}) {
     weatherKey = key; weather = WEATHER[key];
     clouds.clear();
     const cm = new THREE.MeshLambertMaterial({ color: weather.color, transparent: true, opacity: weather.opacity, depthWrite: false, flatShading: true });
-    for (let c = 0; c < (T.clouds === false ? 0 : weather.clouds); c++) {
+    for (let c = 0; c < weather.clouds; c++) {
       const g = new THREE.Group(), n = 4 + Math.floor(Math.random() * 6), size = 0.35 + Math.random() * 0.5;
       for (let k = 0; k < n; k++) {
         const b = new THREE.Mesh(blob, cm), s = size * (0.5 + Math.random() * 0.6);
@@ -503,7 +437,7 @@ export async function createCity(container, overlay, view = {}) {
   };
   new ResizeObserver(resize).observe(container);
   function applyQuality() {
-    sun.castShadow = q.shadow > 0 && T.shadows !== false;
+    sun.castShadow = q.shadow > 0;
     if (q.shadow && sun.shadow.mapSize.x !== q.shadow) { sun.shadow.mapSize.setScalar(q.shadow); sun.shadow.map?.dispose(); sun.shadow.map = null; }
     rainGeo.setDrawRange(0, Math.round(Math.min(MAXRAIN, weather.rain * q.rain)) * 2);
     resize();
@@ -542,9 +476,9 @@ export async function createCity(container, overlay, view = {}) {
     for (const [k, r] of Object.entries(regions)) {
       r.lift += ((k === selRegion ? 1 : 0) - r.lift) * Math.min(1, dt * 6);
       r.g.position.y = r.lift * LIFT;
-      r.tint.material.opacity = (AREAS ? 0.3 : 0.16) + r.lift * 0.3;
+      r.tint.material.opacity = 0.3 + r.lift * 0.3;
       r.glow.forEach(g => (g.material.opacity = r.lift * (0.45 + (still ? 0 : Math.sin(t * 3) * 0.15))));
-      if (r.bld) r.bld.material.color.copy(white).lerp(r.color, (AREAS ? 0.16 : 0) + r.lift * 0.4); // con aree colorate anche gli edifici prendono una velatura
+      if (r.bld) r.bld.material.color.copy(white).lerp(r.color, 0.16 + r.lift * 0.4); // anche gli edifici prendono la velatura dell'area
     }
     spots.forEach((sp, i) => {
       const on = i === selected;
