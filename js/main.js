@@ -1,10 +1,10 @@
 // Brian Boru · Milano 2077: accesso, lobby, amici e partita (online o locale).
-import { move as applyMove, current, emptyTowns, ownTowns, expandTargets, vikingTowns, newGame } from './game/engine.js';
+import { move as applyMove, current, emptyTowns, leadTowns, ownTowns, expandTargets, vikingTowns, newGame } from './game/engine.js';
 import { CARDS, MARRIAGES, TOWNS, REGIONS, MARRIAGE_TRACK } from './game/data.js';
 import { THEME, THEME_REPLACED, PIXEL_SCALE } from './milano/theme.js';
 import { cardSVG, characterSVG } from './milano/card.js';
 import { icon, setIconSet } from './milano/icons.js';
-import { STORIES, ESTRID, SYMBOLS, CHARACTERS } from './milano/lore.js';
+import { ESTRID, SYMBOLS, CHARACTERS } from './milano/lore.js';
 import { createCity, WEATHER_TYPES, QUALITY } from './milano/city3d.js';
 import { connect } from './milano/online.js';
 
@@ -191,7 +191,7 @@ function clickable(s, pd) {
   if (!pd || pd.p !== seat || showing) return [];
   switch (pd.type) {
     case 'setupTown': return emptyTowns(s).filter(id => !TOWNS.some(o => o.region === TOWNS[id].region && s.towns[o.id].owner !== null && s.towns[o.id].owner !== seat));
-    case 'activeTown': return emptyTowns(s);
+    case 'activeTown': return leadTowns(s, seat);
     case 'placeTown': return emptyTowns(s, pd.region);
     case 'loseTown': return ownTowns(s, pd.victim);
     case 'monastery': return ownTowns(s, seat).filter(id => !s.towns[id].monastery);
@@ -322,23 +322,44 @@ const pdot = i => `<i class="pd" style="--pc:${THEME.players[i]}"></i>`;
 const pname = (s, i) => `${pdot(i)}<b>${esc(s.players[i].name)}</b>`;
 const ascBy = (s, key) => s.players.map((p, i) => i).sort((a, b) => s.players[a][key] - s.players[b][key]);
 const openRows = new Set();
+// carta del personaggio in hype: si apre di fianco alla plancia, senza coprire gli altri riquadri
+function bindPeek(s) {
+  const b = $('b-party').querySelector('.peek'), card = $('peekcard');
+  card.hidden = true;
+  if (!b) return;
+  const show = on => {
+    if (on) {
+      card.innerHTML = characterSVG(characterIndex(s.marriage));
+      const r = $('b-party').getBoundingClientRect();
+      card.style.left = `${Math.min(r.right + 8, innerWidth - 196)}px`;
+      card.style.top = `${Math.max(8, Math.min(r.top, innerHeight - 290))}px`;
+    }
+    card.hidden = !on;
+  };
+  b.onmouseenter = b.onfocus = () => show(true);
+  b.onmouseleave = b.onblur = () => show(false);
+  b.onclick = () => show(card.hidden);
+}
 const BONUS_TIP = { C: '+1 credito', CC: '+2 crediti', R: '+1 street cred', T: 'un quartiere a scelta' };
 function renderBoard(s, pd) {
   const waiting = !pd ? [] : pd.type === 'draft' ? s.draft.picks.flatMap((x, i) => (x ? [] : [i])) : [pd.p];
   const on = (id, k) => ($(id).className = `box${phaseNow === k ? ' on' : ''}`);
-  // bande: solo crediti e punti (il resto nel suggerimento al passaggio del mouse)
-  // bande: in vista solo crediti e punti; il resto si apre toccando la riga
+  // bande: in vista solo i punti vittoria; il resto si apre toccando la riga
   $('b-players').innerHTML = `<h3>Bande</h3><ul>${s.players.map((p, i) => `<li class="${waiting.includes(i) ? 'turn' : ''}"><details ${openRows.has(i) ? 'open' : ''} data-row="${i}"><summary>
       ${pname(s, i)}${i === seat && !local ? '<small>tu</small>' : ''}${i === s.active ? `<span class="mk" title="Segnalino quartiere attivo">${icon('T', 12, 'currentColor', HOLE)}</span>` : ''}
-      <span class="num" title="Crediti">${icon('C', 14, 'currentColor', HOLE)}${p.coins}</span><span class="num pts" title="Punti">${p.points}</span></summary>
+      <span class="num pts" title="Punti vittoria">${p.points}</span></summary>
       <dl class="more"><dt>Banda</dt><dd>${esc(room.players[i]?.gang || '')}</dd><dt>Street cred</dt><dd>${p.renown}</dd><dt>Carte in mano</dt><dd>${p.hand.length}</dd>
       ${p.claims.length ? `<dt>Zone</dt><dd>${p.claims.map(r => REGIONS[r].name).join(', ')}</dd>` : ''}${p.marriages.length ? `<dt>Personaggi</dt><dd>${p.marriages.map(characterName).join(', ')}</dd>` : ''}${p.princess ? '<dt>Estrid</dt><dd>alleata</dd>' : ''}</dl></details></li>`).join('')}</ul>`;
   $('b-players').querySelectorAll('details').forEach(d => (d.ontoggle = () => (d.open ? openRows.add(+d.dataset.row) : openRows.delete(+d.dataset.row))));
+  // crediti: riquadro a parte, con la moneta gialla
+  $('b-coins').innerHTML = `<h3>Crediti</h3><ul>${s.players.map((p, i) => `<li>${pname(s, i)}<span class="num coin">${icon('C', 15, THEME.suit.yellow.fill, HOLE)}${p.coins}</span></li>`).join('')}</ul>`;
   // underground party: solo caselle
   on('b-party', 'party');
-  $('b-party').innerHTML = `<h3>Underground Party <em>Hype</em></h3><div class="cells">${MARRIAGE_TRACK.map((b, c) =>
+  $('b-party').innerHTML = `<h3>Underground Party</h3><div class="party"><div class="cells">${MARRIAGE_TRACK.map((b, c) =>
     `<span class="cell${b ? ' bonus' : ''}" title="Casella ${c + 1}: ${b ? BONUS_TIP[b] : 'nessun bonus'}"><span class="g">${b ? icon(b === 'CC' ? 'C' : b, 11, 'currentColor', HOLE) + (b === 'CC' ? '<sup>2</sup>' : '') : ''}</span>${s.players.map((p, i) => (p.mar === c ? pdot(i) : '')).join('')}</span>`).join('')}</div>
-    ${s.marriage ? `<div class="sub peek">In palio: <b>${esc(characterName(s.marriage))}</b><figure>${characterSVG(characterIndex(s.marriage))}</figure></div>` : ''}`;
+    ${s.marriage ? `<button class="peek" type="button" aria-label="Vedi il personaggio: ${esc(characterName(s.marriage))}">${characterSVG(characterIndex(s.marriage))}</button>` : ''}</div>
+    ${s.marriage ? `<p class="sub">Hype: <b>${esc(characterName(s.marriage))}</b></p>` : ''}`;
+  bindPeek(s);
   // guerrilla: polizia totale, bande in ordine crescente di unità neutralizzate
   on('b-guerrilla', 'guerrilla');
   $('b-guerrilla').innerHTML = `<h3>Guerrilla</h3><p class="big">${icon('A', 16, 'currentColor', HOLE)} <span>Polizia in allerta</span> <b>${s.area}</b></p>
@@ -360,7 +381,7 @@ function renderTurn(s, pd, wk) {
   $('turn').innerHTML = `<p class="big">${turn}</p><p class="sub">Round ${s.round} di ${total} · ${WEATHER_TYPES[wk]}</p>`;
 }
 
-const SUIT_WORD = { red: 'Guerriglia', blue: 'Comunità', yellow: 'Festa' };
+const SUIT_WORD = { red: 'Guerrilla', blue: 'Community Projects', yellow: 'Underground Party' };
 const coarse = matchMedia('(pointer: coarse)').matches; // su touch la carta in presa va confermata
 
 function renderHand(s, pd) {
@@ -482,14 +503,14 @@ function renderStage(s = state, pd = current(state)) {
       : `Scegli quale quartiere di ${esc(s.players[pd.victim].name)} viene presidiato.`);
     case 'monastery': return confirmTown('Avvia un progetto urbano', 'Scegli un tuo quartiere: conterà doppio per il controllo della zona.');
     case 'activeTown':
-      el.innerHTML = head('Scegli il quartiere attivo', mine, `<p>Clicca uno spot libero, poi <b>gioca una carta</b> del suo colore o di Briano Borro per confermare.</p>
+      el.innerHTML = head('Scegli il quartiere attivo', mine, `<p>Clicca uno spot libero di un colore che hai in mano (qualsiasi, se hai una carta di Briano Borro), poi <b>gioca una carta</b> di quel colore o di Briano Borro per confermare.</p>
         <p class="pickline">Scelta: ${ui.town != null ? `${townChip(ui.town)} · ${REGIONS[TOWNS[ui.town].region].name}` : '<em>nessuna</em>'}</p>${spotPicker(picks, ui.town)}
         ${ui.armed != null && ui.town != null ? `<button id="playarmed" class="btn wide">Gioca la carta ${ui.armed}</button>` : ''}`);
       bindArmed(true); return;
     case 'play': {
       const word = SUIT_WORD[TOWNS[town].color];
       el.innerHTML = trick + head('Gioca una carta', `${mine} · Quartiere attivo: ${townChip(town)}`,
-        `<p>Vince la carta di ${word} più alta, oppure una di Briano Borro.${seat === s.trick.leader ? ' Apri tu: se puoi, gioca ' + word + ' o Briano Borro.' : ''}</p>
+        `<p>Vince la carta di ${word} più alta, oppure una di Briano Borro.${seat === s.trick.leader ? ' Apri tu: gioca ' + word + ' o Briano Borro.' : ''}</p>
         ${ui.armed != null ? `<button id="playarmed" class="btn wide">Gioca la carta ${ui.armed}</button>` : ''}`);
       bindArmed(false); return;
     }
@@ -516,7 +537,7 @@ function renderStage(s = state, pd = current(state)) {
     $('nopick').onclick = () => { ui.pick = null; render(); };
     return;
   }
-  el.innerHTML = trick + head(title, `${mine} · ${esc(STORIES[pd.card])}`,
+  el.innerHTML = trick + head(title, `${mine} · Carta ${pd.card}`,
     `<div class="opts" role="radiogroup" aria-label="Azione">${opts.map(([k, sy]) => `<button class="opt" role="radio" data-o="${k}" aria-checked="${k === ui.opt}" aria-pressed="${k === ui.opt}"><small>${k === 'p' ? 'Vinci' : k ? 'Oppure' : 'Riserva'}</small>${sy.map(x => `<span title="${SYMBOLS[x]}">${icon(x, 24, 'currentColor', HOLE)}</span>`).join('')}</button>`).join('')}</div>
     <ul class="explain">${[...new Set(syms)].map(x => `<li>${icon(x, 16, 'currentColor', HOLE)} ${SYMBOLS[x]}</li>`).join('')}</ul>
     ${buy ? `<div class="stepper"><span>Passi extra, 2 crediti l'uno</span><button class="btn small" data-x="-1" aria-label="Un passo in meno">−</button><b>${ui.extra}</b><button class="btn small" data-x="1" aria-label="Un passo in più" ${ui.extra >= maxExtra ? 'disabled' : ''}>+</button></div>` : ''}

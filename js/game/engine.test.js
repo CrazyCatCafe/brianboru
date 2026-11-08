@@ -1,8 +1,9 @@
 // node js/game/engine.test.js — gioca partite complete con mosse casuali legali e controlla invarianti.
 import assert from 'node:assert/strict';
-import { newGame, move, current, emptyTowns, ownTowns, expandTargets, vikingTowns } from './engine.js';
+import { newGame, move, current, emptyTowns, leadTowns, ownTowns, expandTargets, vikingTowns } from './engine.js';
 import { TOWNS, CARDS, REGIONS } from './data.js';
 
+let leadFit = 0, leadMiss = 0;
 const pick = a => a[Math.floor(Math.random() * a.length)];
 
 function botMove(s) {
@@ -15,10 +16,11 @@ function botMove(s) {
     }
     case 'setupTown': return [pd.p, town(emptyTowns(s).filter(id =>
       !TOWNS.some(o => o.region === TOWNS[id].region && s.towns[o.id].owner !== null)))];
-    case 'activeTown': return [pd.p, town(emptyTowns(s))];
+    case 'activeTown': return [pd.p, town(leadTowns(s, pd.p))];
     case 'play': {
       const hand = s.players[pd.p].hand, color = TOWNS[s.trick.town].color;
       const fits = hand.filter(c => CARDS[c].color === color || CARDS[c].color === 'white');
+      if (pd.p === s.trick.leader && fits.length) leadFit++; else if (pd.p === s.trick.leader) leadMiss++;
       return [pd.p, { card: pick(pd.p === s.trick.leader && fits.length ? fits : hand) }];
     }
     case 'action': {
@@ -64,4 +66,21 @@ assert.throws(() => move(s, (p + 1) % 3, { town: 0 }), /Tocca a/);
 assert.throws(() => move(s, p, { town: 999 }));
 assert.equal(Object.keys(CARDS).length, 25);
 assert.equal(Object.keys(REGIONS).length, 8);
+// chi apre: solo quartieri di un colore che ha in mano (o tutti con una bianca), poi solo quel colore o bianca
+for (let seed = 1, checked = 0; checked < 50; seed++) {
+  let g = newGame(['A', 'B', 'C'], seed);
+  while (current(g).type !== 'activeTown') { const [q, m] = botMove(g); g = move(g, q, m); }
+  const L = current(g).p, hand = g.players[L].hand;
+  if (hand.some(c => CARDS[c].color === 'white')) continue;
+  const colors = new Set(hand.map(c => CARDS[c].color));
+  const bad = emptyTowns(g).find(id => !colors.has(TOWNS[id].color));
+  if (bad === undefined) continue;
+  assert.throws(() => move(g, L, { town: bad }), /colore/);
+  const town = leadTowns(g, L)[0], color = TOWNS[town].color;
+  g = move(g, L, { town });
+  const off = hand.find(c => CARDS[c].color !== color);
+  if (off) assert.throws(() => move(g, L, { card: off }), /Chi apre/);
+  checked++;
+}
+assert.equal(leadMiss, 0, 'chi apre senza carte giocabili');
 console.log('ok: 600 partite simulate');

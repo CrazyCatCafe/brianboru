@@ -22,6 +22,13 @@ const name = (s, p) => s.players[p].name;
 
 export const neighbours = id => ROADS.flatMap(([a, b]) => (a === id ? [b] : b === id ? [a] : []));
 export const emptyTowns = (s, region) => TOWNS.filter(t => s.towns[t.id].owner === null && (!region || t.region === region)).map(t => t.id);
+// Quartieri che chi apre può scegliere: deve poter giocare quel colore o una carta Briano Borro (bianca).
+// Se nessun quartiere libero è giocabile (caso non previsto dal regolamento) li può scegliere tutti.
+export function leadTowns(s, p) {
+  const colors = new Set(s.players[p].hand.map(c => CARDS[c].color)), free = emptyTowns(s);
+  const ok = colors.has('white') ? free : free.filter(id => colors.has(TOWNS[id].color));
+  return ok.length ? ok : free;
+}
 export const ownTowns = (s, p) => TOWNS.filter(t => s.towns[t.id].owner === p && !s.towns[t.id].viking).map(t => t.id);
 export const expandTargets = (s, p) => [...new Set(ownTowns(s, p).flatMap(neighbours))].filter(id => s.towns[id].owner === null);
 export const vikingTowns = s => TOWNS.filter(t => s.towns[t.id].viking).map(t => t.id);
@@ -281,7 +288,7 @@ const MOVES = {
     log(s, `${name(s, p)} parte da ${TOWNS[town].name} (${REGIONS[TOWNS[town].region].name}).`);
   },
   activeTown(s, p, { town }) {
-    needTown(s, town, st => st.owner === null, 'Scegli un quartiere libero');
+    if (!leadTowns(s, p).includes(town)) fail('Scegli un quartiere libero di un colore che hai in mano (o qualsiasi, con una carta Briano Borro)');
     s.trick.town = town;
   },
   play(s, p, { card }) {
