@@ -1,12 +1,12 @@
 # Piano di deployment
 
-Architettura: sito statico su **GitHub Pages** + **Firebase** (Auth anonima e Firestore) per lo stato delle partite online.
+Architettura: sito statico su **GitHub Pages** + **Firebase** (Auth anonima e Realtime Database) per lo stato delle partite online.
 Costo: zero. Il piano gratuito Spark di Firebase basta largamente per un gruppo di amici.
 
 ```
 Browser (GitHub Pages)  ──  Firebase Auth (anonimo)
         │
-        └── Firestore: games/{CODICE} = { host, uids, players, state(JSON) }
+        └── Realtime Database: games/{CODICE} = { host, uids, players, state(JSON) }
              ogni mossa = transazione: legge lo stato, applica le regole (js/game/engine.js), riscrive
 ```
 
@@ -19,17 +19,17 @@ Da subito funziona la modalità **"Stesso dispositivo"**: tutti i giocatori a tu
 
 ## 2. Firebase (10 minuti)
 1. Vai su https://console.firebase.google.com e scegli **Aggiungi progetto** (Google Analytics non serve).
-2. **Build → Authentication → Inizia → Sign-in method → Anonimo → Abilita**.
+2. **Sicurezza → Authentication → Inizia → Sign-in method → Anonimo → Abilita**.
 3. **Authentication → Impostazioni → Domini autorizzati → Aggiungi dominio**: `crazycatcafe.github.io`.
-4. **Build → Firestore Database → Crea database**: località `eur3 (europe-west)`, avvio in **modalità produzione**.
-5. **Firestore → Regole**: incolla il contenuto di [`firestore.rules`](firestore.rules) e scegli **Pubblica**.
+4. **Database e storage → Realtime Database → Crea database**: località **Belgio (europe-west1)**, avvio in **modalità bloccata**.
+5. **Realtime Database → Regole**: incolla il contenuto di [`database.rules.json`](database.rules.json) e scegli **Pubblica**.
 6. **Impostazioni progetto (⚙) → Le tue app → Web (`</>`)**: registra l'app con un nome qualsiasi, senza Hosting, e copia l'oggetto `firebaseConfig`.
 
 ## 3. Collegare il sito a Firebase
 1. Copia `js/firebase-config.example.js` in `js/firebase-config.js` e incolla i valori.
 2. Fai commit e push su `main`.
 
-La config web di Firebase **non è un segreto**: è pubblica per design e finisce comunque nel browser di chi gioca. La protezione sta nelle regole Firestore (solo chi partecipa a una partita può modificarla) e nei domini autorizzati.
+La config web di Firebase **non è un segreto**: è pubblica per design e finisce comunque nel browser di chi gioca. La protezione sta nelle regole del database (solo chi partecipa a una partita può modificarla) e nei domini autorizzati.
 Facoltativo: in Google Cloud Console → Credenziali, limita la API key ai referrer `https://crazycatcafe.github.io/*` e `http://localhost:*`.
 
 ## 4. Giocare
@@ -43,4 +43,4 @@ Ricaricando la pagina si rientra nella partita: l'identità anonima resta salvat
 - **Informazioni nascoste**: le mani sono nello stato condiviso. Chi apre gli strumenti sviluppatore può sbirciarle. Va bene tra amici; la correzione è spostare le mani in documenti per giocatore o in una Cloud Function (piano Blaze).
 - **Fiducia nei client**: ogni client applica le regole nel proprio browser. Un giocatore smaliziato potrebbe scrivere uno stato falso. Si risolve con la stessa Cloud Function.
 - **Mappa**: regioni e strade sono state ricavate dalla foto del tabellone, quindi vanno verificate (`js/game/data.js`).
-- **Nessuna pulizia automatica** delle vecchie partite in Firestore: con l'uso tra amici restano nei limiti gratuiti per anni.
+- **Nessuna pulizia automatica** delle vecchie partite nel database: con l'uso tra amici restano nei limiti gratuiti per anni.

@@ -4,7 +4,7 @@ Versione digitale online del gioco da tavolo Brian Boru (Peer Sylvester, Osprey 
 Prototipo: regole complete, grafica provvisoria sopra la foto del tabellone.
 
 - Hosting: GitHub Pages (sito statico, nessun build step)
-- Partite online: Firebase Auth anonima + Firestore
+- Partite online: Firebase Auth anonima + Realtime Database
 - Modalità "stesso dispositivo" senza alcuna configurazione
 
 Deploy: vedi [DEPLOY.md](DEPLOY.md).
