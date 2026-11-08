@@ -188,13 +188,14 @@ export async function createCity(container, overlay, view = {}) {
     for (const l of lines) scene.add(new THREE.Mesh(ribbon(l, name.startsWith('Lambro') ? 0.016 : 0.012, 0.006), waterMat));
 
   // municipi: ognuno è un gruppo (tinta, bordo, edifici, quartieri, pedine) che si può alzare
+  const AREAS = view.areas === 'nero'; // proposta: confini neri, area velata del suo colore
   const meshes = buildingMeshes(bin);
   scene.add(meshes[0]);
   const regions = {};
   env.regionKeys.forEach((k, i) => {
     const r = map.regions[k], g = new THREE.Group(), color = new THREE.Color(T.region[k]);
     const tint = flat(rings(r.svg_path), color, 0.002, { transparent: true, opacity: 0.16, depthWrite: false });
-    const borders = rings(r.svg_path).map(ring => over(new THREE.Mesh(ribbon([...ring, ring[0]], 0.014, OV), new THREE.MeshBasicMaterial({ color, opacity: 0.9 })), 1));
+    const borders = rings(r.svg_path).map(ring => over(new THREE.Mesh(ribbon([...ring, ring[0]], AREAS ? 0.02 : 0.014, OV), new THREE.MeshBasicMaterial({ color: AREAS ? T.ink : color, opacity: AREAS ? 1 : 0.9 })), 1));
     const glow = rings(r.svg_path).map(ring => over(new THREE.Mesh(ribbon([...ring, ring[0]], 0.06, OV - 0.002),
       new THREE.MeshBasicMaterial({ color, opacity: 0, blending: THREE.AdditiveBlending })), 0));
     const bld = meshes[i + 1], pieces = new THREE.Group();
@@ -456,9 +457,9 @@ export async function createCity(container, overlay, view = {}) {
     for (const [k, r] of Object.entries(regions)) {
       r.lift += ((k === selRegion ? 1 : 0) - r.lift) * Math.min(1, dt * 6);
       r.g.position.y = r.lift * LIFT;
-      r.tint.material.opacity = 0.16 + r.lift * 0.3;
+      r.tint.material.opacity = (AREAS ? 0.3 : 0.16) + r.lift * 0.3;
       r.glow.forEach(g => (g.material.opacity = r.lift * (0.45 + (still ? 0 : Math.sin(t * 3) * 0.15))));
-      if (r.bld) r.bld.material.color.copy(white).lerp(r.color, r.lift * 0.4);
+      if (r.bld) r.bld.material.color.copy(white).lerp(r.color, (AREAS ? 0.16 : 0) + r.lift * 0.4); // con aree colorate anche gli edifici prendono una velatura
     }
     spots.forEach((sp, i) => {
       const on = i === selected;

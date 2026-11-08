@@ -9,7 +9,7 @@ const $ = id => document.getElementById(id);
 const q = new URLSearchParams(location.search);
 setIconSet(q.get('icone') || 'pieno');
 // ?quartieri=anello|esagono|rombo: proposte di forma per i quartieri liberi e presi
-const city = await createCity($('city'), $('labels'), { markers: q.get('quartieri') || 'disco', ...(q.get('view') === 'close' ? { camera: [1.6, 1.9, 2.6], target: [0.6, 0, 0.3] } : {}) });
+const city = await createCity($('city'), $('labels'), { markers: q.get('quartieri') || 'disco', areas: q.get('aree'), ...(q.get('view') === 'close' ? { camera: [1.6, 1.9, 2.6], target: [0.6, 0, 0.3] } : {}) });
 $('loading').remove();
 const T = city.towns, idx = Object.fromEntries(T.map((t, i) => [t.id, i]));
 
@@ -29,7 +29,7 @@ const claims = { SUN: 0, NUN: 1 };
 const s = { towns, activeTown: T.findIndex((t, i) => t.region === 'SUN' && t.suit === 'red' && towns[i].owner === null) };
 city.update(s);
 city.select(s.activeTown); // nella partita vera: il quartiere scelto dal giocatore
-if (!q.get('quartieri')) city.setClickable(T.map((_, i) => i), i => city.select(i)); // nelle proposte niente anelli di scelta, per vedere solo liberi e presi
+if (!q.get('quartieri') && !q.get('aree')) city.setClickable(T.map((_, i) => i), i => city.select(i)); // nelle proposte niente anelli di scelta, per vedere solo liberi e presi
 if (q.get('meteo')) city.setWeather(q.get('meteo'));
 else setInterval(() => { // nel gioco il meteo cambierà a ogni round; qui ogni 40 s
   const keys = Object.keys(WEATHER_TYPES).filter(k => k !== city.weather());
