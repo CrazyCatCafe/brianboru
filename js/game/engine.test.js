@@ -51,6 +51,8 @@ for (const n of [3, 4, 5]) {
     }
     assert.equal(s.round, n === 3 ? 3 : 4);
     assert.ok(s.winner.length >= 1);
+    const kinds = new Set(s.events.map(e => e.k));
+    for (const k of ['party', 'guerrilla', 'community', 'uprising']) assert.ok(kinds.has(k), 'manca evento ' + k);
     assert.equal(JSON.stringify(JSON.parse(JSON.stringify(s))), JSON.stringify(s)); // serializzabile per Firebase
   }
 }

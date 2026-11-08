@@ -137,8 +137,17 @@ export async function createCity(container, overlay, view = {}) {
   const camera = new THREE.PerspectiveCamera(36, 1, 0.05, 80);
   camera.position.set(...(view.camera || [0.3, 8.4, 9.2]));
   const controls = new OrbitControls(camera, renderer.domElement);
-  Object.assign(controls, { enableDamping: true, minDistance: 2.2, maxDistance: 18, maxPolarAngle: 1.25 });
-  controls.target.set(...(view.target || [0.2, 0, 0.9]));
+  // sinistro: sposta · destro: ruota · rotella: zoom (su touch: un dito sposta, due dita zoom e rotazione)
+  Object.assign(controls, { enableDamping: true, minDistance: 2.2, maxDistance: 18, maxPolarAngle: 1.25, screenSpacePanning: false,
+    mouseButtons: { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE },
+    touches: { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE } });
+  const HOME = { camera: new THREE.Vector3(...(view.camera || [0.3, 8.4, 9.2])), target: new THREE.Vector3(...(view.target || [0.2, 0, 0.9])) };
+  controls.target.copy(HOME.target);
+  let homing = 0; // >0 mentre la vista torna a quella iniziale (bussola)
+  const keys = new Set(), MOVE = { KeyW: [0, 1], ArrowUp: [0, 1], KeyS: [0, -1], ArrowDown: [0, -1], KeyA: [-1, 0], ArrowLeft: [-1, 0], KeyD: [1, 0], ArrowRight: [1, 0] };
+  addEventListener('keydown', e => { if (MOVE[e.code] && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) { keys.add(e.code); e.preventDefault(); } });
+  addEventListener('keyup', e => keys.delete(e.code));
+  addEventListener('blur', () => keys.clear());
 
   const hemi = new THREE.HemisphereLight('#ffffff', '#aab7c2', 2.1);
   const sun = new THREE.DirectionalLight('#fffaf0', 2.6);
@@ -185,11 +194,12 @@ export async function createCity(container, overlay, view = {}) {
   const spots = towns.map((t, i) => {
     const g = new THREE.Group(); g.position.set(X(t.x), 0, Z(t.y));
     const fill = disc(0, 0.078, THEME.suit[t.suit].fill, OV, 3.2);
+    const option = disc(0.125, 0.15, THEME.project, OV, 3.3); option.visible = false; // anello delle scelte possibili
     const hit = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.4, 8), new THREE.MeshBasicMaterial({ visible: false }));
     hit.position.y = 0.2; hit.userData.town = i;
-    g.add(disc(0, 0.108, THEME.ink, OV, 3), disc(0, 0.094, '#ffffff', OV, 3.1), fill, hit);
+    g.add(disc(0, 0.108, THEME.ink, OV, 3), disc(0, 0.094, '#ffffff', OV, 3.1), fill, option, hit);
     regions[t.region].g.add(g);
-    return { g, hit, fill, region: t.region };
+    return { g, hit, fill, option, region: t.region };
   });
 
   // strade: trattini 3D ad arco
@@ -338,7 +348,7 @@ export async function createCity(container, overlay, view = {}) {
   renderer.domElement.addEventListener('pointermove', e => { hover = pick(e); renderer.domElement.style.cursor = hover !== null && clickable.has(hover) ? 'pointer' : ''; });
   renderer.domElement.addEventListener('pointerdown', e => (down = [e.clientX, e.clientY]));
   renderer.domElement.addEventListener('pointerup', e => {
-    if (down && Math.hypot(e.clientX - down[0], e.clientY - down[1]) < 6) { const id = pick(e); if (id !== null && clickable.has(id)) { selected = id; onPick(id); } }
+    if (down && Math.hypot(e.clientX - down[0], e.clientY - down[1]) < 6) { const id = pick(e); if (id !== null && clickable.has(id)) onPick(id); }
   });
 
   const resize = () => {
@@ -355,7 +365,20 @@ export async function createCity(container, overlay, view = {}) {
   let last = 0;
   renderer.setAnimationLoop(time => {
     const t = time / 1000, dt = Math.min(0.05, t - last || 0); last = t;
+    // tastiera: WASD e frecce spostano la vista sul piano della mappa
+    if (keys.size) {
+      const fwd = new THREE.Vector3().subVectors(controls.target, camera.position).setY(0).normalize(), right = new THREE.Vector3(-fwd.z, 0, fwd.x);
+      const step = new THREE.Vector3(), speed = dt * camera.position.distanceTo(controls.target) * 0.6;
+      keys.forEach(k => step.addScaledVector(right, MOVE[k][0]).addScaledVector(fwd, MOVE[k][1]));
+      if (step.lengthSq()) { step.normalize().multiplyScalar(speed); camera.position.add(step); controls.target.add(step); }
+    }
+    if (homing > 0) { // bussola: torna alla vista iniziale con il nord in alto
+      homing = Math.max(0, homing - dt * 2.5); const k = 1 - homing;
+      camera.position.lerp(HOME.camera, k * 0.25 + 0.05); controls.target.lerp(HOME.target, k * 0.25 + 0.05);
+      if (!homing) { camera.position.copy(HOME.camera); controls.target.copy(HOME.target); }
+    }
     controls.update();
+    if (view.compass) view.compass.style.setProperty('--az', `${controls.getAzimuthalAngle()}rad`);
     // municipio del quartiere selezionato: si alza e si colora
     const selRegion = selected !== null ? spots[selected].region : null;
     for (const [k, r] of Object.entries(regions)) {
@@ -369,6 +392,8 @@ export async function createCity(container, overlay, view = {}) {
       const on = i === selected;
       sp.g.scale.setScalar(on ? 1.7 : i === hover && clickable.has(i) ? 1.25 : 1);
       sp.fill.material.opacity = on && !still ? (Math.sin(t * 9) > 0 ? 1 : 0.25) : 1;
+      sp.option.visible = clickable.has(i) && !on;
+      if (sp.option.visible) sp.option.material.opacity = 0.55 + (still ? 0.3 : Math.sin(t * 5) * 0.35);
     });
     halo.visible = active !== null;
     if (active !== null) {
@@ -417,7 +442,8 @@ export async function createCity(container, overlay, view = {}) {
   return {
     towns, regions: map.regions,
     update,
-    select: i => { selected = i; },
+    select: i => { selected = i ?? null; },
+    resetView: () => { homing = 1; },
     setClickable: (ids, cb) => { clickable = new Set(ids); onPick = cb || (() => {}); },
     setWeather, weather: () => weatherKey,
   };

@@ -16,6 +16,8 @@ function shuffle(s, a) {
   return a;
 }
 const log = (s, msg) => { s.log.push(msg); if (s.log.length > 80) s.log.shift(); };
+// Eventi strutturati per raccontare le fasi nell'interfaccia: s.eventN cresce sempre, s.events tiene gli ultimi
+const event = (s, e) => { s.eventN = (s.eventN || 0) + 1; (s.events ??= []).push({ n: s.eventN, ...e }); if (s.events.length > 24) s.events.shift(); };
 const name = (s, p) => s.players[p].name;
 
 export const neighbours = id => ROADS.flatMap(([a, b]) => (a === id ? [b] : b === id ? [a] : []));
@@ -64,6 +66,7 @@ const STAGES = {
     s.marriage = s.marriageDeck.pop();
     s.final = s.marriageDeck.length === 0;
     log(s, `Round ${s.round}: arrivano ${v} unità di polizia.${s.final ? ' Ultimo round!' : ''}`);
+    event(s, { k: 'prep', round: s.round, police: v, area: s.area, character: s.marriage, final: s.final });
     const n = s.players.length, per = { 3: 8, 4: 6, 5: 5 }[n];
     const deck = shuffle(s, Object.keys(CARDS).map(Number));
     s.draft = { packets: s.players.map((_, i) => deck.slice(i * per, (i + 1) * per)), picks: s.players.map(() => null) };
@@ -106,11 +109,12 @@ const STAGES = {
   },
   marriage(s) {
     const pls = s.players, top = Math.max(...pls.map(pl => pl.mar));
-    const card = s.marriage;
+    const card = s.marriage, track = pls.map(pl => pl.mar), ev = { k: 'party', track, card, winner: null, bonuses: [] };
     s.marriage = null;
     if (top === 0) log(s, 'Nessuno ha abbastanza hype: il personaggio se ne va.');
     else {
       const w = pls.findIndex(pl => pl.mar === top), pl = pls[w];
+      ev.winner = w;
       pl.marriages.push(card);
       log(s, `${name(s, w)} ingaggia ${card.princess ? 'la Regina Estrid' : 'un personaggio'}.`);
       if (card.princess) s.pending.push({ type: 'princess', p: w });
@@ -122,6 +126,7 @@ const STAGES = {
       pls.forEach((o, i) => {
         if (i === w) return;
         const b = MARRIAGE_TRACK[o.mar];
+        if (b) ev.bonuses.push({ p: i, b });
         if (b === 'C') o.coins += 1;
         if (b === 'CC') o.coins += 2;
         if (b === 'R') o.renown += 1;
@@ -129,10 +134,11 @@ const STAGES = {
       });
       pl.mar = 0;
     }
+    event(s, ev);
     s.stage = 'battle';
   },
   battle(s) {
-    const pls = s.players, r = pls.map(pl => pl.raiders);
+    const pls = s.players, r = pls.map(pl => pl.raiders), ev = { k: 'guerrilla', area: s.area, raiders: [...r], losses: [] };
     if (s.area > 0) {
       const min = Math.min(...r), max = Math.max(...r), most = r.flatMap((x, i) => (x === max ? [i] : []));
       log(s, 'Retata della polizia!');
@@ -140,51 +146,58 @@ const STAGES = {
         if (x !== min || !ownTowns(s, i).length) return;
         const chooser = most.length === 1 && most[0] !== i ? most[0] : i;
         s.pending.push({ type: 'loseTown', p: chooser, victim: i });
+        ev.losses.push({ victim: i, chooser });
       });
     } else log(s, 'La polizia è stata respinta.');
     s.area = 0;
-    spoils(s, 'raiders', p => { pls[p].renown++; pls[p].points += pls[p].renown; pls[p].raiders = 0; });
+    Object.assign(ev, spoils(s, 'raiders', p => { pls[p].renown++; pls[p].points += pls[p].renown; ev.gain = pls[p].renown; pls[p].raiders = 0; }));
+    event(s, ev);
     s.stage = 'church';
   },
   church(s) {
-    const pls = s.players, n = pls.length;
-    spoils(s, 'church', p => {
+    const pls = s.players, n = pls.length, ev = { k: 'community', church: pls.map(pl => pl.church), fours: [] };
+    Object.assign(ev, spoils(s, 'church', p => {
       if (ownTowns(s, p).some(id => !s.towns[id].monastery)) s.pending.push({ type: 'monastery', p });
       s.active = p;
       pls[p].church = 0;
-    });
+    }));
     for (let k = 0; k < n; k++) {
       const p = (s.active + k) % n;
       if (pls[p].church >= 4 && ownTowns(s, p).some(id => !s.towns[id].monastery)) {
         s.pending.push({ type: 'monastery', p });
         pls[p].church = 0;
+        ev.fours.push(p);
       }
     }
+    event(s, ev);
     s.stage = 'claim';
   },
   claim(s) {
+    const ev = { k: 'uprising', flips: [], changes: [] };
     for (const [r, c] of Object.entries(REGIONS)) {
       const cl = s.claims[r], counts = regionCounts(s, r, 'military');
       const total = Object.values(regionCounts(s, r)).reduce((a, b) => a + b, 0);
-      if (!cl.up && total >= c.threshold) { cl.up = true; log(s, `${c.name} è in palio.`); }
+      if (!cl.up && total >= c.threshold) { cl.up = true; ev.flips.push(r); log(s, `${c.name} è in palio.`); }
       if (!cl.up) continue;
       const max = Math.max(...Object.values(counts)), top = Object.keys(counts).filter(k => counts[k] === max);
       if (top.length !== 1) continue;
       const owner = top[0] === 'V' ? null : Number(top[0]);
-      if (owner !== cl.owner) { cl.owner = owner; log(s, `${c.name}: ${owner === null ? 'nessuno la controlla' : 'la controlla ' + name(s, owner)}.`); }
+      if (owner !== cl.owner) { cl.owner = owner; ev.changes.push({ r, owner }); log(s, `${c.name}: ${owner === null ? 'nessuno la controlla' : 'la controlla ' + name(s, owner)}.`); }
     }
     s.players.forEach((pl, i) => (pl.claims = Object.keys(REGIONS).filter(r => s.claims[r].owner === i)));
+    event(s, ev);
     if (s.final) { score(s); s.stage = 'end'; } else s.stage = 'prep';
   },
 };
 
 // Premi per "chi ha di più" (vichinghi e chiesa): unico primo -> first(p); poi i primi a pari merito +1 punto e -1 segnalino.
 function spoils(s, key, first) {
-  const pls = s.players;
+  const pls = s.players, res = { first: null, ties: [] };
   let max = Math.max(...pls.map(pl => pl[key])), top = pls.flatMap((pl, i) => (pl[key] === max ? [i] : []));
-  if (max > 0 && top.length === 1) first(top[0]);
+  if (max > 0 && top.length === 1) { res.first = top[0]; first(top[0]); }
   max = Math.max(...pls.map(pl => pl[key]));
-  if (max > 0) pls.forEach(pl => { if (pl[key] === max) { pl.points++; pl[key]--; } });
+  if (max > 0) pls.forEach((pl, i) => { if (pl[key] === max) { pl.points++; pl[key]--; res.ties.push(i); } });
+  return res;
 }
 
 // Città per "giocatore" in una regione (monastero = 2); 'V' = vichinghi. mode: 'military'|'trade' accorpa i vichinghi alla Principessa.
