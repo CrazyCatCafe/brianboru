@@ -1,4 +1,4 @@
-/* Stile REPLACED: pannelli scuri semitrasparenti nella nebbia, caratteri pixel, accenti che brillano */
+/* Stile REPLACED: pannelli scuri semitrasparenti nella nebbia, caratteri pixel, un solo accento rosso */
 @font-face { font-family: 'Silkscreen'; font-weight: 400; src: url(../vendor/fonts/silkscreen-400.woff2) format('woff2'); font-display: swap; }
 @font-face { font-family: 'Silkscreen'; font-weight: 700; src: url(../vendor/fonts/silkscreen-700.woff2) format('woff2'); font-display: swap; }
 @font-face { font-family: 'Pixelify Sans'; font-weight: 600; src: url(../vendor/fonts/pixelify-sans-600.woff2) format('woff2'); font-display: swap; }
@@ -17,12 +17,12 @@
   padding: 8px 18px 8px 22px; margin-left: -6px; clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%, 10px 50%); }
 .chev:first-child { margin-left: 0; padding-left: 14px; clip-path: polygon(0 0, calc(100% - 10px) 0, 100% 50%, calc(100% - 10px) 100%, 0 100%); }
 .chev.up { background: rgba(30, 36, 41, .9); }
-.chev.on { background: var(--rp-red); color: #fff; text-shadow: 0 0 8px rgba(255, 255, 255, .6); }
+.chev.on { background: var(--rp-red); color: #fff; }
 
 /* plancia a sinistra: un riquadro per ogni cosa da tenere d'occhio */
 .rp-left { position: fixed; top: 12px; left: 12px; width: min(270px, 34vw); max-height: calc(100vh - var(--card-w) * 1.45 - 40px); overflow: auto; display: grid; gap: 8px; z-index: 2; }
 .box { background: var(--rp-panel); border: 1px solid var(--rp-line); padding: 8px 10px 9px; backdrop-filter: blur(3px); }
-.box.on { border-color: var(--rp-red); box-shadow: 0 0 0 1px var(--rp-red), 0 0 18px rgba(255, 61, 61, .35); }
+.box.on { border-color: var(--rp-red); box-shadow: 0 0 0 1px var(--rp-red); }
 .box h3 { margin: 0 0 6px; font: 700 11px var(--pix); letter-spacing: .06em; text-transform: uppercase; color: var(--rp-ink); }
 .box h3 em { font-style: normal; font-weight: 400; color: var(--rp-muted); margin-left: 6px; }
 .box ul, .box ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
@@ -30,19 +30,19 @@
 .box li b { font-weight: 600; }
 .box .num { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; font: 600 15px var(--num); color: var(--rp-ink); }
 .box .num + .num { margin-left: 10px; }
-.box .pts { font-size: 20px; color: #fff; text-shadow: 0 0 10px rgba(255, 255, 255, .35); min-width: 1.6em; justify-content: flex-end; }
-.pd { display: inline-block; width: 10px; height: 10px; background: var(--pc); box-shadow: 0 0 6px var(--pc); flex: none; }
+.box .pts { font-size: 20px; color: #fff; min-width: 1.6em; justify-content: flex-end; }
+.pd { display: inline-block; width: 10px; height: 10px; background: var(--pc); flex: none; }
 .rz { display: inline-block; width: 10px; height: 10px; background: var(--rc); flex: none; }
 .box .own { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; color: var(--rp-muted); }
 .box .big { margin: 0 0 6px; display: flex; align-items: center; gap: 6px; font: 400 12px var(--pix); text-transform: uppercase; color: var(--rp-muted); }
-.box .big b { font: 600 26px var(--num); color: var(--rp-red); text-shadow: 0 0 12px rgba(255, 61, 61, .6); margin-left: auto; }
+.box .big b { font: 600 26px var(--num); color: var(--rp-red); margin-left: auto; }
 .cells { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; }
 .cell { aspect-ratio: 1 / 1.4; border: 1px solid var(--rp-line); background: rgba(255, 255, 255, .04); display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 2px; padding-bottom: 3px; }
 .cell .pd { width: 8px; height: 8px; }
 
 /* centro e turno */
 .rp-stage { position: fixed; top: 56px; left: 50%; translate: -50% 0; width: min(560px, calc(100vw - 600px)); background: var(--rp-panel); border: 1px solid var(--rp-line); border-top: 3px solid var(--rp-red); padding: 12px 16px; z-index: 2; backdrop-filter: blur(3px); }
-.rp-stage .kicker, .rp-turn .kicker { font: 400 11px var(--pix); letter-spacing: .06em; color: var(--rp-red); text-shadow: 0 0 8px rgba(255, 61, 61, .5); margin: 0 0 2px; text-transform: uppercase; }
+.rp-stage .kicker, .rp-turn .kicker { font: 400 11px var(--pix); letter-spacing: .06em; color: var(--rp-red); margin: 0 0 2px; text-transform: uppercase; }
 .rp-stage h2 { margin: 0 0 6px; font: 700 26px var(--pix); text-transform: uppercase; letter-spacing: .02em; }
 .rp-stage p { margin: 4px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 5px; }
 .rp-stage .btn { background: transparent; color: var(--rp-ink); border: 1px solid var(--rp-ink); font-family: var(--pix); font-weight: 400; }
