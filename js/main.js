@@ -36,6 +36,7 @@ if (config) {
 if (!net) { document.body.classList.add('offline'); show('lobby'); } // senza Firebase resta la partita locale
 else net.onAuth(async user => {
   if (!user) return show('auth');
+  if (user.isAnonymous) return net.signOut(); // accesso anonimo del vecchio prototipo: serve un account vero
   try { me = await net.profile(); } catch (e) { // es. regole del database non pubblicate: non lasciare la pagina vuota
     console.error(e); show('auth'); $('auth-msg').textContent = friendly(e); return;
   }
@@ -60,7 +61,7 @@ $('nick-form').onsubmit = guard(async e => {
   await net.claimNick($('nick-input').value);
   me = await net.profile(); enterLobby();
 });
-$('logout').onclick = guard(() => net.signOut());
+$('logout').onclick = $('nick-out').onclick = guard(() => net.signOut());
 
 // ---------- lobby ----------
 let lobbyReady = false, friends = [];
