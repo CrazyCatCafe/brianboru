@@ -96,6 +96,6 @@ const CUP = c => `<path d="M11 5h18v9a9 9 0 0 1-18 0Z" fill="${c}"/><path d="M11
 const HELMET = c => `<path d="M6 25a14 14 0 0 1 28 0v3H6Z" fill="${c}"/><path d="M9 21h22v6H9Z" fill="${H}"/><path d="M11 23h8M21 23h8" stroke="${c}" stroke-width="2"/><path d="M20 6v6" stroke="${H}" stroke-width="2.5"/>`;
 export const LOGO_COLORS = { guerrilla: '#e62e2d', community: '#14a04b', uprising: '#111111', punti: '#111111', crediti: '#d9a400', polizia: '#1f4e79' };
 const LOGOS = { guerrilla: c => SOLID.A(c), community: c => SOLID.X(c), uprising: FIST, punti: CUP, crediti: c => SOLID.C(c), polizia: HELMET };
-export const LOGO_NAMES = { guerrilla: 'Guerrilla', community: 'Community Projects', uprising: 'Uprising', punti: 'Punti vittoria', crediti: 'Crediti', polizia: 'Polizia in allerta' };
+export const LOGO_NAMES = { guerrilla: 'Guerrilla', community: 'Community', uprising: 'Uprising', punti: 'Punti', crediti: 'Crediti', polizia: 'Polizia' };
 export const logo = (kind, size = 20) =>
   `<span class="logo" style="--hole:#eef1f3" title="${LOGO_NAMES[kind]}"><svg viewBox="0 0 40 40" width="${size}" height="${size}" aria-hidden="true">${LOGOS[kind](LOGO_COLORS[kind])}</svg></span>`;

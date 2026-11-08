@@ -2,7 +2,7 @@
 import { CARDS, MARRIAGE_TRACK } from './game/data.js';
 import { THEME, THEME_REPLACED as REPLACED, THEME_HOLO, THEME_METRO, PIXEL_SCALE } from './milano/theme.js';
 import { cardSVG } from './milano/card.js';
-import { icon, logo } from './milano/icons.js';
+import { icon, logo, LOGO_NAMES } from './milano/icons.js';
 import { createCity } from './milano/city3d.js';
 
 const $ = id => document.getElementById(id);
@@ -119,14 +119,17 @@ function renderColumns() {
   document.body.classList.add('colonne'); bigGrid ??= q.has('grande');
   const g = $('b-players');
   g.classList.toggle('big', bigGrid);
-  const row = (kind, key, k) => `<tr${phase === k ? ' class="on"' : ''}><th>${logo(kind, 16)}</th>${players.map(p => `<td${key === 'points' ? ' class="pts"' : ''}>${p[key]}</td>`).join('')}</tr>`;
+  const lab = kind => `${logo(kind, 16)}${bigGrid ? `<span class="lname">${LOGO_NAMES[kind]}</span>` : ''}`; // ingrandita: logo e nome
+  const row = (kind, key, k) => `<tr${phase === k ? ' class="on"' : ''}><th>${lab(kind)}</th>${players.map(p => `<td${key === 'points' ? ' class="pts"' : ''}>${p[key]}</td>`).join('')}</tr>`;
   const BONUS = { C: '+1 credito', CC: '+2 crediti', R: '+1 street cred', T: 'un quartiere' };
   g.innerHTML = `<button class="zoom" aria-pressed="${bigGrid}" title="${bigGrid ? 'Rimpicciolisci' : 'Ingrandisci'}">${bigGrid ? '−' : '+'}</button><div class="vgrid"><table>
     <thead><tr><th></th>${players.map((p, i) => `<th><span class="ini" style="--pc:${THEME.players[i]}" title="${p.name}">${bigGrid ? short(p.name) : p.name[0]}</span></th>`).join('')}</tr></thead>
     <tbody>${row('punti', 'points')}${row('crediti', 'coins')}${row('guerrilla', 'raiders', 'guerrilla')}${row('community', 'church', 'community')}</tbody>
-    <tfoot><tr${phase === 'guerrilla' ? ' class="on"' : ''}><th>${logo('polizia', 16)}</th><td colspan="${players.length}">${police}</td></tr></tfoot>
+    <tfoot><tr${phase === 'guerrilla' ? ' class="on"' : ''}><th>${lab('polizia')}</th><td colspan="${players.length}">${police}</td></tr></tfoot>
   </table>
   <div class="vhype${phase === 'party' ? ' on' : ''}" title="Hype: Conte Galleria">${MARRIAGE_TRACK.map((b, c) => [b, c]).reverse().map(([b, c]) =>
     `<span class="vc${b ? ' bonus' : ''}" title="Casella ${c + 1}: ${b ? BONUS[b] : 'nessun bonus'}"><span class="g">${b ? icon(b === 'CC' ? 'C' : b, 10, 'currentColor', '#0f1316') + (b === 'CC' ? '<sup>2</sup>' : '') : ''}</span>${players.map((pl, i) => (pl.mar === c ? dot(i) : '')).join('')}</span>`).join('')}</div></div>`;
   g.querySelector('.zoom').onclick = () => { bigGrid = !bigGrid; renderColumns(); };
+  const fit = () => document.documentElement.style.setProperty('--lw', g.offsetWidth + 'px');
+  fit(); new ResizeObserver(fit).observe(g); // la barra delle fasi parte dopo la plancia
 }
