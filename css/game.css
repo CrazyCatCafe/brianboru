@@ -1,0 +1,85 @@
+@font-face { font-family: 'Uncial Antiqua'; src: url(../vendor/fonts/uncial-antiqua.woff2) format('woff2'); font-display: swap; }
+@font-face { font-family: 'Alegreya SC'; font-weight: 700; src: url(../vendor/fonts/alegreya-sc-700.woff2) format('woff2'); font-display: swap; }
+@font-face { font-family: 'Alegreya Sans'; font-weight: 400; src: url(../vendor/fonts/alegreya-sans-400.woff2) format('woff2'); font-display: swap; }
+@font-face { font-family: 'Alegreya Sans'; font-weight: 500; src: url(../vendor/fonts/alegreya-sans-500.woff2) format('woff2'); font-display: swap; }
+@font-face { font-family: 'Alegreya Sans'; font-weight: 700; src: url(../vendor/fonts/alegreya-sans-700.woff2) format('woff2'); font-display: swap; }
+@font-face { font-family: 'Alegreya Sans'; font-weight: 800; src: url(../vendor/fonts/alegreya-sans-800.woff2) format('woff2'); font-display: swap; }
+
+:root {
+  --ink: #f3ead3;
+  --muted: #c9bc9b;
+  --glass: rgba(24, 16, 10, .72);
+  --glass-line: rgba(243, 234, 211, .14);
+  --gold: #e3b448;
+  --display: 'Uncial Antiqua', serif;
+  --heading: 'Alegreya SC', Georgia, serif;
+  --ui: 'Alegreya Sans', system-ui, sans-serif;
+  --card-w: clamp(104px, 11.5vw, 176px);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #120c08; color: var(--ink); font: 500 16px/1.4 var(--ui); }
+button { font: inherit; color: inherit; }
+
+.table { position: fixed; inset: 0; }
+.table canvas { display: block; touch-action: none; }
+
+/* --- barra superiore: giocatori e round --- */
+.hud-top { position: fixed; top: 12px; left: 12px; right: 12px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; pointer-events: none; }
+.players { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; pointer-events: auto; }
+.player {
+  display: grid; grid-template-columns: auto auto; grid-template-areas: 'name pts' 'stats stats';
+  column-gap: 14px; row-gap: 4px; align-items: baseline;
+  padding: 8px 12px 8px 14px; border-radius: 10px; background: var(--glass); backdrop-filter: blur(8px);
+  border: 1px solid var(--glass-line); box-shadow: inset 4px 0 0 -1px var(--pc); position: relative;
+}
+.player.turn { border-color: color-mix(in srgb, var(--pc) 70%, white); box-shadow: inset 4px 0 0 -1px var(--pc), 0 0 0 2px color-mix(in srgb, var(--pc) 55%, transparent); }
+.pname { grid-area: name; font-weight: 700; }
+.player.me .pname::after { content: ' (tu)'; color: var(--muted); font-weight: 500; }
+.badge { color: var(--gold); }
+.pts { grid-area: pts; font: 400 1.5rem/1 var(--display); color: var(--gold); justify-self: end; }
+.stats { grid-area: stats; display: flex; gap: 10px; }
+.stat { display: inline-flex; align-items: center; gap: 3px; font-variant-numeric: tabular-nums; }
+.stat svg { flex: none; }
+.cards { position: absolute; top: -7px; right: -7px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 11px; background: #2c4a37; border: 1px solid var(--glass-line); font-size: .78rem; font-weight: 800; display: grid; place-items: center; }
+
+.round { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 10px; background: var(--glass); backdrop-filter: blur(8px); border: 1px solid var(--glass-line); pointer-events: auto; white-space: nowrap; }
+.round .label { color: var(--muted); }
+.round .sep { width: 1px; height: 18px; background: var(--glass-line); }
+
+/* --- istruzioni --- */
+.prompt { position: fixed; right: 12px; top: 50%; translate: 0 -50%; width: min(300px, 32vw); padding: 16px 18px; border-radius: 12px; background: var(--glass); backdrop-filter: blur(8px); border: 1px solid var(--glass-line); }
+.prompt .kicker { margin: 0; color: var(--gold); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; font-size: .78rem; }
+.prompt h2 { margin: 2px 0 8px; font: 700 1.7rem/1.1 var(--heading); }
+.prompt p { margin: 0; color: var(--muted); }
+.prompt b { font-weight: 800; }
+
+/* --- carte già giocate nella presa --- */
+.trick { position: fixed; right: 12px; top: calc(50% + 96px); width: min(300px, 32vw); display: flex; gap: 8px; pointer-events: none; }
+.trick figure { margin: 0; text-align: center; filter: drop-shadow(0 8px 14px rgba(0, 0, 0, .55)); }
+.trick figure { flex: 1; min-width: 0; }
+.trick figure svg { display: block; width: 100%; height: auto; }
+.trick figcaption { margin-top: 4px; font-size: .8rem; font-weight: 700; color: var(--ink); text-shadow: 0 1px 3px #000; }
+.trick figcaption::before { content: ''; display: inline-block; width: .6em; height: .6em; border-radius: 50%; background: var(--pc); margin-right: 4px; }
+
+/* --- la tua mano, a ventaglio in basso --- */
+.hand { position: fixed; left: 50%; bottom: 0; translate: -50% 0; display: flex; justify-content: center; padding: 0 24px; height: calc(var(--card-w) * 1.2); }
+.hcard {
+  all: unset; cursor: pointer; width: var(--card-w); margin: 0 calc(var(--card-w) * -.16);
+  transform-origin: 50% 160%; transform: rotate(var(--a)) translateY(calc(var(--y) + var(--card-w) * .2));
+  transition: transform .18s cubic-bezier(.2, .8, .2, 1), filter .18s; filter: drop-shadow(0 10px 18px rgba(0, 0, 0, .6));
+}
+.hcard svg { display: block; width: 100%; height: auto; }
+.hcard:hover, .hcard:focus-visible { transform: rotate(0deg) translateY(calc(var(--card-w) * -.22)) scale(1.22); z-index: 2; }
+.hcard:focus-visible { outline: 3px solid var(--gold); outline-offset: 4px; border-radius: 12px; }
+.hcard.off { cursor: not-allowed; filter: drop-shadow(0 10px 18px rgba(0, 0, 0, .6)) saturate(.35) brightness(.7); }
+@media (prefers-reduced-motion: reduce) { .hcard { transition: none; } }
+
+@media (max-width: 760px) {
+  .prompt { top: auto; bottom: calc(var(--card-w) * 1.2 + 8px); right: 8px; left: 8px; width: auto; translate: none; padding: 10px 12px; }
+  .prompt h2 { font-size: 1.2rem; }
+  .trick { display: none; }
+  .round { display: none; }
+  .player { padding: 6px 8px 6px 10px; }
+  .stats { gap: 6px; }
+}
