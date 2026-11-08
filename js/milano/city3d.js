@@ -68,7 +68,7 @@ function buildingMeshes(buf) {
     const pos = new Float32Array(gr.nv * 3), col = new Uint8Array(gr.nv * 3), idx = new Uint32Array(gr.ni);
     let v = 0, t = 0;
     for (let off of gr.list) {
-      const k = dv.getUint16(off, true), h = Math.max(4, dv.getUint8(off + 2)) * HS, inside = dv.getUint8(off + 3) & 1;
+      const k = dv.getUint16(off, true), h = Math.max(4, dv.getUint8(off + 2)) * HS * (T.heights ?? 1), inside = dv.getUint8(off + 3) & 1;
       off += 4;
       const base = v, contour = [], c = inside ? cin : cout, shade = inside ? 1 - Math.min(0.06, h * 0.1) : 1;
       for (let j = 0; j < k; j++, off += 4) {
@@ -84,7 +84,8 @@ function buildingMeshes(buf) {
     g.setAttribute('color', new THREE.BufferAttribute(col, 3, true));
     g.setIndex(new THREE.BufferAttribute(idx.subarray(0, t), 1));
     const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide }));
-    m.castShadow = m.receiveShadow = true;
+    m.castShadow = m.receiveShadow = T.shadows !== false;
+    if (T.edges && +r) m.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 30), new THREE.LineBasicMaterial({ color: T.edges.color, transparent: true, opacity: T.edges.opacity }))); // spigoli luminosi
     meshes[r] = m;
   }
   return meshes;
@@ -266,7 +267,7 @@ export async function createCity(container, overlay, view = {}) {
       const p = spots[i].g.position, parent = regions[spots[i].region].pieces;
       const put = (m, y = OV, order = 5) => { over(m, order); m.position.x += p.x; m.position.y += y; m.position.z += p.z; parent.add(m); return m; };
       // gettone 3D della banda: copre tutto lo spot
-      put(new THREE.Mesh(new THREE.CylinderGeometry(0.118, 0.118, 0.05, 48), mat(T.players[st.owner])), OV + 0.025);
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.118, 0.118, 0.05, 48), T.glowTokens ? new THREE.MeshBasicMaterial({ color: T.players[st.owner] }) : mat(T.players[st.owner])), OV + 0.025);
       put(new THREE.Mesh(new THREE.TorusGeometry(0.104, 0.01, 8, 48), mat('#ffffff')), OV + 0.05).rotation.x = Math.PI / 2;
       if (st.monastery) { // progetto urbano: anello fluorescente
         put(new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.016, 10, 64), new THREE.MeshBasicMaterial({ color: T.project })), OV + 0.02, 4).rotation.x = Math.PI / 2;
@@ -320,7 +321,7 @@ export async function createCity(container, overlay, view = {}) {
     weatherKey = key; weather = WEATHER[key];
     clouds.clear();
     const cm = new THREE.MeshLambertMaterial({ color: weather.color, transparent: true, opacity: weather.opacity, depthWrite: false, flatShading: true });
-    for (let c = 0; c < weather.clouds; c++) {
+    for (let c = 0; c < (T.clouds === false ? 0 : weather.clouds); c++) {
       const g = new THREE.Group(), n = 4 + Math.floor(Math.random() * 6), size = 0.35 + Math.random() * 0.5;
       for (let k = 0; k < n; k++) {
         const b = new THREE.Mesh(blob, cm), s = size * (0.5 + Math.random() * 0.6);
@@ -379,7 +380,7 @@ export async function createCity(container, overlay, view = {}) {
   };
   new ResizeObserver(resize).observe(container);
   function applyQuality() {
-    sun.castShadow = q.shadow > 0;
+    sun.castShadow = q.shadow > 0 && T.shadows !== false;
     if (q.shadow && sun.shadow.mapSize.x !== q.shadow) { sun.shadow.mapSize.setScalar(q.shadow); sun.shadow.map?.dispose(); sun.shadow.map = null; }
     rainGeo.setDrawRange(0, Math.round(Math.min(MAXRAIN, weather.rain * q.rain)) * 2);
     resize();

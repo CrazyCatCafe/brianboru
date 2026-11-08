@@ -1,6 +1,6 @@
 // Mockup della plancia in stile REPLACED (schizzo del 08/11): stato di partita finto, solo per vedere l'aspetto.
 import { CARDS, MARRIAGE_TRACK } from './game/data.js';
-import { THEME, THEME_REPLACED as REPLACED, PIXEL_SCALE } from './milano/theme.js';
+import { THEME, THEME_REPLACED as REPLACED, THEME_HOLO, THEME_METRO, PIXEL_SCALE } from './milano/theme.js';
 import { cardSVG } from './milano/card.js';
 import { icon } from './milano/icons.js';
 import { createCity } from './milano/city3d.js';
@@ -8,11 +8,15 @@ import { createCity } from './milano/city3d.js';
 const $ = id => document.getElementById(id);
 const q = new URLSearchParams(location.search);
 
+// ?stile=holo | metro: le due alternative alla città pixel, senza pixel
+const stile = q.get('stile');
+document.body.classList.toggle('noscan', !!stile);
 const city = await createCity($('city'), $('labels'), {
-  theme: REPLACED, pixel: +(q.get('pixel') || PIXEL_SCALE),
+  theme: { holo: THEME_HOLO, metro: THEME_METRO }[stile] || REPLACED, pixel: stile ? 0 : +(q.get('pixel') || PIXEL_SCALE),
+  ...(stile === 'metro' ? { camera: [0.3, 12.5, 4.2], target: [0.2, 0, 0.7] } : {}),
   ...(q.get('view') === 'close' ? { camera: [1.6, 1.9, 2.6], target: [0.6, 0, 0.3] } : {}),
 });
-city.setWeather(q.get('meteo') || 'pioggia');
+city.setWeather(q.get('meteo') || (stile ? 'sereno' : 'pioggia'));
 $('loading').remove();
 const T = city.towns, idx = Object.fromEntries(T.map((t, i) => [t.id, i]));
 
