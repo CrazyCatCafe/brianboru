@@ -4,6 +4,18 @@ import * as THREE from 'three';
 import { OrbitControls } from '../../vendor/three/OrbitControls.js';
 import { THEME } from './theme.js';
 
+let T = THEME; // tema attivo: quello del gioco, o una variante passata in createCity(view.theme)
+const merge = (a, b) => Object.fromEntries([...new Set([...Object.keys(a), ...Object.keys(b || {})])].map(k =>
+  [k, b?.[k] && typeof b[k] === 'object' && !Array.isArray(b[k]) && typeof a[k] === 'object' ? merge(a[k], b[k]) : b?.[k] ?? a[k]]));
+
+// Livelli di qualità grafica: 'auto' parte da quello adatto al dispositivo e scende se la scena fatica
+export const QUALITY = {
+  alta: { label: 'Alta', pr: 2, shadow: 4096, blur: true, rain: 1 },
+  media: { label: 'Media', pr: 1.25, shadow: 2048, blur: true, rain: 0.6 },
+  bassa: { label: 'Bassa', pr: 0.8, shadow: 0, blur: false, rain: 0.3 },
+};
+const weakDevice = () => /[?&]q=low/.test(location.search) || matchMedia('(pointer: coarse)').matches || (navigator.hardwareConcurrency || 8) <= 4 || (navigator.deviceMemory || 8) <= 4;
+
 const W = 1100, H = 1023;
 const X = x => (x - W / 2) / 100, Z = y => (y - H / 2) / 100;
 const HS = (1 / 18.2) * 4 / 100; // metri -> unità scena (1 unità canvas ≈ 18,2 m), altezze ×4
@@ -50,7 +62,7 @@ function buildingMeshes(buf) {
     (groups[r] ??= { nv: 0, ni: 0, list: [] }).list.push(o);
     groups[r].nv += 2 * k; groups[r].ni += 6 * k + 3 * (k - 2); o += 4 + 4 * k;
   }
-  const cin = new THREE.Color(THEME.building.city), cout = new THREE.Color(THEME.building.outside), meshes = {};
+  const cin = new THREE.Color(T.building.city), cout = new THREE.Color(T.building.outside), meshes = {};
   for (const [r, gr] of Object.entries(groups)) {
     const pos = new Float32Array(gr.nv * 3), col = new Uint8Array(gr.nv * 3), idx = new Uint32Array(gr.ni);
     let v = 0, t = 0;
@@ -86,7 +98,7 @@ function policeBadge() {
   g.fillStyle = '#e8c7a8'; g.beginPath(); g.ellipse(64, 76, 26, 30, 0, 0, 7); g.fill();                                   // volto
   g.fillStyle = '#2b3a4f'; g.beginPath(); g.arc(64, 64, 36, Math.PI, 0); g.lineTo(100, 72); g.lineTo(28, 72); g.fill(); // casco
   g.fillStyle = '#0b0e12'; g.fillRect(32, 64, 64, 14);                                                                  // visiera
-  g.fillStyle = THEME.accent; g.fillRect(36, 68, 26, 5); g.fillStyle = THEME.suit.blue.fill; g.fillRect(66, 68, 26, 5);
+  g.fillStyle = T.accent; g.fillRect(36, 68, 26, 5); g.fillStyle = T.suit.blue.fill; g.fillRect(66, 68, 26, 5);
   g.fillStyle = '#c9a43a'; g.beginPath(); g.moveTo(64, 32); g.lineTo(71, 43); g.lineTo(64, 52); g.lineTo(57, 43); g.fill(); // fregio
   g.strokeStyle = '#2b3a4f'; g.lineWidth = 5; g.beginPath(); g.moveTo(38, 80); g.quadraticCurveTo(64, 116, 90, 80); g.stroke(); // sottogola
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
@@ -116,6 +128,7 @@ const MIX_FS = `uniform sampler2D sharp, soft, mask; varying vec2 vUv;
   }`;
 
 export async function createCity(container, overlay, view = {}) {
+  T = view.theme ? merge(THEME, view.theme) : THEME;
   const base = new URL('../../assets/milano/', import.meta.url);
   const [map, env, bin] = await Promise.all([
     fetch(new URL('mappa.json', base)).then(r => r.json()),
@@ -124,16 +137,16 @@ export async function createCity(container, overlay, view = {}) {
   ]);
   const towns = map.towns, townIndex = Object.fromEntries(towns.map((t, i) => [t.id, i]));
 
-  const low = /[?&]q=low/.test(location.search) || matchMedia('(pointer: coarse)').matches; // telefoni e GPU deboli
+  let qName = view.quality || 'auto', q = QUALITY[qName === 'auto' ? (weakDevice() ? 'media' : 'alta') : qName];
   const renderer = new THREE.WebGLRenderer({ antialias: false });
-  renderer.setPixelRatio(Math.min(devicePixelRatio, low ? 1.5 : 2));
+  if (view.pixel) renderer.domElement.style.imageRendering = 'pixelated'; // pixel art: si disegna a bassa risoluzione e si ingrandisce
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.NeutralToneMapping;
   container.appendChild(renderer.domElement);
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(THEME.sky[1]);
-  scene.fog = new THREE.Fog(THEME.sky[1], 16, 34);
+  scene.background = new THREE.Color(T.sky[1]);
+  scene.fog = new THREE.Fog(T.fog?.color || T.sky[1], ...(T.fog?.range || [16, 34]));
   const camera = new THREE.PerspectiveCamera(36, 1, 0.05, 80);
   camera.position.set(...(view.camera || [0.3, 8.4, 9.2]));
   const controls = new OrbitControls(camera, renderer.domElement);
@@ -149,22 +162,22 @@ export async function createCity(container, overlay, view = {}) {
   addEventListener('keyup', e => keys.delete(e.code));
   addEventListener('blur', () => keys.clear());
 
-  const hemi = new THREE.HemisphereLight('#ffffff', '#aab7c2', 2.1);
-  const sun = new THREE.DirectionalLight('#fffaf0', 2.6);
-  sun.position.set(-5, 9, 4); sun.castShadow = true;
-  sun.shadow.mapSize.setScalar(low ? 2048 : 4096);
+  const L = { hemi: 1, sun: 1, sky: '#ffffff', ground: '#aab7c2', sunColor: '#fffaf0', sunPos: [-5, 9, 4], ...(T.light || {}) };
+  const hemi = new THREE.HemisphereLight(L.sky, L.ground, 2.1 * L.hemi);
+  const sun = new THREE.DirectionalLight(L.sunColor, 2.6 * L.sun);
+  sun.position.set(...L.sunPos);
   Object.assign(sun.shadow.camera, { left: -7.5, right: 7.5, top: 7.5, bottom: -7.5, near: 1, far: 30 });
   sun.shadow.bias = -0.0003; sun.shadow.normalBias = 0.01;
   scene.add(hemi, sun);
 
   // suolo: hinterland grigio-verde con campi, Comune chiaro, parchi, acqua
-  const outer = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.MeshLambertMaterial({ color: THEME.ground.outside }));
+  const outer = new THREE.Mesh(new THREE.PlaneGeometry(80, 80), new THREE.MeshLambertMaterial({ color: T.ground.outside }));
   outer.rotation.x = -Math.PI / 2; outer.receiveShadow = true; scene.add(outer);
-  scene.add(flat(env.rural, THEME.rural, 0.0005));
+  scene.add(flat(env.rural, T.rural, 0.0005));
   const cityShape = rings(map.city_outline_path);
-  scene.add(flat(cityShape, THEME.ground.city, 0.001));
-  scene.add(flat(env.parks, THEME.park, 0.003));
-  const waterMat = new THREE.MeshLambertMaterial({ color: THEME.water, emissive: THEME.water, emissiveIntensity: 0.25 });
+  scene.add(flat(cityShape, T.ground.city, 0.001));
+  scene.add(flat(env.parks, T.park, 0.003));
+  const waterMat = new THREE.MeshLambertMaterial({ color: T.water, emissive: T.water, emissiveIntensity: 0.25 });
   const water = new THREE.Mesh(flatGeometry(env.water), waterMat); water.position.y = 0.005; scene.add(water);
   for (const [name, lines] of Object.entries(env.rivers))
     for (const l of lines) scene.add(new THREE.Mesh(ribbon(l, name.startsWith('Lambro') ? 0.016 : 0.012, 0.006), waterMat));
@@ -174,7 +187,7 @@ export async function createCity(container, overlay, view = {}) {
   scene.add(meshes[0]);
   const regions = {};
   env.regionKeys.forEach((k, i) => {
-    const r = map.regions[k], g = new THREE.Group(), color = new THREE.Color(THEME.region[k]);
+    const r = map.regions[k], g = new THREE.Group(), color = new THREE.Color(T.region[k]);
     const tint = flat(rings(r.svg_path), color, 0.002, { transparent: true, opacity: 0.16, depthWrite: false });
     const borders = rings(r.svg_path).map(ring => over(new THREE.Mesh(ribbon([...ring, ring[0]], 0.014, OV), new THREE.MeshBasicMaterial({ color, opacity: 0.9 })), 1));
     const glow = rings(r.svg_path).map(ring => over(new THREE.Mesh(ribbon([...ring, ring[0]], 0.06, OV - 0.002),
@@ -193,11 +206,11 @@ export async function createCity(container, overlay, view = {}) {
   };
   const spots = towns.map((t, i) => {
     const g = new THREE.Group(); g.position.set(X(t.x), 0, Z(t.y));
-    const fill = disc(0, 0.078, THEME.suit[t.suit].fill, OV, 3.2);
-    const option = disc(0.125, 0.15, THEME.project, OV, 3.3); option.visible = false; // anello delle scelte possibili
+    const fill = disc(0, 0.078, T.suit[t.suit].fill, OV, 3.2);
+    const option = disc(0.125, 0.15, T.project, OV, 3.3); option.visible = false; // anello delle scelte possibili
     const hit = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.4, 8), new THREE.MeshBasicMaterial({ visible: false }));
     hit.position.y = 0.2; hit.userData.town = i;
-    g.add(disc(0, 0.108, THEME.ink, OV, 3), disc(0, 0.094, '#ffffff', OV, 3.1), fill, option, hit);
+    g.add(disc(0, 0.108, T.ink, OV, 3), disc(0, 0.094, '#ffffff', OV, 3.1), fill, option, hit);
     regions[t.region].g.add(g);
     return { g, hit, fill, option, region: t.region };
   });
@@ -223,7 +236,7 @@ export async function createCity(container, overlay, view = {}) {
   scene.add(dashMesh);
 
   // segnalino del quartiere attivo (anello pulsante)
-  const halo = disc(0.15, 0.18, THEME.accent, OV, 7);
+  const halo = disc(0.15, 0.18, T.accent, OV, 7);
   scene.add(halo);
 
   // --- pedine ---
@@ -236,7 +249,7 @@ export async function createCity(container, overlay, view = {}) {
     const r = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.003, 12), mat('#7b8794'));
     r.position.set(x * 0.022, 0.008, z * 0.022); droneProto.add(r);
   }
-  const led = new THREE.Mesh(new THREE.SphereGeometry(0.006, 8, 6), new THREE.MeshBasicMaterial({ color: THEME.accent }));
+  const led = new THREE.Mesh(new THREE.SphereGeometry(0.006, 8, 6), new THREE.MeshBasicMaterial({ color: T.accent }));
   led.position.y = -0.008; droneProto.add(led);
   const spinners = [], glows = [];
   let selected = null, active = null;
@@ -249,17 +262,17 @@ export async function createCity(container, overlay, view = {}) {
       const p = spots[i].g.position, parent = regions[spots[i].region].pieces;
       const put = (m, y = OV, order = 5) => { over(m, order); m.position.x += p.x; m.position.y += y; m.position.z += p.z; parent.add(m); return m; };
       // gettone 3D della banda: copre tutto lo spot
-      put(new THREE.Mesh(new THREE.CylinderGeometry(0.118, 0.118, 0.05, 48), mat(THEME.players[st.owner])), OV + 0.025);
+      put(new THREE.Mesh(new THREE.CylinderGeometry(0.118, 0.118, 0.05, 48), mat(T.players[st.owner])), OV + 0.025);
       put(new THREE.Mesh(new THREE.TorusGeometry(0.104, 0.01, 8, 48), mat('#ffffff')), OV + 0.05).rotation.x = Math.PI / 2;
       if (st.monastery) { // progetto urbano: anello fluorescente
-        put(new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.016, 10, 64), new THREE.MeshBasicMaterial({ color: THEME.project })), OV + 0.02, 4).rotation.x = Math.PI / 2;
-        const g = put(new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.05, 10, 64), new THREE.MeshBasicMaterial({ color: THEME.project, opacity: 0.35, blending: THREE.AdditiveBlending })), OV + 0.02, 3);
+        put(new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.016, 10, 64), new THREE.MeshBasicMaterial({ color: T.project })), OV + 0.02, 4).rotation.x = Math.PI / 2;
+        const g = put(new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.05, 10, 64), new THREE.MeshBasicMaterial({ color: T.project, opacity: 0.35, blending: THREE.AdditiveBlending })), OV + 0.02, 3);
         g.rotation.x = Math.PI / 2; glows.push(g);
       }
       if (st.viking) { // presidio di polizia: barricata, droni che girano, stemma
         for (let k = 0; k < 6; k++) {
           const a = k / 6 * Math.PI * 2, b = new THREE.Group();
-          const block = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.035, 0.02), mat(k % 2 ? '#ffffff' : THEME.accent));
+          const block = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.035, 0.02), mat(k % 2 ? '#ffffff' : T.accent));
           const foot = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.008, 0.035), mat('#2b3a4f')); foot.position.y = -0.02;
           b.add(block, foot); b.position.set(Math.cos(a) * 0.17, 0.03, Math.sin(a) * 0.17); b.rotation.y = -a + Math.PI / 2;
           put(b, OV, 6);
@@ -282,7 +295,7 @@ export async function createCity(container, overlay, view = {}) {
   };
   for (const [k, r] of Object.entries(map.regions)) {
     const [lx, ly] = r.label.tx ? [r.label.tx, r.label.ty] : [r.label.x, r.label.y];
-    addLabel(`<b style="--rc:${THEME.region[k]}">${r.name}</b><span>${r.municipio}</span><i>${r.threshold}<em>soglia</em></i><i>${r.points}<em>punti</em></i>`, 'rlabel', lx, ly, 0.02, k);
+    addLabel(`<b style="--rc:${T.region[k]}">${r.name}</b><span>${r.municipio}</span><i>${r.threshold}<em>soglia</em></i><i>${r.points}<em>punti</em></i>`, 'rlabel', lx, ly, 0.02, k);
   }
   const firstTown = labels.length;
   towns.forEach(t => addLabel(t.name, 'tlabel', t.x, t.y, OV + 0.16, t.region));
@@ -313,7 +326,7 @@ export async function createCity(container, overlay, view = {}) {
       g.position.set((Math.random() - 0.5) * 18, 1.4 + Math.random() * 0.7, (Math.random() - 0.5) * 15);
       clouds.add(g);
     }
-    rainGeo.setDrawRange(0, Math.min(MAXRAIN, low ? weather.rain / 2 : weather.rain) * 2);
+    rainGeo.setDrawRange(0, Math.round(Math.min(MAXRAIN, weather.rain * q.rain)) * 2);
   }
   setWeather(view.weather || 'sereno');
 
@@ -358,13 +371,26 @@ export async function createCity(container, overlay, view = {}) {
     half.set(Math.max(1, fw >> 1), Math.max(1, fh >> 1));
     rtScene.setSize(fw, fh); [rtA, rtB, rtMask, rtM2].forEach(t => t.setSize(half.x, half.y));
   };
-  new ResizeObserver(resize).observe(container); resize();
+  new ResizeObserver(resize).observe(container);
+  function applyQuality() {
+    renderer.setPixelRatio(view.pixel ? Math.min(view.pixel, q.pr) : Math.min(devicePixelRatio, q.pr));
+    sun.castShadow = q.shadow > 0;
+    if (q.shadow && sun.shadow.mapSize.x !== q.shadow) { sun.shadow.mapSize.setScalar(q.shadow); sun.shadow.map?.dispose(); sun.shadow.map = null; }
+    rainGeo.setDrawRange(0, Math.round(Math.min(MAXRAIN, weather.rain * q.rain)) * 2);
+    resize();
+  }
+  applyQuality();
+  let slowT = 0, slowN = 0; // misura della fluidità per la qualità automatica
 
   // --- ciclo ---
   const v = new THREE.Vector3(), white = new THREE.Color('#ffffff'), still = matchMedia('(prefers-reduced-motion: reduce)').matches;
   let last = 0;
   renderer.setAnimationLoop(time => {
-    const t = time / 1000, dt = Math.min(0.05, t - last || 0); last = t;
+    const t = time / 1000, real = t - last, dt = Math.min(0.05, real || 0); last = t;
+    if (qName === 'auto' && q !== QUALITY.bassa && real > 0 && real < 1) { // in automatico scende di livello se si va sotto i ~28 fotogrammi al secondo
+      slowT += real; slowN++;
+      if (slowT > 3) { if (slowT / slowN > 1 / 28) { q = q === QUALITY.alta ? QUALITY.media : QUALITY.bassa; applyQuality(); } slowT = slowN = 0; }
+    }
     // tastiera: WASD e frecce spostano la vista sul piano della mappa
     if (keys.size) {
       const fwd = new THREE.Vector3().subVectors(controls.target, camera.position).setY(0).normalize(), right = new THREE.Vector3(-fwd.z, 0, fwd.x);
@@ -420,8 +446,8 @@ export async function createCity(container, overlay, view = {}) {
     }
     if (weather.lightning && !still && Math.random() < dt * 0.15) flash = 1;
     flash = Math.max(0, flash - dt * 5);
-    hemi.intensity += (weather.hemi + flash * 4 - hemi.intensity) * Math.min(1, dt * (flash ? 30 : 1.5));
-    sun.intensity += (weather.sun - sun.intensity) * Math.min(1, dt * 1.5);
+    hemi.intensity += (weather.hemi * L.hemi + flash * 4 - hemi.intensity) * Math.min(1, dt * (flash ? 30 : 1.5));
+    sun.intensity += (weather.sun * L.sun - sun.intensity) * Math.min(1, dt * 1.5);
     // etichette
     const { clientWidth: w, clientHeight: h } = container, dist = camera.position.distanceTo(controls.target);
     labels.forEach(({ el, p, region }, i) => {
@@ -432,6 +458,7 @@ export async function createCity(container, overlay, view = {}) {
       if (show) el.style.transform = `translate(${(v.x + 1) / 2 * w}px, ${(1 - v.y) / 2 * h}px)`;
     });
     // render: scena -> maschera del Comune -> sfocatura -> composizione a schermo
+    if (!q.blur) { renderer.setRenderTarget(null); renderer.render(scene, camera); return; } // qualità bassa: niente sfocatura
     renderer.setRenderTarget(rtScene); renderer.render(scene, camera);
     renderer.setRenderTarget(rtMask); renderer.render(maskScene, camera);
     blur(rtScene, rtA, rtB, 2);
@@ -446,5 +473,7 @@ export async function createCity(container, overlay, view = {}) {
     resetView: () => { homing = 1; },
     setClickable: (ids, cb) => { clickable = new Set(ids); onPick = cb || (() => {}); },
     setWeather, weather: () => weatherKey,
+    setQuality: name => { qName = name; q = QUALITY[name === 'auto' ? (weakDevice() ? 'media' : 'alta') : name]; applyQuality(); },
+    quality: () => ({ setting: qName, level: Object.keys(QUALITY).find(k => QUALITY[k] === q) }),
   };
 }

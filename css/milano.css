@@ -253,3 +253,15 @@ input:focus-visible, textarea:focus-visible { outline: 3px solid var(--red); out
   .stage { left: 12px; right: 12px; translate: none; width: auto; top: auto; bottom: calc(var(--card-w) * 1.45 + 100px); max-height: 40vh; }
   .hud-side { display: none; }
 }
+
+/* layout che si adatta anche all'altezza: carte e pannelli si stringono sugli schermi bassi */
+:root { --card-w: clamp(84px, min(calc((100vw - 48px - 7 * 10px) / 8), 17vh), 170px); }
+.hud-players { max-height: calc(100vh - var(--card-w) * 1.45 - 80px); overflow: auto; }
+@media (max-height: 820px) {
+  .pl { padding-top: 5px; padding-bottom: 5px; }
+  .pl .pts { font-size: 20px; }
+  .track .cell { grid-template-rows: auto 14px 14px; }
+  .stage h2 { font-size: 20px; }
+  .trickrow figure { width: 84px; }
+}
+@media (max-height: 640px) { .pl .nm em, .pl .terrs, .hype .lbl { display: none; } .turnbox dl { display: none; } }

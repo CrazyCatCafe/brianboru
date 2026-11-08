@@ -6,6 +6,7 @@ import { STORIES, CHARACTERS, ESTRID, POLICE } from './lore.js';
 
 const SHORT = { red: 'GUERRIGLIA', blue: 'COMUNITÀ', yellow: 'FESTA', white: 'BRIANO BORRO' };
 import { STORY_ART, CHARACTER_ART, ESTRID_ART, POLICE_ART } from './art.js';
+import { artImage } from './art-images.js';
 
 const W = 200, H = 290, F = `font-family="${THEME.font}"`;
 let uid = 0;
@@ -26,12 +27,12 @@ function icons(syms, x0, x1, y, size, color, hole) {
 }
 const tag = (x, y, t, c) => `<text x="${x}" y="${y}" ${F} font-weight="800" font-size="8.5" letter-spacing="1.4" fill="${c}">${t}</text>`;
 
-export function cardSVG(value) {
+export function cardSVG(value, { images = true } = {}) {
   const c = CARDS[value], suit = THEME.suit[c.color], royal = c.color === 'white';
   const fill = royal ? THEME.ink : suit.fill, ink = royal ? '#fff' : suit.ink, accent = royal ? THEME.accent : suit.fill;
   const rowH = 38, secY = 210;
   return frame(`${band(fill, ink, value, SHORT[c.color])}
-    ${art(STORY_ART[value](accent))}
+    ${art(images && artImage(value) ? `<image href="${artImage(value)}" width="184" height="104" preserveAspectRatio="xMidYMid slice"/>` : STORY_ART[value](accent))}
     ${title(STORIES[value])}
     <rect x="8" y="166" width="184" height="34" fill="${fill}"/>${royal ? `<rect x="8" y="198" width="184" height="3" fill="${THEME.accent}"/>` : ''}
     ${tag(14, 186, 'VINCI', ink)}${icons(c.primary, 46, 192, 169, 28, ink, fill)}

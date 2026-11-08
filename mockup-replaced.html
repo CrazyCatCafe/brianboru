@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Brian Boru Milano: mockup REPLACED</title>
+  <link rel="stylesheet" href="css/milano.css">
+  <link rel="stylesheet" href="css/replaced.css">
+  <script type="importmap">{ "imports": { "three": "./vendor/three/three.module.min.js" } }</script>
+</head>
+<body class="rp">
+  <div id="city" class="city"></div>
+  <div id="labels" class="labels"></div>
+  <div class="scan" aria-hidden="true"></div>
+
+  <nav id="phases" class="rp-phases" aria-label="Fasi del round"></nav>
+
+  <aside class="rp-left" aria-label="Plancia">
+    <section class="box" id="b-players"></section>
+    <section class="box" id="b-party"></section>
+    <section class="box" id="b-guerrilla"></section>
+    <section class="box" id="b-community"></section>
+    <section class="box" id="b-uprising"></section>
+  </aside>
+
+  <section id="stage" class="rp-stage" aria-live="polite"></section>
+  <aside id="turn" class="rp-turn"></aside>
+  <section id="hand" class="hand" aria-label="La tua mano"></section>
+  <p id="loading" class="loading">Carico Milano…</p>
+
+  <script type="module" src="js/mockup-replaced.js"></script>
+</body>
+</html>

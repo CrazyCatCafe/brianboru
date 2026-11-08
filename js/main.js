@@ -5,7 +5,7 @@ import { THEME } from './milano/theme.js';
 import { cardSVG, characterSVG } from './milano/card.js';
 import { icon, setIconSet } from './milano/icons.js';
 import { STORIES, ESTRID, SYMBOLS, CHARACTERS } from './milano/lore.js';
-import { createCity, WEATHER_TYPES } from './milano/city3d.js';
+import { createCity, WEATHER_TYPES, QUALITY } from './milano/city3d.js';
 import { connect } from './milano/online.js';
 
 setIconSet('pieno');
@@ -149,12 +149,19 @@ async function enterGame(s) {
   if ($('game').hidden) show('game');
   if (!city) {
     $('loading').hidden = false;
-    city = await createCity($('city'), $('labels'), { compass: $('compass') });
+    let quality = 'auto'; try { quality = localStorage.getItem('bb-quality') || 'auto'; } catch {}
+    city = await createCity($('city'), $('labels'), { compass: $('compass'), quality });
+    renderQuality();
     $('loading').hidden = true;
   }
   state = s; ingestEvents(s); render();
 }
 $('compass').onclick = () => city?.resetView();
+function renderQuality() { // grafica: Auto scende da sola se il computer fatica
+  const q = city.quality();
+  $('quality').innerHTML = ['auto', ...Object.keys(QUALITY)].map(k => `<button data-q="${k}" aria-pressed="${k === q.setting}">${k === 'auto' ? `Auto${q.setting === 'auto' ? ' · ' + QUALITY[q.level].label : ''}` : QUALITY[k].label}</button>`).join('');
+  $('quality').querySelectorAll('[data-q]').forEach(b => (b.onclick = () => { city.setQuality(b.dataset.q); try { localStorage.setItem('bb-quality', b.dataset.q); } catch {} renderQuality(); }));
+}
 
 async function act(...moves) { // più mosse di fila (es. quartiere attivo + carta)
   try {
@@ -325,7 +332,8 @@ function renderHand(s, pd) {
   const leading = choosingTown || (playing && seat === s.trick.leader);
   const fits = v => [color, 'white'].includes(CARDS[v].color);
   const ok = v => (playing || (choosingTown && ui.town != null)) && (!leading || fits(v) || !hand.some(fits));
-  el.innerHTML = hand.map(v => card(v, ok(v) ? '' : 'aria-disabled="true"', ok(v) || !(playing || choosingTown) ? '' : ' off')).join('');
+  const dim = v => !ok(v) && (playing || (choosingTown && ui.town != null)); // senza quartiere scelto le carte restano a colori
+  el.innerHTML = hand.map(v => card(v, ok(v) ? '' : 'aria-disabled="true"', dim(v) ? ' off' : '')).join('');
   el.querySelectorAll('[data-c]').forEach(b => (b.onclick = () => {
     const v = +b.dataset.c;
     if (!ok(v)) return choosingTown && ui.town == null && toast('Prima scegli il quartiere attivo sulla mappa');
