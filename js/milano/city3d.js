@@ -84,7 +84,8 @@ const over = (m, order) => {
 };
 
 // Edifici: una mesh per municipio (flag bit 1-4 = indice+1), più l'hinterland (0)
-function buildingMeshes(buf) {
+// octs: ottagoni dei quartieri {x, z, a (apotema)}; ogni palazzo che ci cade dentro viene annotato in octs[i].blds per poterlo colorare
+function buildingMeshes(buf, octs = []) {
   const dv = new DataView(buf), n = dv.getUint32(0, true), groups = {};
   let o = 4;
   for (let i = 0; i < n; i++) {
@@ -104,6 +105,11 @@ function buildingMeshes(buf) {
         const x = X(dv.getInt16(off, true) / 10), z = Z(dv.getInt16(off + 2, true) / 10);
         contour.push(new THREE.Vector2(x, z));
         for (const y of [0, h]) { pos.set([x, y, z], v * 3); col.set([c.r * 255 * shade, c.g * 255 * shade, c.b * 255], v * 3); v++; }
+      }
+      if (octs.length) { // il palazzo sta nell'ottagono di un quartiere?
+        let cx = 0, cz = 0; contour.forEach(p => { cx += p.x; cz += p.y; }); cx /= k; cz /= k;
+        const o = octs.find(o => { const dx = Math.abs(cx - o.x), dz = Math.abs(cz - o.z); return Math.max(dx, dz, (dx + dz) / Math.SQRT2) <= o.a; });
+        if (o) o.blds.push([r, base, v]);
       }
       for (let j = 0; j < k; j++) { const a = base + 2 * j, b = base + 2 * ((j + 1) % k); idx.set([a, b, a + 1, a + 1, b, b + 1], t); t += 6; }
       for (const [p, q, s] of THREE.ShapeUtils.triangulateShape(contour, [])) { idx.set([base + 2 * p + 1, base + 2 * q + 1, base + 2 * s + 1], t); t += 3; }
@@ -239,7 +245,18 @@ export async function createCity(container, overlay, view = {}) {
   // municipi: ognuno è un gruppo (tinta, bordo, edifici, quartieri, pedine) che si può alzare
   const AREAS = view.areas === 'nero'; // proposta: confini scuri, area velata del suo colore
   if (AREAS) scene.add(sharedBorders(Object.values(map.regions).map(r => rings(r.svg_path)), 0.016, 0.05, 0, T.wall || '#3d434a', !!T.wall));
-  const meshes = buildingMeshes(bin);
+  const OCT = view.markers === 'ottagono', OCT_R = 0.13; // quartieri come ottagoni di palazzi colorati
+  const octs = OCT ? towns.map(t => ({ x: X(t.x), z: Z(t.y), a: OCT_R * Math.cos(Math.PI / 8), blds: [] })) : [];
+  const meshes = buildingMeshes(bin, octs);
+  const paint = (i, color) => { // colora i palazzi dell'ottagono del quartiere i
+    const c = new THREE.Color(color), touched = new Set();
+    for (const [r, from, to] of octs[i].blds) {
+      const a = meshes[r].geometry.attributes.color;
+      for (let v = from; v < to; v++) a.setXYZ(v, c.r, c.g, c.b);
+      touched.add(a);
+    }
+    touched.forEach(a => (a.needsUpdate = true));
+  };
   scene.add(meshes[0]);
   const regions = {};
   env.regionKeys.forEach((k, i) => {
@@ -274,6 +291,19 @@ export async function createCity(container, overlay, view = {}) {
   };
   const spots = towns.map((t, i) => {
     const g = new THREE.Group(); g.position.set(X(t.x), 0, Z(t.y));
+    if (OCT) { // ottagono a terra del colore del seme, i palazzi sopra li colora paint()
+      const fill = new THREE.Mesh(new THREE.CircleGeometry(OCT_R, 8, Math.PI / 8), new THREE.MeshLambertMaterial({ color: BRIGHT[t.suit], transparent: true }));
+      fill.rotation.x = -Math.PI / 2; fill.position.y = 0.006; fill.receiveShadow = true; fill.renderOrder = 1;
+      const thin = poly(OCT_R + 0.008, 8, '#3d434a', OV, 2, OCT_R), thick = poly(OCT_R + 0.026, 8, '#ffffff', OV, 2, OCT_R);
+      thin.rotation.z = thick.rotation.z = Math.PI / 8 - Math.PI / 2; thick.visible = false; // contorno: sottile se libero, spesso se preso
+      g.add(thin, thick);
+      const option = disc(OCT_R + 0.015, OCT_R + 0.04, T.project, OV, 3.3); option.visible = false;
+      const hit = new THREE.Mesh(new THREE.CylinderGeometry(OCT_R, OCT_R, 0.4, 8), new THREE.MeshBasicMaterial({ visible: false }));
+      hit.position.y = 0.2; hit.userData.town = i;
+      g.add(fill, option, hit); regions[t.region].g.add(g);
+      paint(i, BRIGHT[t.suit]);
+      return { g, hit, fill, option, region: t.region, suit: t.suit, oct: true, thin, thick };
+    }
     if (MK !== 'disco') {
       const free = new THREE.Group(), fill = freeMarker(t.suit, free); free.add(fill);
       const option = disc(0.125, 0.15, T.project, OV, 3.3); option.visible = false;
@@ -335,6 +365,11 @@ export async function createCity(container, overlay, view = {}) {
     spinners.length = glows.length = 0;
     s.towns.forEach((st, i) => {
       if (spots[i].free) spots[i].free.visible = st.owner === null || MK !== 'anello';
+      if (spots[i].oct) { // libero: palazzi del seme; preso: palazzi e ottagono del colore della banda
+        const c = st.owner === null ? BRIGHT[spots[i].suit] : T.players[st.owner];
+        paint(i, c); spots[i].fill.material.color.set(c);
+        spots[i].thin.visible = st.owner === null; spots[i].thick.visible = st.owner !== null; spots[i].thick.material.color.set(c);
+      }
       if (st.owner === null) return;
       const p = spots[i].g.position, parent = regions[spots[i].region].pieces;
       const put = (m, y = OV, order = 5) => { over(m, order); m.position.x += p.x; m.position.y += y; m.position.z += p.z; parent.add(m); return m; };
@@ -580,6 +615,8 @@ export async function createCity(container, overlay, view = {}) {
     },
     setClickable: (ids, cb) => { clickable = new Set(ids); onPick = cb || (() => {}); },
     setWeather, weather: () => weatherKey,
+    // pixel art accesa/spenta: solo la mappa, l'interfaccia resta nitida
+    setPixel: px => { view.pixel = px || 0; renderer.domElement.style.imageRendering = px ? 'pixelated' : ''; resize(); },
     setQuality: name => { qName = name; q = QUALITY[name === 'auto' ? (weakDevice() ? 'media' : 'alta') : name]; applyQuality(); },
     quality: () => ({ setting: qName, level: Object.keys(QUALITY).find(k => QUALITY[k] === q) }),
   };

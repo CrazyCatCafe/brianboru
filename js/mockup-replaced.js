@@ -12,13 +12,20 @@ const q = new URLSearchParams(location.search);
 const stile = q.get('stile');
 document.body.classList.toggle('noscan', !!stile);
 const city = await createCity($('city'), $('labels'), {
-  areas: q.get('aree'), theme: { holo: THEME_HOLO, metro: THEME_METRO }[stile] || REPLACED,
+  areas: q.get('aree'), markers: q.get('quartieri') || 'disco', theme: { holo: THEME_HOLO, metro: THEME_METRO }[stile] || REPLACED,
  pixel: stile ? 0 : +(q.get('pixel') || PIXEL_SCALE),
   ...(stile === 'metro' ? { camera: [0.3, 12.5, 4.2], target: [0.2, 0, 0.7] } : {}),
   ...(q.get('view') === 'close' ? { camera: [1.6, 1.9, 2.6], target: [0.6, 0, 0.3] } : {}),
 });
 city.setWeather(q.get('meteo') || (stile ? 'sereno' : 'pioggia'));
 $('loading').remove();
+// interruttore del pixel (nel gioco andrà nel riquadro strumenti, ricordato sul dispositivo)
+const pxBtn = document.createElement('button'); pxBtn.className = 'btn small pxtoggle';
+const pxOn = () => !!+(q.get('pixel') ?? PIXEL_SCALE) && !stile;
+let px = pxOn();
+const pxLabel = () => (pxBtn.textContent = px ? 'Pixel: sì' : 'Pixel: no');
+pxBtn.onclick = () => { px = !px; city.setPixel(px ? +(q.get('pixel') || PIXEL_SCALE) : 0); document.body.classList.toggle('noscan', !px); pxLabel(); };
+pxLabel(); document.body.append(pxBtn);
 const T = city.towns, idx = Object.fromEntries(T.map((t, i) => [t.id, i]));
 
 // --- partita finta: upkeep del round 2, fase Guerrilla ---
