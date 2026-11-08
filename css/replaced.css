@@ -198,3 +198,8 @@ body.app.rp { background: radial-gradient(ellipse at 50% 30%, #aab3b9, #6f787f 7
   #game .rp-stage h2 { font-size: 16px; }
   #game .compass { left: var(--gap); right: auto; top: 52px; }
 }
+/* leggibilità: testi sullo sfondo chiaro della lobby e pulsanti meno stretti */
+.rp .topbar .note { color: #1a1f23; }
+.rp .sets button { padding: 6px 10px; }
+.rp .handbar button { padding: 6px 12px; }
+.rp .handbar span { padding: 0 10px; }
