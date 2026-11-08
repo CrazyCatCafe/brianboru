@@ -33,7 +33,7 @@ a { color: var(--accent); word-break: break-all; }
 .active-town { fill: none; stroke: var(--accent); stroke-width: 6; }
 
 aside { display: flex; flex-direction: column; gap: .75rem; }
-.prompt { background: var(--panel); border-left: 4px solid var(--accent); border-radius: 8px; padding: .75rem 1rem; }
+.prompt { background: var(--panel); border: 1px solid var(--accent); border-radius: 8px; padding: .75rem 1rem; }
 .prompt p { margin: .3rem 0; }
 .opt { color: var(--ink); display: flex; gap: .5rem; align-items: baseline; }
 .opt input { width: auto; }
