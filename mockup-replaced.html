@@ -7,7 +7,32 @@
   <link rel="stylesheet" href="css/milano.css">
   <link rel="stylesheet" href="css/replaced.css">
   <script type="importmap">{ "imports": { "three": "./vendor/three/three.module.min.js" } }</script>
-  <style>.noscan .scan { display: none; } .pxtoggle { position: fixed; right: 12px; bottom: 12px; z-index: 5; }</style>
+  <style>.noscan .scan { display: none; } .pxtoggle { position: fixed; right: 12px; bottom: 12px; z-index: 5; }
+    /* prova: griglia unica in alto, sopra la barra delle fasi */
+    .griglia #b-players, .griglia #b-party, .griglia #b-guerrilla, .griglia #b-community { display: none; }
+    .topgrid { position: fixed; top: 12px; left: 50%; translate: -50% 0; width: min(620px, calc(100vw - 600px)); z-index: 3; padding: 8px 12px 10px; }
+    .griglia .rp-phases { top: calc(12px + var(--gh, 180px) + 6px); }
+    .griglia .rp-stage { top: calc(12px + var(--gh, 180px) + 50px); }
+    .topgrid table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .topgrid th { font: 400 10.5px var(--pix); letter-spacing: .05em; text-transform: uppercase; color: var(--rp-muted); text-align: right; padding: 0 8px 5px; white-space: nowrap; }
+    .topgrid th:first-child, .topgrid td:first-child { text-align: left; padding-left: 0; }
+    .topgrid th svg, .topgrid th .logo { vertical-align: -3px; }
+    .topgrid th .logo { width: 17px; height: 17px; display: inline-grid; place-items: center; background: #eef1f3; }
+    .topgrid td { text-align: right; padding: 3px 8px; font: 600 15px var(--num); color: var(--rp-ink); border-top: 1px solid var(--rp-line); }
+    .topgrid td:first-child { font: 13px var(--font); }
+    .topgrid .nm { display: flex; align-items: center; gap: 6px; }
+    .topgrid td.pts { font-size: 18px; color: #fff; }
+    .topgrid .on { background: rgba(214, 35, 42, .18); }
+    .topgrid th.on { color: #fff; box-shadow: inset 0 2px 0 var(--rp-red); }
+    .topgrid tfoot td { font: 400 11px var(--pix); color: var(--rp-muted); text-transform: uppercase; border-top: 1px solid var(--rp-line); padding-top: 4px; }
+    .topgrid tfoot b { color: var(--rp-police, #8fd3ff); font: 600 14px var(--num); }
+    .topgrid .hype { display: flex; align-items: center; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--rp-line); }
+    .topgrid .hype.on { box-shadow: inset 0 2px 0 var(--rp-red); }
+    .topgrid .hype .lab { font: 400 10.5px var(--pix); text-transform: uppercase; letter-spacing: .05em; color: var(--rp-muted); }
+    .topgrid .hype .cells { flex: 1; }
+    .topgrid .hype .cell { height: 28px; aspect-ratio: auto; }
+    .topgrid .hype .who { font-size: 12px; color: var(--rp-ink); white-space: nowrap; }
+  </style>
 </head>
 <body class="rp">
   <div id="city" class="city"></div>

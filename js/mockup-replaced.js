@@ -76,6 +76,9 @@ function render() {
   $('b-uprising').innerHTML = `<h3>${logo('uprising')}Uprising <em>zone in palio</em></h3>
     <ul>${Object.entries(zones).map(([r, o]) => `<li><i class="rz" style="--rc:${THEME.region[r]}"></i><b>${city.regions[r].name}</b><span class="own">${o === null ? 'contesa' : nameOf(o)}</span></li>`).join('')}</ul>`;
 
+  // prova: un'unica griglia in alto (bande × Punti, Crediti, Guerrilla, Community) con sotto la track dell'Hype
+  if (q.get('plancia') === 'griglia') renderGrid();
+
   // centro: racconto della fase in corso
   $('stage').innerHTML = `<p class="kicker">Guerrilla · 2/4</p><h2>Retata!</h2>
     <p>${police} unità di polizia in allerta. Chi ne ha neutralizzate meno perde un quartiere:</p>
@@ -87,3 +90,21 @@ function render() {
   $('hand').innerHTML = hand.map(c => `<button class="card">${cardSVG(c)}</button>`).join('');
 }
 render();
+
+function renderGrid() {
+  document.body.classList.add('griglia');
+  let g = $('grid');
+  if (!g) { g = document.createElement('section'); g.id = 'grid'; g.className = 'box topgrid'; g.setAttribute('aria-label', 'Bande'); document.body.append(g); }
+  const col = k => (phase === k ? ' class="on"' : '');
+  const BONUS = { C: '+1 credito', CC: '+2 crediti', R: '+1 street cred', T: 'un quartiere' };
+  g.innerHTML = `<table>
+    <thead><tr><th>Banda</th><th>Punti</th><th>${icon('C', 14, '#ffc20e', '#0f1316')} Crediti</th><th${col('guerrilla')}>${logo('guerrilla', 14)} Guerrilla</th><th${col('community')}>${logo('community', 14)} Community</th></tr></thead>
+    <tbody>${players.map((p, i) => `<tr><td><span class="nm">${nameOf(i)}</span></td><td class="pts">${p.points}</td><td>${p.coins}</td><td${col('guerrilla')}>${p.raiders}</td><td${col('community')}>${p.church}</td></tr>`).join('')}</tbody>
+    <tfoot><tr><td colspan="3"></td><td${col('guerrilla')}>${icon('A', 13, 'currentColor', '#0f1316')} polizia <b>${police}</b></td><td${col('community')}></td></tr></tfoot>
+  </table>
+  <div class="hype${phase === 'party' ? ' on' : ''}"><span class="lab">Hype</span><div class="cells">${MARRIAGE_TRACK.map((b, c) =>
+    `<span class="cell${b ? ' bonus' : ''}" title="Casella ${c + 1}: ${b ? BONUS[b] : 'nessun bonus'}"><span class="g">${b ? icon(b === 'CC' ? 'C' : b, 11, 'currentColor', '#0f1316') + (b === 'CC' ? '<sup>2</sup>' : '') : ''}</span>${players.map((pl, i) => (pl.mar === c ? dot(i) : '')).join('')}</span>`).join('')}</div>
+    <span class="who">Conte Galleria</span></div>`;
+  const fit = () => document.documentElement.style.setProperty('--gh', g.offsetHeight + 'px');
+  fit(); new ResizeObserver(fit).observe(g); // l'altezza cambia quando arrivano i font
+}
