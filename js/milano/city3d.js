@@ -46,8 +46,8 @@ function ribbon(pts, width, y) {
   return g;
 }
 // Confini tra le aree disegnati una volta sola: i punti di aree vicine a meno di 4 px si fondono, i tratti doppi si tolgono.
-// Restano a terra anche quando un'area si alza, così non si vedono due linee.
-function sharedBorders(regionRings, width, y, color) {
+// È un muro continuo con le sue ombre, fermo a terra anche quando un'area si alza: niente linee doppie.
+function sharedBorders(regionRings, width, height, y, color) {
   const pts = [], SNAP = 4;
   const snap = ([x, z]) => { const p = pts.find(q => Math.hypot(q[0] - x, q[1] - z) < SNAP); if (p) return p; const n = [x, z]; pts.push(n); return n; };
   const seen = new Set(), segs = [];
@@ -59,19 +59,19 @@ function sharedBorders(regionRings, width, y, color) {
       if (!seen.has(key)) { seen.add(key); segs.push([a, b]); }
     });
   }
-  const pos = [], idx = [];
-  for (const [[x0, z0], [x1, z1]] of segs) {
-    const ax = X(x0), az = Z(z0), bx = X(x1), bz = Z(z1), l = Math.hypot(bx - ax, bz - az) || 1, nx = -(bz - az) / l * width, nz = (bx - ax) / l * width, k = pos.length / 3;
-    pos.push(ax + nx, y, az + nz, ax - nx, y, az - nz, bx + nx, y, bz + nz, bx - nx, y, bz - nz);
-    idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2);
-  }
-  // giunti tondi nei vertici, così le spezzate non hanno buchi
-  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
-  const m = new THREE.Group(), mat = new THREE.MeshBasicMaterial({ color });
-  m.add(new THREE.Mesh(g, mat));
-  const dots = new THREE.InstancedMesh(new THREE.CircleGeometry(width, 8).rotateX(-Math.PI / 2), mat, pts.length), m4 = new THREE.Matrix4();
-  pts.forEach(([x, z], i) => dots.setMatrixAt(i, m4.makeTranslation(X(x), y, Z(z)))); m.add(dots);
-  return over(m, 1);
+  // muro continuo: un blocco per tratto più una colonnina per vertice, come un edificio lungo il confine
+  const mat = new THREE.MeshLambertMaterial({ color }), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
+  const walls = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), mat, segs.length);
+  segs.forEach(([[x0, z0], [x1, z1]], i) => {
+    const ax = X(x0), az = Z(z0), bx = X(x1), bz = Z(z1), l = Math.hypot(bx - ax, bz - az);
+    q.setFromAxisAngle(up, -Math.atan2(bz - az, bx - ax));
+    walls.setMatrixAt(i, m4.compose(new THREE.Vector3((ax + bx) / 2, y + height / 2, (az + bz) / 2), q, new THREE.Vector3(l, height, width)));
+  });
+  const posts = new THREE.InstancedMesh(new THREE.CylinderGeometry(width / 2, width / 2, height, 8), mat, pts.length);
+  pts.forEach(([x, z], i) => posts.setMatrixAt(i, m4.makeTranslation(X(x), y + height / 2, Z(z))));
+  const g = new THREE.Group(); g.add(walls, posts);
+  g.traverse(o => { o.castShadow = o.receiveShadow = true; });
+  return g;
 }
 
 // in sovrimpressione: sempre visibili sopra gli edifici (vale anche per i figli di un gruppo)
@@ -218,7 +218,7 @@ export async function createCity(container, overlay, view = {}) {
 
   // municipi: ognuno è un gruppo (tinta, bordo, edifici, quartieri, pedine) che si può alzare
   const AREAS = view.areas === 'nero'; // proposta: confini scuri, area velata del suo colore
-  if (AREAS) scene.add(sharedBorders(Object.values(map.regions).map(r => rings(r.svg_path)), 0.013, OV, '#3d434a'));
+  if (AREAS) scene.add(sharedBorders(Object.values(map.regions).map(r => rings(r.svg_path)), 0.016, 0.05, 0, '#3d434a'));
   const meshes = buildingMeshes(bin);
   scene.add(meshes[0]);
   const regions = {};
