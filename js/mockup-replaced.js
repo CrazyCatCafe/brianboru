@@ -78,6 +78,7 @@ function render() {
 
   // prova: un'unica griglia in alto (bande × Punti, Crediti, Guerrilla, Community) con sotto la track dell'Hype
   if (q.get('plancia') === 'griglia') renderGrid();
+  if (q.get('plancia') === 'colonne') renderColumns();
 
   // centro: racconto della fase in corso
   $('stage').innerHTML = `<p class="kicker">Guerrilla · 2/4</p><h2>Retata!</h2>
@@ -107,4 +108,20 @@ function renderGrid() {
     <span class="who">Conte Galleria</span></div>`;
   const fit = () => document.documentElement.style.setProperty('--gh', g.offsetHeight + 'px');
   fit(); new ResizeObserver(fit).observe(g); // l'altezza cambia quando arrivano i font
+}
+
+// prova 2: griglia verticale a sinistra. Colonne = bande (iniziale e colore), righe = Punti, Crediti, Guerrilla, Community; accanto l'Hype in verticale
+function renderColumns() {
+  document.body.classList.add('colonne');
+  const g = $('b-players');
+  const row = (label, key, k) => `<tr${phase === k ? ' class="on"' : ''}><th>${label}</th>${players.map(p => `<td${key === 'points' ? ' class="pts"' : ''}>${p[key]}</td>`).join('')}</tr>`;
+  const BONUS = { C: '+1 credito', CC: '+2 crediti', R: '+1 street cred', T: 'un quartiere' };
+  g.innerHTML = `<div class="vgrid"><table>
+    <thead><tr><th></th>${players.map((p, i) => `<th><span class="ini" style="--pc:${THEME.players[i]}" title="${p.name}">${p.name[0]}</span></th>`).join('')}</tr></thead>
+    <tbody>${row('Punti', 'points')}${row(`${icon('C', 13, '#ffc20e', '#0f1316')} Crediti`, 'coins')}${row(`${logo('guerrilla', 13)} Guerrilla`, 'raiders', 'guerrilla')}${row(`${logo('community', 13)} Community`, 'church', 'community')}</tbody>
+    <tfoot><tr${phase === 'guerrilla' ? ' class="on"' : ''}><th>${icon('A', 12, 'currentColor', '#0f1316')} Polizia</th><td colspan="${players.length}">${police}</td></tr></tfoot>
+  </table>
+  <div class="vhype${phase === 'party' ? ' on' : ''}" title="Hype: Conte Galleria"><span class="lab">Hype</span>${MARRIAGE_TRACK.map((b, c) => [b, c]).reverse().map(([b, c]) =>
+    `<span class="vc${b ? ' bonus' : ''}" title="Casella ${c + 1}: ${b ? BONUS[b] : 'nessun bonus'}"><span class="g">${b ? icon(b === 'CC' ? 'C' : b, 10, 'currentColor', '#0f1316') + (b === 'CC' ? '<sup>2</sup>' : '') : ''}</span>${players.map((pl, i) => (pl.mar === c ? dot(i) : '')).join('')}</span>`).join('')}</div></div>
+  <p class="sub">Hype: <b>Conte Galleria</b></p>`;
 }

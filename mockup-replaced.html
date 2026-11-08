@@ -32,6 +32,27 @@
     .topgrid .hype .cells { flex: 1; }
     .topgrid .hype .cell { height: 28px; aspect-ratio: auto; }
     .topgrid .hype .who { font-size: 12px; color: var(--rp-ink); white-space: nowrap; }
+    /* prova 2: griglia verticale a sinistra */
+    .colonne #b-party, .colonne #b-guerrilla, .colonne #b-community { display: none; }
+    .vgrid { display: flex; gap: 10px; align-items: stretch; }
+    .vgrid table { flex: 1; border-collapse: collapse; }
+    .vgrid th, .vgrid td { padding: 5px 4px; border-top: 1px solid var(--rp-line); }
+    .vgrid thead th { border-top: 0; }
+    .vgrid tbody th, .vgrid tfoot th { font: 400 10.5px var(--pix); text-transform: uppercase; letter-spacing: .04em; color: var(--rp-muted); text-align: left; white-space: nowrap; }
+    .vgrid th .logo { width: 16px; height: 16px; display: inline-grid; place-items: center; background: #eef1f3; vertical-align: -4px; }
+    .vgrid th svg { vertical-align: -2px; }
+    .vgrid td { text-align: center; font: 600 15px var(--num); color: var(--rp-ink); }
+    .vgrid td.pts { font-size: 19px; color: #fff; }
+    .vgrid tfoot td { color: var(--rp-police, #8fd3ff); }
+    .vgrid .ini { display: inline-grid; place-items: center; width: 24px; height: 24px; background: var(--pc); color: #fff; font: 700 13px var(--num); }
+    .vgrid tr.on { background: rgba(214, 35, 42, .18); box-shadow: inset 2px 0 0 var(--rp-red); }
+    .vhype { display: flex; flex-direction: column; gap: 2px; width: 40px; }
+    .vhype.on { outline: 2px solid var(--rp-red); outline-offset: 2px; }
+    .vhype .lab { font: 400 9.5px var(--pix); text-transform: uppercase; color: var(--rp-muted); text-align: center; margin-bottom: 2px; }
+    .vhype .vc { flex: 1; min-height: 15px; border: 1px solid var(--rp-line); background: rgba(255, 255, 255, .04); display: flex; align-items: center; justify-content: center; gap: 2px; }
+    .vhype .vc.bonus { background: rgba(255, 255, 255, .1); }
+    .vhype .vc .g { display: flex; align-items: center; color: var(--rp-muted); font-size: 8px; }
+    .vhype .vc .pd { width: 7px; height: 7px; }
   </style>
 </head>
 <body class="rp">
