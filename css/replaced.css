@@ -311,3 +311,7 @@ body.app.rp { background: radial-gradient(ellipse at 50% 30%, #aab3b9, #6f787f 7
 .rp .party .cells .cell .g { flex-basis: 100%; justify-content: center; }
 .rp .party .cells .cell .pd { width: 7px; height: 7px; }
 .rp .party .peek { width: 28px; }
+/* loghi delle fasi: tassello chiaro, così anche il pugno nero si vede sul pannello scuro */
+.box h3 { display: flex; align-items: center; gap: 7px; }
+.box h3 .logo { display: inline-grid; place-items: center; width: 22px; height: 22px; background: #eef1f3; flex: none; }
+.box h3 .logo svg { width: 17px; height: 17px; }

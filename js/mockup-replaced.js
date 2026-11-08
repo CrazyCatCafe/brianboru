@@ -2,7 +2,7 @@
 import { CARDS, MARRIAGE_TRACK } from './game/data.js';
 import { THEME, THEME_REPLACED as REPLACED, THEME_HOLO, THEME_METRO, PIXEL_SCALE } from './milano/theme.js';
 import { cardSVG } from './milano/card.js';
-import { icon } from './milano/icons.js';
+import { icon, logo } from './milano/icons.js';
 import { createCity } from './milano/city3d.js';
 
 const $ = id => document.getElementById(id);
@@ -63,17 +63,17 @@ function render() {
 
   // guerrilla: polizia totale, bande in ordine crescente di unità neutralizzate
   $('b-guerrilla').className = `box${phase === 'guerrilla' ? ' on' : ''}`;
-  $('b-guerrilla').innerHTML = `<h3>Guerrilla</h3><p class="big">${icon('A', 18, 'currentColor')} <span>Polizia</span> <b>${police}</b></p>
+  $('b-guerrilla').innerHTML = `<h3>${logo('guerrilla')}Guerrilla</h3><p class="big">${icon('A', 18, 'currentColor')} <span>Polizia</span> <b>${police}</b></p>
     <ol>${asc('raiders').map(i => `<li>${nameOf(i)}<span class="num">${players[i].raiders}</span></li>`).join('')}</ol>`;
 
   // community projects: bande in ordine crescente di comunità
   $('b-community').className = `box${phase === 'community' ? ' on' : ''}`;
-  $('b-community').innerHTML = `<h3>Community Projects</h3>
+  $('b-community').innerHTML = `<h3>${logo('community')}Community Projects</h3>
     <ol>${asc('church').map(i => `<li>${nameOf(i)}<span class="num">${icon('X', 13, 'currentColor')}${players[i].church}</span></li>`).join('')}</ol>`;
 
   // uprising: zone sbloccate e chi le tiene
   $('b-uprising').className = `box${phase === 'uprising' ? ' on' : ''}`;
-  $('b-uprising').innerHTML = `<h3>Uprising <em>zone in palio</em></h3>
+  $('b-uprising').innerHTML = `<h3>${logo('uprising')}Uprising <em>zone in palio</em></h3>
     <ul>${Object.entries(zones).map(([r, o]) => `<li><i class="rz" style="--rc:${THEME.region[r]}"></i><b>${city.regions[r].name}</b><span class="own">${o === null ? 'contesa' : nameOf(o)}</span></li>`).join('')}</ul>`;
 
   // centro: racconto della fase in corso

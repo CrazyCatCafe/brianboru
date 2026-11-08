@@ -3,7 +3,7 @@ import { move as applyMove, current, emptyTowns, leadTowns, ownTowns, expandTarg
 import { CARDS, MARRIAGES, TOWNS, REGIONS, MARRIAGE_TRACK } from './game/data.js';
 import { THEME, THEME_REPLACED, PIXEL_SCALE } from './milano/theme.js';
 import { cardSVG, characterSVG } from './milano/card.js';
-import { icon, setIconSet } from './milano/icons.js';
+import { icon, setIconSet, logo } from './milano/icons.js';
 import { ESTRID, SYMBOLS, CHARACTERS } from './milano/lore.js';
 import { createCity, WEATHER_TYPES, QUALITY } from './milano/city3d.js';
 import { connect } from './milano/online.js';
@@ -362,16 +362,16 @@ function renderBoard(s, pd) {
   bindPeek(s);
   // guerrilla: polizia totale, bande in ordine crescente di unità neutralizzate
   on('b-guerrilla', 'guerrilla');
-  $('b-guerrilla').innerHTML = `<h3>Guerrilla</h3><p class="big">${icon('A', 16, 'currentColor', HOLE)} <span>Polizia in allerta</span> <b>${s.area}</b></p>
+  $('b-guerrilla').innerHTML = `<h3>${logo('guerrilla')}Guerrilla</h3><p class="big">${icon('A', 16, 'currentColor', HOLE)} <span>Polizia in allerta</span> <b>${s.area}</b></p>
     <ol>${ascBy(s, 'raiders').map(i => `<li>${pname(s, i)}<span class="num">${s.players[i].raiders}</span></li>`).join('')}</ol>`;
   // community projects: bande in ordine crescente di comunità
   on('b-community', 'community');
-  $('b-community').innerHTML = `<h3>Community Projects</h3>
+  $('b-community').innerHTML = `<h3>${logo('community')}Community Projects</h3>
     <ol>${ascBy(s, 'church').map(i => `<li>${pname(s, i)}<span class="num">${icon('X', 13, 'currentColor', HOLE)}${s.players[i].church}</span></li>`).join('')}</ol>`;
   // uprising: zone sbloccate e chi le tiene
   on('b-uprising', 'uprising');
   const up = Object.entries(s.claims).filter(([, c]) => c.up);
-  $('b-uprising').innerHTML = `<h3>Uprising <em>zone in palio</em></h3>${up.length ? `<ul>${up.map(([r, c]) =>
+  $('b-uprising').innerHTML = `<h3>${logo('uprising')}Uprising <em>zone in palio</em></h3>${up.length ? `<ul>${up.map(([r, c]) =>
     `<li><i class="rz" style="--rc:${THEME.region[r]}"></i><b>${REGIONS[r].name}</b><span class="own">${c.owner === null ? 'contesa' : pname(s, c.owner)}</span></li>`).join('')}</ul>` : '<p class="sub">Nessuna zona ancora in palio.</p>'}`;
 }
 

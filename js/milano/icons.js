@@ -86,3 +86,12 @@ export const icon = (sym, size = 20, color = 'currentColor', hole = '#fff') =>
   `<svg viewBox="0 0 40 40" width="${size}" height="${size}" style="--hole:${hole}" aria-hidden="true">${body(sym, color, hole)}</svg>`;
 export const iconAt = (sym, x, y, size, color, hole = '#fff') =>
   `<g transform="translate(${x} ${y}) scale(${size / 40})" style="--hole:${hole}">${body(sym, color, hole)}</g>`;
+
+// Loghi delle fasi di upkeep su un tassello chiaro: molotov rossa (Guerrilla), germoglio verde (Community Projects), pugno nero (Uprising)
+const FIST = c => `<rect x="10" y="7" width="5.5" height="12" rx="2.75" fill="${c}"/><rect x="15.5" y="5" width="5.5" height="14" rx="2.75" fill="${c}"/>
+  <rect x="21" y="6" width="5.5" height="13" rx="2.75" fill="${c}"/><rect x="26.5" y="8" width="5" height="11" rx="2.5" fill="${c}"/>
+  <path d="M10 16h21.5v9c0 6-4.5 10-10.75 10S10 31 10 25Z" fill="${c}"/><path d="M11 23h10" stroke="${H}" stroke-width="2.5" stroke-linecap="round"/>`;
+export const LOGO_COLORS = { guerrilla: '#e62e2d', community: '#14a04b', uprising: '#111111' };
+const LOGOS = { guerrilla: c => SOLID.A(c), community: c => SOLID.X(c), uprising: FIST };
+export const logo = (kind, size = 20) =>
+  `<span class="logo" style="--hole:#eef1f3"><svg viewBox="0 0 40 40" width="${size}" height="${size}" aria-hidden="true">${LOGOS[kind](LOGO_COLORS[kind])}</svg></span>`;
