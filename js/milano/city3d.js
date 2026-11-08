@@ -45,6 +45,35 @@ function ribbon(pts, width, y) {
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
   return g;
 }
+// Confini tra le aree disegnati una volta sola: i punti di aree vicine a meno di 4 px si fondono, i tratti doppi si tolgono.
+// Restano a terra anche quando un'area si alza, così non si vedono due linee.
+function sharedBorders(regionRings, width, y, color) {
+  const pts = [], SNAP = 4;
+  const snap = ([x, z]) => { const p = pts.find(q => Math.hypot(q[0] - x, q[1] - z) < SNAP); if (p) return p; const n = [x, z]; pts.push(n); return n; };
+  const seen = new Set(), segs = [];
+  for (const rs of regionRings) for (const ring of rs) {
+    const r = ring.map(snap);
+    r.forEach((a, i) => {
+      const b = r[(i + 1) % r.length]; if (a === b) return;
+      const ia = pts.indexOf(a), ib = pts.indexOf(b), key = Math.min(ia, ib) + ':' + Math.max(ia, ib);
+      if (!seen.has(key)) { seen.add(key); segs.push([a, b]); }
+    });
+  }
+  const pos = [], idx = [];
+  for (const [[x0, z0], [x1, z1]] of segs) {
+    const ax = X(x0), az = Z(z0), bx = X(x1), bz = Z(z1), l = Math.hypot(bx - ax, bz - az) || 1, nx = -(bz - az) / l * width, nz = (bx - ax) / l * width, k = pos.length / 3;
+    pos.push(ax + nx, y, az + nz, ax - nx, y, az - nz, bx + nx, y, bz + nz, bx - nx, y, bz - nz);
+    idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2);
+  }
+  // giunti tondi nei vertici, così le spezzate non hanno buchi
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx);
+  const m = new THREE.Group(), mat = new THREE.MeshBasicMaterial({ color });
+  m.add(new THREE.Mesh(g, mat));
+  const dots = new THREE.InstancedMesh(new THREE.CircleGeometry(width, 8).rotateX(-Math.PI / 2), mat, pts.length), m4 = new THREE.Matrix4();
+  pts.forEach(([x, z], i) => dots.setMatrixAt(i, m4.makeTranslation(X(x), y, Z(z)))); m.add(dots);
+  return over(m, 1);
+}
+
 // in sovrimpressione: sempre visibili sopra gli edifici (vale anche per i figli di un gruppo)
 const over = (m, order) => {
   m.traverse(c => {
@@ -188,14 +217,15 @@ export async function createCity(container, overlay, view = {}) {
     for (const l of lines) scene.add(new THREE.Mesh(ribbon(l, name.startsWith('Lambro') ? 0.016 : 0.012, 0.006), waterMat));
 
   // municipi: ognuno è un gruppo (tinta, bordo, edifici, quartieri, pedine) che si può alzare
-  const AREAS = view.areas === 'nero'; // proposta: confini neri, area velata del suo colore
+  const AREAS = view.areas === 'nero'; // proposta: confini scuri, area velata del suo colore
+  if (AREAS) scene.add(sharedBorders(Object.values(map.regions).map(r => rings(r.svg_path)), 0.013, OV, '#3d434a'));
   const meshes = buildingMeshes(bin);
   scene.add(meshes[0]);
   const regions = {};
   env.regionKeys.forEach((k, i) => {
     const r = map.regions[k], g = new THREE.Group(), color = new THREE.Color(T.region[k]);
     const tint = flat(rings(r.svg_path), color, 0.002, { transparent: true, opacity: 0.16, depthWrite: false });
-    const borders = rings(r.svg_path).map(ring => over(new THREE.Mesh(ribbon([...ring, ring[0]], AREAS ? 0.02 : 0.014, OV), new THREE.MeshBasicMaterial({ color: AREAS ? T.ink : color, opacity: AREAS ? 1 : 0.9 })), 1));
+    const borders = AREAS ? [] : rings(r.svg_path).map(ring => over(new THREE.Mesh(ribbon([...ring, ring[0]], 0.014, OV), new THREE.MeshBasicMaterial({ color, opacity: 0.9 })), 1));
     const glow = rings(r.svg_path).map(ring => over(new THREE.Mesh(ribbon([...ring, ring[0]], 0.06, OV - 0.002),
       new THREE.MeshBasicMaterial({ color, opacity: 0, blending: THREE.AdditiveBlending })), 0));
     const bld = meshes[i + 1], pieces = new THREE.Group();
