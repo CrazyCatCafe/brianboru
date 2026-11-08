@@ -1,12 +1,12 @@
 # Prompt per le illustrazioni delle carte (Nanobanana)
 
-Come usarlo: incolla **il prompt di stile** e subito sotto **il soggetto della carta**. Genera una carta alla volta.
+Come usarlo: scegli uno dei due **prompt di stile** (Another World o REPLACED), incollalo e subito sotto metti **il soggetto della carta**. Genera una carta alla volta.
 I prompt sono in inglese perché i modelli di immagini rendono meglio così; il soggetto è tradotto dal titolo italiano della carta.
 
 Formato: **16:9** orizzontale (nella carta l'illustrazione è 184×104). Poi salva il file come `assets/milano/art/<numero>.png`
 (storie: `1.png`…`25.png`; personaggi: `p1.png`…`p7.png` e `estrid.png`; polizia: `polizia-9.png` ecc.).
 
-## Prompt di stile (sempre uguale)
+## Prompt di stile: Another World
 
 ```
 Illustration in the style of the 1991 video game "Another World" (Out of This World) by Éric Chahi:
@@ -19,6 +19,22 @@ subject of the scene: ACCENT_COLOR. Everything else stays in whites, light greys
 Recognizable Milan touches when they fit (Navigli canals, tram wires, Duomo spires on the horizon, 1960s
 apartment blocks, railway overpasses). Wide 16:9 composition, subject centered, readable at small size
 (the image is printed on a playing card about 6 cm wide). No text, no letters, no logos, no frame, no border.
+```
+
+## Prompt di stile alternativo: REPLACED
+
+```
+Illustration in the style of the video game "REPLACED" by Sad Cat Studios: cinematic 2.5D pixel art,
+hand-crafted detailed pixel sprites and environments layered in depth, with modern lighting on top of the pixels:
+volumetric light shafts, soft fog and haze, bloom, rim light on silhouettes, reflections on wet ground,
+crisp pixel edges (no anti-aliasing blur, no painterly brush strokes, no photographic detail).
+Setting: Milan in the year 2077, a retro-futuristic dystopian megacity seen through a clean, almost sterile
+Mirror's Edge mood: pale concrete, white and light grey buildings, a pale foggy sky, with ONE saturated
+accent color used only on the subject of the scene: ACCENT_COLOR. Everything else stays in whites, light greys
+and a few deep charcoal shadows. Recognizable Milan touches when they fit (Navigli canals, tram wires,
+Duomo spires on the horizon, 1960s apartment blocks, railway overpasses). Wide 16:9 cinematic composition,
+subject centered, readable at small size (the image is printed on a playing card about 6 cm wide).
+No text, no letters, no logos, no UI, no frame, no border.
 ```
 
 Sostituisci `ACCENT_COLOR` in base al colore della carta:
