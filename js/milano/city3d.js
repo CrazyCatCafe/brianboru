@@ -144,6 +144,7 @@ export async function createCity(container, overlay, view = {}) {
   renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.toneMapping = THREE.NeutralToneMapping;
   container.appendChild(renderer.domElement);
+  renderer.domElement.tabIndex = 0; renderer.domElement.setAttribute('aria-label', 'Mappa di Milano: frecce o WASD per spostarla');
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(T.sky[1]);
@@ -158,8 +159,10 @@ export async function createCity(container, overlay, view = {}) {
   const HOME = { camera: new THREE.Vector3(...(view.camera || [0.3, 8.4, 9.2])), target: new THREE.Vector3(...(view.target || [0.2, 0, 0.9])) };
   controls.target.copy(HOME.target);
   let homing = 0; // >0 mentre la vista torna a quella iniziale (bussola)
+  const goal = { camera: HOME.camera.clone(), target: HOME.target.clone() };
   const keys = new Set(), MOVE = { KeyW: [0, 1], ArrowUp: [0, 1], KeyS: [0, -1], ArrowDown: [0, -1], KeyA: [-1, 0], ArrowLeft: [-1, 0], KeyD: [1, 0], ArrowRight: [1, 0] };
-  addEventListener('keydown', e => { if (MOVE[e.code] && !/INPUT|TEXTAREA|SELECT/.test(document.activeElement?.tagName)) { keys.add(e.code); e.preventDefault(); } });
+  const mapFocused = () => [document.body, renderer.domElement, null].includes(document.activeElement);
+  addEventListener('keydown', e => { if (MOVE[e.code] && mapFocused() && !e.altKey && !e.ctrlKey && !e.metaKey) { keys.add(e.code); e.preventDefault(); } });
   addEventListener('keyup', e => keys.delete(e.code));
   addEventListener('blur', () => keys.clear());
 
@@ -405,8 +408,8 @@ export async function createCity(container, overlay, view = {}) {
     }
     if (homing > 0) { // bussola: torna alla vista iniziale con il nord in alto
       homing = Math.max(0, homing - dt * 2.5); const k = 1 - homing;
-      camera.position.lerp(HOME.camera, k * 0.25 + 0.05); controls.target.lerp(HOME.target, k * 0.25 + 0.05);
-      if (!homing) { camera.position.copy(HOME.camera); controls.target.copy(HOME.target); }
+      camera.position.lerp(goal.camera, k * 0.25 + 0.05); controls.target.lerp(goal.target, k * 0.25 + 0.05);
+      if (!homing) { camera.position.copy(goal.camera); controls.target.copy(goal.target); }
     }
     controls.update();
     if (view.compass) view.compass.style.setProperty('--az', `${controls.getAzimuthalAngle()}rad`);
@@ -422,7 +425,7 @@ export async function createCity(container, overlay, view = {}) {
     spots.forEach((sp, i) => {
       const on = i === selected;
       sp.g.scale.setScalar(on ? 1.7 : i === hover && clickable.has(i) ? 1.25 : 1);
-      sp.fill.material.opacity = on && !still ? (Math.sin(t * 9) > 0 ? 1 : 0.25) : 1;
+      sp.fill.material.opacity = on && !still ? 0.7 + Math.sin(t * 4) * 0.3 : 1; // pulsazione lenta, non lampeggio
       sp.option.visible = clickable.has(i) && !on;
       if (sp.option.visible) sp.option.material.opacity = 0.55 + (still ? 0.3 : Math.sin(t * 5) * 0.35);
     });
@@ -475,7 +478,17 @@ export async function createCity(container, overlay, view = {}) {
     towns, regions: map.regions,
     update,
     select: i => { selected = i ?? null; },
-    resetView: () => { homing = 1; },
+    resetView: () => { goal.camera.copy(HOME.camera); goal.target.copy(HOME.target); homing = 1; },
+    // porta in vista gli spot indicati (es. dove ci si può espandere), senza cambiare l'angolo della telecamera
+    frame: ids => {
+      if (!ids.length) return;
+      const pts = ids.map(i => spots[i].g.position), c = new THREE.Vector3();
+      pts.forEach(p => c.add(p)); c.divideScalar(pts.length);
+      const spread = Math.max(1.2, ...pts.map(p => p.distanceTo(c)));
+      const dir = new THREE.Vector3().subVectors(camera.position, controls.target).normalize();
+      goal.target.set(c.x, 0, c.z + 0.35); goal.camera.copy(goal.target).addScaledVector(dir, Math.min(13, Math.max(3.2, spread * 2.6)));
+      homing = 1;
+    },
     setClickable: (ids, cb) => { clickable = new Set(ids); onPick = cb || (() => {}); },
     setWeather, weather: () => weatherKey,
     setQuality: name => { qName = name; q = QUALITY[name === 'auto' ? (weakDevice() ? 'media' : 'alta') : name]; applyQuality(); },

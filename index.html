@@ -105,11 +105,22 @@ Marco</textarea></label>
         <div class="sets"><span>Grafica</span><b id="quality" role="group" aria-label="Qualità grafica"></b></div>
       </section>
     </aside>
-    <section id="stage" class="rp-stage" aria-live="polite"></section>
+    <section id="stage" class="rp-stage" aria-label="Azione in corso"></section>
+    <p id="announce" class="sr-only" aria-live="polite"></p>
     <aside class="rp-turn">
       <div id="turn"></div>
       <details class="log"><summary>Cronaca</summary><ol id="log"></ol></details>
     </aside>
+    <button id="help" class="rp-help" aria-haspopup="dialog" aria-label="Simboli e regole" title="Simboli e regole">?</button>
+    <dialog id="glossary" class="rp-dialog" aria-labelledby="glossary-title">
+      <h2 id="glossary-title">Simboli delle carte</h2>
+      <ul id="glossary-list" class="glossary"></ul>
+      <h3>Come si vince una zona</h3>
+      <p>Una zona è in palio quando i quartieri occupati raggiungono la sua <b>soglia</b>. A fine round la controlla chi ha più quartieri lì (un progetto urbano conta doppio) e a fine partita vale i suoi <b>punti</b>.</p>
+      <h3>Scorciatoie</h3>
+      <p><kbd>1</kbd>–<kbd>9</kbd> carte · <kbd>Invio</kbd> conferma · <kbd>Spazio</kbd> avanza il racconto · <kbd>Esc</kbd> annulla la scelta · <kbd>WASD</kbd> o frecce sulla mappa</p>
+      <form method="dialog"><button class="btn">Chiudi</button></form>
+    </dialog>
     <button id="compass" class="compass" title="Centra la mappa con il nord in alto" aria-label="Centra la mappa con il nord in alto">
       <svg viewBox="0 0 40 40" width="40" height="40"><circle cx="20" cy="20" r="18" fill="#0d1114" stroke="#e6ecef" stroke-width="2"/>
         <g class="needle"><path d="M20 5l5 15h-10Z" fill="#ff3d3d"/><path d="M20 35l5-15h-10Z" fill="#e6ecef"/>

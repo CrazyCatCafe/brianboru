@@ -203,3 +203,99 @@ body.app.rp { background: radial-gradient(ellipse at 50% 30%, #aab3b9, #6f787f 7
 .rp .sets button { padding: 6px 10px; }
 .rp .handbar button { padding: 6px 12px; }
 .rp .handbar span { padding: 0 10px; }
+
+/* ===================== critique 08/11: colore, tipografia, layout, stati ===================== */
+/* il rosso significa solo "tocca a te": fase attiva, tuo turno, pulsante principale (scurito per il contrasto con il bianco) */
+.rp { --rp-red: #d6232a; --rp-police: #8fd3ff; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.rp ::selection { background: var(--rp-red); color: #fff; }
+.rp .rp-stage { border-top: 1px solid var(--rp-line); }
+.rp .rp-stage.mine { border-top: 3px solid var(--rp-red); }
+.rp .box li.turn b { text-decoration: underline 2px var(--rp-ink); }
+.rp .box .big b { color: var(--rp-police); }
+.rp .card[aria-pressed="true"] { outline-color: #fff; }
+.rp .rp-stage .btn:disabled, .rp .btn:disabled { background: transparent; border: 1px dashed #7d8993; color: #c4ccd2; opacity: 1; cursor: not-allowed; }
+.rp .tlabel { background: #0d1114; color: #f2f5f7; }
+.rp .chip { color: var(--si); }
+
+/* tipografia: pixel font solo per titoli e frecce (≥ 12 px); numeri ed etichette piccole in Saira */
+.rp .chev { font-size: 12px; }
+.rp .box h3 { font-size: 12px; }
+.rp .box .num, .rp .box .pts, .rp .recap .pts { font-family: var(--font); font-weight: 800; font-variant-numeric: tabular-nums; }
+.rp .box .pts { font-size: 19px; }
+.rp .box .big b { font: 800 24px var(--font); font-variant-numeric: tabular-nums; }
+.rp .box .big, .rp .sets span, .rp .handbar span, .rp .kept span, .rp .opt small, .rp .trickrow figcaption, .rp .log summary, .rp .tools #code, .rp .rp-stage .meta, .rp .spotpick {
+  font: 700 12px var(--font); letter-spacing: .08em; text-transform: uppercase; }
+.rp .handbar button, .rp .sets button { font: 700 12px var(--font); letter-spacing: .04em; }
+.rp .rp-stage .meta { margin: 0 0 8px; color: var(--rp-muted); text-transform: none; letter-spacing: .02em; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.rp .rp-stage h2 { margin: 0 0 2px; text-wrap: balance; }
+.rp .rp-stage p { text-wrap: pretty; }
+.rp-turn .big span { font: 700 12px var(--font); letter-spacing: .08em; color: var(--rp-muted); text-transform: uppercase; }
+
+/* plancia: righe delle bande espandibili */
+.rp .box details { width: 100%; }
+.rp .box summary { display: flex; align-items: center; gap: 6px; cursor: pointer; list-style: none; min-width: 0; }
+.rp .box summary::-webkit-details-marker { display: none; }
+.rp .box summary > b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.rp .box summary:focus-visible { outline: 2px solid var(--rp-ink); outline-offset: 2px; }
+.rp .box .more { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 4px 0 4px 16px; font-size: 12px; }
+.rp .box .more dt { color: var(--rp-muted); }
+.rp .box .more dd { margin: 0; }
+.rp .cell .g { display: flex; align-items: center; color: var(--rp-muted); font-size: 9px; line-height: 1; min-height: 11px; }
+.rp .cell { justify-content: space-between; padding-top: 3px; }
+
+/* pannello centrale: striscia compatta durante le scelte sulla mappa */
+.rp .rp-stage.compact { max-height: none; padding: 8px 14px; }
+.rp .rp-stage.compact h2 { font-size: 18px; }
+.rp .rp-stage.compact .meta { margin-bottom: 4px; }
+.rp .rp-stage.compact > p:not(.meta):not(.pickline) { display: none; }
+.rp .spotpick { display: flex; align-items: center; gap: 8px; margin: 6px 0; color: var(--rp-muted); }
+.rp .spotpick select { font: 400 14px var(--font); text-transform: none; letter-spacing: 0; color: var(--rp-ink); background: rgba(255, 255, 255, .06); border: 1px solid var(--rp-line); padding: 5px 8px; min-width: 0; flex: 1; }
+.rp .spotpick select:focus-visible { outline: 2px solid var(--rp-ink); outline-offset: 1px; }
+.rp .balance { color: var(--rp-muted); }
+.rp .balance b { color: var(--rp-ink); font-variant-numeric: tabular-nums; }
+.rp .balance .neg { color: #ff9a9a; }
+
+/* il momento della presa: la carta vincente si alza */
+.rp .trickrow figure { transition: transform .35s cubic-bezier(.16, 1, .3, 1); }
+.rp .trickrow figure.win { transform: translateY(-6px) scale(1.06); }
+.rp .trickrow figure.win svg { outline: 2px solid #fff; outline-offset: 2px; border-radius: 6px; }
+.rp .trickrow figcaption em { display: block; font-style: normal; color: #fff; margin-top: 2px; }
+
+/* fine partita */
+.rp .recap { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.rp .recap li { display: grid; grid-template-columns: 24px auto 1fr auto; align-items: center; gap: 4px 8px; padding: 8px 10px; border: 1px solid var(--rp-line); }
+.rp .recap li.champ { border-color: #fff; background: rgba(255, 255, 255, .06); }
+.rp .recap .pos { font: 700 18px var(--pix); color: var(--rp-muted); }
+.rp .recap .pts { font-size: 22px; justify-self: end; }
+.rp .recap .facts { grid-column: 2 / -1; font-size: 12px; color: var(--rp-muted); }
+
+/* glossario */
+.rp-help { position: fixed; right: var(--gap, 12px); bottom: calc(var(--card-w) * 1.45 + 72px); width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--rp-ink); background: #0d1114; color: var(--rp-ink); font: 700 18px var(--pix); cursor: pointer; z-index: 2; }
+.rp-help:focus-visible, .rp .compass:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+.rp-dialog { max-width: min(560px, calc(100vw - 32px)); background: #0d1114; color: var(--rp-ink); border: 1px solid var(--rp-line); padding: 18px 20px; box-shadow: 0 16px 48px rgba(0, 0, 0, .5); }
+.rp-dialog::backdrop { background: rgba(10, 13, 15, .55); }
+.rp-dialog h2 { margin: 0 0 10px; font: 700 18px var(--pix); text-transform: uppercase; }
+.rp-dialog h3 { margin: 16px 0 4px; font: 700 12px var(--font); letter-spacing: .1em; text-transform: uppercase; color: var(--rp-muted); }
+.rp-dialog p { margin: 0; line-height: 1.5; }
+.rp-dialog kbd { font: 700 12px var(--font); border: 1px solid var(--rp-line); padding: 0 5px; }
+.glossary { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.glossary li { display: grid; grid-template-columns: 28px 1fr; align-items: center; gap: 8px; font-size: 14px; }
+.rp-dialog form { margin-top: 16px; display: flex; justify-content: flex-end; }
+
+/* "Ordina" accanto alla bussola, così non copre la plancia */
+#game .handbar { left: auto; right: calc(var(--gap) + 52px); }
+.rp .log ol { padding: 6px 10px 4px 22px; }
+@media (max-width: 899px) {
+  .rp-help { top: calc(var(--gap) + 92px); bottom: auto; right: var(--gap); }
+  /* telefono: solo la fase in corso, con la posizione nel round */
+  #game .rp-phases .chev:not(.on) { display: none; }
+  #game .rp-phases .chev.on { margin-left: 0; clip-path: none; padding-left: 12px; }
+}
+@media (prefers-reduced-motion: reduce) { .rp .trickrow figure { transition: none; } }
+.rp .chev .pos { display: none; }
+@media (max-width: 899px) { #game .rp-phases .chev.on .pos { display: inline; } }
+/* barra delle fasi più compatta quando lo spazio è poco */
+@media (max-width: 1500px) { #game .chev { padding: 8px 12px 8px 17px; font-size: 11.5px; letter-spacing: .02em; } #game .chev:first-child { padding-left: 10px; } }
+@media (max-width: 1300px) { #game .chev.up:not(.on) { font-size: 0; padding-left: 14px; padding-right: 8px; } #game .chev.up:not(.on)::before { content: attr(data-short); font-size: 11.5px; } }
+.rp .rp-stage p:not(.meta) { display: block; } .rp .rp-stage p .chip, .rp .rp-stage p .who { vertical-align: baseline; }
