@@ -118,7 +118,7 @@ function short(n) { return n.length > (MAXN || 7) ? n.slice(0, (MAXN || 7) - 1) 
 function renderColumns() {
   document.body.classList.add('colonne'); bigGrid ??= q.has('grande');
   const g = $('b-players');
-  g.classList.toggle('big', bigGrid);
+  g.classList.toggle('big', bigGrid); document.body.classList.toggle('biggrid', bigGrid);
   const lab = kind => `${logo(kind, 16)}${bigGrid ? `<span class="lname">${LOGO_NAMES[kind]}</span>` : ''}`; // ingrandita: logo e nome
   const row = (kind, key, k) => `<tr${phase === k ? ' class="on"' : ''}><th>${lab(kind)}</th>${players.map(p => `<td${key === 'points' ? ' class="pts"' : ''}>${p[key]}</td>`).join('')}</tr>`;
   const BONUS = { C: '+1 credito', CC: '+2 crediti', R: '+1 street cred', T: 'un quartiere' };
