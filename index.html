@@ -4,16 +4,54 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Brian Boru</title>
-  <style>
-    body { margin: 0; min-height: 100vh; display: grid; place-items: center; font-family: Georgia, serif; background: #1d2a21; color: #f1ead8; }
-    main { text-align: center; padding: 1rem; }
-    h1 { font-size: clamp(2rem, 8vw, 4rem); margin: 0 0 .5rem; }
-  </style>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <main>
+  <main id="lobby">
     <h1>Brian Boru</h1>
-    <p>Work in progress.</p>
+    <p class="sub">Re d'Irlanda: prototipo online</p>
+
+    <section id="online">
+      <h2>Online</h2>
+      <label>Il tuo nome <input id="name" maxlength="16" autocomplete="nickname"></label>
+      <div class="row">
+        <button id="create">Crea partita</button>
+        <input id="code" placeholder="CODICE" maxlength="5" aria-label="Codice partita">
+        <button id="join">Entra</button>
+      </div>
+      <p id="online-off" class="note" hidden>Online non ancora configurato: manca <code>js/firebase-config.js</code> (vedi DEPLOY.md).</p>
+    </section>
+
+    <section>
+      <h2>Stesso dispositivo</h2>
+      <label>Giocatori (3–5, uno per riga) <textarea id="local-names" rows="4">Brian
+Máel
+Sitric</textarea></label>
+      <button id="local">Inizia partita locale</button>
+    </section>
+
+    <section id="room" hidden>
+      <h2>Sala d'attesa <span id="room-code"></span></h2>
+      <p class="note">Condividi questo link: <a id="room-link"></a></p>
+      <ol id="room-players"></ol>
+      <button id="start" hidden>Inizia la partita</button>
+    </section>
   </main>
+
+  <div id="game" hidden>
+    <div class="board">
+      <img src="assets/board/board.jpg" alt="Tabellone di Brian Boru">
+      <svg id="towns" viewBox="0 0 1024 1026"></svg>
+    </div>
+    <aside>
+      <div id="prompt" class="prompt" aria-live="polite"></div>
+      <div id="hand" class="hand"></div>
+      <div id="status"></div>
+      <table id="players"></table>
+      <details><summary>Registro</summary><ol id="log"></ol></details>
+    </aside>
+  </div>
+
+  <script type="module" src="js/app.js"></script>
 </body>
 </html>

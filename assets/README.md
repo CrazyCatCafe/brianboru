@@ -1,6 +1,6 @@
 # Asset
 
-Carica qui i file del gioco (board, carte, pedine, regolamento PDF, audio...).
+Carica i nuovi file in `incoming/`: poi li smisto nelle cartelle definitive.
 
 - `incoming/`: scarico grezzo, anche con nomi disordinati. Poi li smisto io nelle cartelle definitive.
 - Formati preferiti: SVG per icone e pedine, PNG/WebP per illustrazioni, PDF per il regolamento.
