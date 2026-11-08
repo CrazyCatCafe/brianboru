@@ -1,6 +1,6 @@
 // Anteprima Milano 2077: stato di partita finto sulla città 3D, HUD con tutti i segnalini, mano completa.
 import { CARDS } from './game/data.js';
-import { THEME } from './milano/theme.js';
+import { THEME, THEME_NEON } from './milano/theme.js';
 import { cardSVG, characterSVG, policeSVG } from './milano/card.js';
 import { icon, ICON_SETS, setIconSet, iconSet } from './milano/icons.js';
 import { createCity, WEATHER_TYPES } from './milano/city3d.js';
@@ -9,7 +9,7 @@ const $ = id => document.getElementById(id);
 const q = new URLSearchParams(location.search);
 setIconSet(q.get('icone') || 'pieno');
 // ?quartieri=anello|esagono|rombo: proposte di forma per i quartieri liberi e presi
-const city = await createCity($('city'), $('labels'), { markers: q.get('quartieri') || 'disco', areas: q.get('aree'), ...(q.get('view') === 'close' ? { camera: [1.6, 1.9, 2.6], target: [0.6, 0, 0.3] } : {}) });
+const city = await createCity($('city'), $('labels'), { markers: q.get('quartieri') || 'disco', areas: q.get('aree'), ...(q.get('stile') === 'neon' ? { theme: THEME_NEON } : {}), ...(q.get('view') === 'close' ? { camera: [1.6, 1.9, 2.6], target: [0.6, 0, 0.3] } : {}) });
 $('loading').remove();
 const T = city.towns, idx = Object.fromEntries(T.map((t, i) => [t.id, i]));
 

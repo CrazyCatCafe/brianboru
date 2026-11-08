@@ -52,3 +52,12 @@ export const THEME_METRO = {
   park: '#cde0bd', rural: '#dde2cc', water: '#6cc0ea', clouds: false, shadows: false, heights: 0.3,
   light: { hemi: 1.15, sun: 0.45, sky: '#ffffff', ground: '#d6cfc0', sunColor: '#ffffff', sunPos: [-3, 9, 4] },
 };
+
+// Prova notturna alla Cyberpunk 2077: palazzi scuri con finestre accese, neon giallo-ciano-magenta solo su pochi elementi.
+export const THEME_NEON = {
+  sky: ['#120a24', '#120a24'], fog: { color: '#1b1033', range: [5, 16] },
+  ground: { city: '#16131f', outside: '#0c0a12' }, building: { city: '#2a2740', outside: '#17151f' },
+  park: '#10261f', rural: '#0b130f', water: '#00e5ff', clouds: false, glowTokens: true,
+  windows: ['#fcee0a', '#00f0ff'], wall: '#ff2a6d',
+  light: { hemi: 0.8, sun: 0.5, sky: '#6b4fa8', ground: '#0a0710', sunColor: '#ff5fa8', sunPos: [-5, 6, 4] },
+};

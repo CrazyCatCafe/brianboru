@@ -47,7 +47,7 @@ function ribbon(pts, width, y) {
 }
 // Confini tra le aree disegnati una volta sola: i punti di aree vicine a meno di 4 px si fondono, i tratti doppi si tolgono.
 // È un muro continuo con le sue ombre, fermo a terra anche quando un'area si alza: niente linee doppie.
-function sharedBorders(regionRings, width, height, y, color) {
+function sharedBorders(regionRings, width, height, y, color, glow = false) {
   const pts = [], SNAP = 4;
   const snap = ([x, z]) => { const p = pts.find(q => Math.hypot(q[0] - x, q[1] - z) < SNAP); if (p) return p; const n = [x, z]; pts.push(n); return n; };
   const seen = new Set(), segs = [];
@@ -60,7 +60,7 @@ function sharedBorders(regionRings, width, height, y, color) {
     });
   }
   // muro continuo: un blocco per tratto più una colonnina per vertice, come un edificio lungo il confine
-  const mat = new THREE.MeshLambertMaterial({ color }), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
+  const mat = glow ? new THREE.MeshLambertMaterial({ color, emissive: color, emissiveIntensity: 0.55 }) : new THREE.MeshLambertMaterial({ color }), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0);
   const walls = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), mat, segs.length);
   segs.forEach(([[x0, z0], [x1, z1]], i) => {
     const ax = X(x0), az = Z(z0), bx = X(x1), bz = Z(z1), l = Math.hypot(bx - ax, bz - az);
@@ -112,12 +112,32 @@ function buildingMeshes(buf) {
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     g.setAttribute('color', new THREE.BufferAttribute(col, 3, true));
     g.setIndex(new THREE.BufferAttribute(idx.subarray(0, t), 1));
-    const m = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide }));
+    const mat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide });
+    if (T.windows) litWindows(mat, T.windows);
+    const m = new THREE.Mesh(g, mat);
     m.castShadow = m.receiveShadow = T.shadows !== false;
     if (T.edges && +r) m.add(new THREE.LineSegments(new THREE.EdgesGeometry(g, 30), new THREE.LineBasicMaterial({ color: T.edges.color, transparent: true, opacity: T.edges.opacity }))); // spigoli luminosi
     meshes[r] = m;
   }
   return meshes;
+}
+
+// Finestre accese sulle facciate (tema notturno): griglia procedurale nello shader, una finestra su quattro circa è accesa
+function litWindows(mat, colors) {
+  mat.onBeforeCompile = sh => {
+    sh.uniforms.winA = { value: new THREE.Color(colors[0]) }; sh.uniforms.winB = { value: new THREE.Color(colors[1]) };
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP;')
+      .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vWP; uniform vec3 winA, winB;')
+      .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
+        vec3 fn = normalize(cross(dFdx(vWP), dFdy(vWP)));
+        if (abs(fn.y) < 0.3 && vWP.y > 0.004) {
+          vec2 uv = vec2((abs(fn.x) > abs(fn.z) ? vWP.z : vWP.x) * 70.0, vWP.y * 60.0), id = floor(uv), c = fract(uv);
+          float h = fract(sin(dot(id, vec2(12.9898, 78.233))) * 43758.5453);
+          float win = step(0.25, c.x) * step(c.x, 0.75) * step(0.3, c.y) * step(c.y, 0.8) * step(0.74, h);
+          totalEmissiveRadiance += win * mix(winA, winB, step(0.9, h)) * 1.4;
+        }`);
+  };
 }
 
 // Stemma della polizia: faccia con casco, disegnata su canvas
@@ -218,7 +238,7 @@ export async function createCity(container, overlay, view = {}) {
 
   // municipi: ognuno è un gruppo (tinta, bordo, edifici, quartieri, pedine) che si può alzare
   const AREAS = view.areas === 'nero'; // proposta: confini scuri, area velata del suo colore
-  if (AREAS) scene.add(sharedBorders(Object.values(map.regions).map(r => rings(r.svg_path)), 0.016, 0.05, 0, '#3d434a'));
+  if (AREAS) scene.add(sharedBorders(Object.values(map.regions).map(r => rings(r.svg_path)), 0.016, 0.05, 0, T.wall || '#3d434a', !!T.wall));
   const meshes = buildingMeshes(bin);
   scene.add(meshes[0]);
   const regions = {};

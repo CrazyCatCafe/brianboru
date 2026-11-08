@@ -12,7 +12,8 @@ const q = new URLSearchParams(location.search);
 const stile = q.get('stile');
 document.body.classList.toggle('noscan', !!stile);
 const city = await createCity($('city'), $('labels'), {
-  theme: { holo: THEME_HOLO, metro: THEME_METRO }[stile] || REPLACED, pixel: stile ? 0 : +(q.get('pixel') || PIXEL_SCALE),
+  areas: q.get('aree'), theme: { holo: THEME_HOLO, metro: THEME_METRO }[stile] || REPLACED,
+ pixel: stile ? 0 : +(q.get('pixel') || PIXEL_SCALE),
   ...(stile === 'metro' ? { camera: [0.3, 12.5, 4.2], target: [0.2, 0, 0.7] } : {}),
   ...(q.get('view') === 'close' ? { camera: [1.6, 1.9, 2.6], target: [0.6, 0, 0.3] } : {}),
 });
