@@ -101,3 +101,12 @@ Sostituisci `ACCENT_COLOR` in base al colore della carta:
 - **12 · Blindati**: `Subject: armored police vehicles lined up on a ring road.`
 - **13 · Coprifuoco**: `Subject: an empty street at night, a single searchlight cone from a police tower.`
 - **14 · Operazione Ordine**: `Subject: a faceless riot police officer in a helmet with a mirrored visor, heroic low angle.`
+
+### Bande
+Ritratti delle cinque bande per la lobby e il catalogo. Con lo stile REPLACED: la figura in grigio antracite, **un solo elemento luminoso** nel colore della banda (vedi accento).
+- **I Navigli Rossi**: `Subject: portrait of a canal boatman and smuggler of the Darsena at night, long hooded raincoat dripping with rain, a long boat pole held diagonally with a glowing orange lantern hanging from its tip, black water and moored barges behind. Accent: the lantern glows bright orange #ff6a00, everything else grey.`
+- **Le Sciure di Porta Venezia**: `Subject: portrait of an elegant elderly lady of Porta Venezia, Liberty-style facade behind, bell-shaped coat and wide-brimmed hat, a thin horizontal glowing visor across her eyes, a small robot dog sitting at her feet. Accent: the visor glows teal #00a6a6, everything else grey.`
+- **I Monaci del Duomo**: `Subject: portrait of a techno-religious monk of the cathedral works, grey habit with a tall hood pointed like a Gothic spire, the Duomo spires and scaffolding behind, a small drone circling his head like a halo. Accent: the drone halo glows violet #6c3bff, everything else grey.`
+- **La Banda del Leonka**: `Subject: portrait of a punk from a squatted social centre in Lambrate, glowing mohawk, leather jacket covered in patches, a battered speaker carried on a strap, graffiti wall and sound system behind. Accent: the mohawk glows magenta #ff2d87, everything else grey.`
+- **I Ferrovieri di Greco**: `Subject: portrait of a railway worker of the Greco rail yards under a concrete overpass, work overalls, helmet with a white headlamp cutting through the fog, a huge wrench resting on the shoulder, tracks and freight wagons behind. Accent: the headlamp beam is the only bright white light, everything else grey.`
+

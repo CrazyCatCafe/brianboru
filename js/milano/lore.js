@@ -41,6 +41,22 @@ export const POLICE = [
 
 export const FACTIONS = ['Technoborghesi', 'Punk'];
 
+// Le cinque bande giocabili, una per colore dei giocatori (THEME.players, stesso ordine). Solo ambientazione: le regole non cambiano.
+export const GANGS = [
+  { key: 'navigli', name: 'I Navigli Rossi', short: 'Navigli Rossi', side: 'Punk', home: 'Darsena e Navigli',
+    who: 'Barcaioli e contrabbandieri della Darsena: impermeabili lunghi, pertiche e lanterne arancioni sull\'acqua nera.', sign: 'la lanterna' },
+  { key: 'sciure', name: 'Le Sciure di Porta Venezia', short: 'Sciure', side: 'Technoborghesi', home: 'Porta Venezia',
+    who: 'Liberty e moda: cappotti a campana, cappelli a tesa larga, visiere luminose e un cane robot sempre al guinzaglio.', sign: 'la visiera' },
+  { key: 'monaci', name: 'I Monaci del Duomo', short: 'Monaci del Duomo', side: 'Technoborghesi', home: 'Duomo',
+    who: 'Ordine tecno-religioso della Veneranda Fabbrica: restaurano la città coi droni, cappucci a guglia e un drone per aureola.', sign: 'il drone-aureola' },
+  { key: 'leonka', name: 'La Banda del Leonka', short: 'Leonka', side: 'Punk', home: 'Lambrate e centri sociali',
+    who: 'Centri sociali e sound system: creste luminose, giubbotti di pelle con le toppe, una cassa a tracolla che non si spegne mai.', sign: 'la cresta' },
+  { key: 'ferrovieri', name: 'I Ferrovieri di Greco', short: 'Ferrovieri', side: 'Punk', home: 'Scali di Greco e cavalcavia',
+    who: 'Gente degli scali e dei cavalcavia, eredi di Briano Borro: tute da lavoro, casco con la lampada frontale, chiave inglese in spalla.', sign: 'la lampada frontale' },
+];
+export const POLICE_POST = { name: 'Presidio di polizia', who: 'Agenti antisommossa con visiera a specchio, barricate modulari, droni di scansione e cani robot di pattuglia.' };
+export const PROJECT = { name: 'Progetto urbano', who: 'Orti in cassetta, un gazebo con le lucine, un pannello solare e volontari con l\'annaffiatoio: il quartiere conta doppio.' };
+
 // Glossario dei simboli (uguale per tutti i set di icone)
 export const SYMBOLS = {
   T: 'Conquista il quartiere attivo',

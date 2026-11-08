@@ -153,7 +153,7 @@ export async function createCity(container, overlay, view = {}) {
   camera.position.set(...(view.camera || [0.3, 8.4, 9.2]));
   const controls = new OrbitControls(camera, renderer.domElement);
   // sinistro: sposta · destro: ruota · rotella: zoom (su touch: un dito sposta, due dita zoom e rotazione)
-  Object.assign(controls, { enableDamping: true, minDistance: 2.2, maxDistance: 18, maxPolarAngle: 1.25, screenSpacePanning: false,
+  Object.assign(controls, { enableDamping: true, minDistance: view.minDistance || 2.2, maxDistance: 18, maxPolarAngle: 1.25, screenSpacePanning: false,
     mouseButtons: { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE },
     touches: { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE } });
   const HOME = { camera: new THREE.Vector3(...(view.camera || [0.3, 8.4, 9.2])), target: new THREE.Vector3(...(view.target || [0.2, 0, 0.9])) };
@@ -291,7 +291,15 @@ export async function createCity(container, overlay, view = {}) {
     active = s.activeTown ?? null;
   }
 
-  // --- etichette HTML proiettate ---
+  // --- figure animate (fazioni, polizia, progetti): scena a parte disegnata sopra la città, con luci proprie ---
+  const figScene = new THREE.Scene(), figSun = new THREE.DirectionalLight(L.sunColor, 2.6 * L.sun);
+  figSun.position.set(...L.sunPos); figScene.fog = scene.fog;
+  figScene.add(new THREE.HemisphereLight(L.sky, L.ground, 2.1 * L.hemi), figSun);
+  const mounted = new Set();
+  const mount = (i, fig) => { fig.town = i; fig.obj.position.set(spots[i].g.position.x, 0, spots[i].g.position.z); figScene.add(fig.obj); mounted.add(fig); return fig; };
+  const unmount = fig => { figScene.remove(fig.obj); mounted.delete(fig); };
+
+
   const labels = [];
   const addLabel = (html, cls, x, y, h, region) => {
     const el = document.createElement('div'); el.className = cls; el.innerHTML = html; overlay.appendChild(el);
@@ -338,6 +346,7 @@ export async function createCity(container, overlay, view = {}) {
   const half = new THREE.Vector2();
   const rt = (s = 0) => new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: s });
   const rtScene = rt(4), rtA = rt(), rtB = rt(), rtMask = rt(), rtM2 = rt();
+  let frozen = null; // catture: la città disegnata una volta sola, sotto le figure animate
   const quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   const blurMat = new THREE.ShaderMaterial({ uniforms: { tex: { value: null }, dir: { value: new THREE.Vector2() } }, vertexShader: QUAD_VS, fragmentShader: BLUR_FS, toneMapped: false });
   const mixMat = new THREE.ShaderMaterial({ uniforms: { sharp: { value: rtScene.texture }, soft: { value: rtB.texture }, mask: { value: rtM2.texture } }, vertexShader: QUAD_VS, fragmentShader: MIX_FS });
@@ -392,6 +401,7 @@ export async function createCity(container, overlay, view = {}) {
   let last = 0;
   let lastFrame = 0;
   renderer.setAnimationLoop(time => {
+    if (view.clock) time = view.clock(); // orologio esterno (catture a tempi esatti)
     if (q.fps && time - lastFrame < 1000 / q.fps - 2) return; // qualità bassa: al massimo 30 fotogrammi al secondo
     lastFrame = time;
     const t = time / 1000, real = t - last, dt = Math.min(0.05, real || 0); last = t;
@@ -465,9 +475,17 @@ export async function createCity(container, overlay, view = {}) {
       el.style.display = show ? '' : 'none';
       if (show) el.style.transform = `translate(${(v.x + 1) / 2 * w}px, ${(1 - v.y) / 2 * h}px)`;
     });
+    // figure: da lontano solo base e sagoma, i dettagli animati da vicino
+    const lvl = still ? 'ferma' : q === QUALITY.bassa ? 'bassa' : 'alta', near = dist < (view.nearFigures || 4.5);
+    mounted.forEach(f => { f.obj.position.y = OV + regions[spots[f.town].region].g.position.y; f.tick(t, dt, lvl, near); });
+    const figs = () => { if (!mounted.size) return; renderer.autoClear = false; renderer.clearDepth(); renderer.render(figScene, camera); renderer.autoClear = true; };
     // render: scena -> maschera del Comune -> sfocatura -> composizione a schermo
-    if (!q.blur) { renderer.setRenderTarget(null); renderer.render(scene, camera); return; } // qualità bassa: niente sfocatura
+    if (!q.blur) { renderer.setRenderTarget(null); renderer.render(scene, camera); figs(); return; } // qualità bassa: niente sfocatura
+    const copy = (src, dst) => { blurMat.uniforms.tex.value = src.texture; blurMat.uniforms.dir.value.set(0, 0); pass(blurMat, dst); };
+    if (frozen?.ready) { copy(frozen, rtScene); figs(); pass(mixMat, null); return; } // città ferma: si ridisegnano solo le figure
     renderer.setRenderTarget(rtScene); renderer.render(scene, camera);
+    if (frozen) { frozen.setSize(rtScene.width, rtScene.height); copy(rtScene, frozen); frozen.ready = true; renderer.setRenderTarget(rtScene); }
+    figs();
     renderer.setRenderTarget(rtMask); renderer.render(maskScene, camera);
     blur(rtScene, rtA, rtB, 2);
     blur(rtMask, rtA, rtM2, 1);
@@ -493,5 +511,7 @@ export async function createCity(container, overlay, view = {}) {
     setWeather, weather: () => weatherKey,
     setQuality: name => { qName = name; q = QUALITY[name === 'auto' ? (weakDevice() ? 'media' : 'alta') : name]; applyQuality(); },
     quality: () => ({ setting: qName, level: Object.keys(QUALITY).find(k => QUALITY[k] === q) }),
+    figures: { badge: badgeMat, mount, unmount },
+    freeze: on => { frozen?.dispose(); frozen = on ? rt() : null; },
   };
 }

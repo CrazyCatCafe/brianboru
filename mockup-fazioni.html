@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Brian Boru Milano: mockup bande</title>
+  <link rel="stylesheet" href="css/milano.css">
+  <link rel="stylesheet" href="css/replaced.css">
+  <script type="importmap">{ "imports": { "three": "./vendor/three/three.module.min.js" } }</script>
+  <style>
+    .fx { position: fixed; left: 50%; top: 12px; translate: -50% 0; width: min(1100px, calc(100vw - 24px)); z-index: 3; display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; }
+    .fx .box { flex: 1 1 auto; }
+    .fx ul { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+    .fx li { font-size: 12px; }
+    .fx .row { display: flex; flex-wrap: wrap; gap: 6px; }
+    .fx .on { outline: 2px solid var(--rp-red); }
+    .clean .fx { display: none; }
+  </style>
+</head>
+<body class="rp">
+  <div id="city" class="city"></div>
+  <div id="labels" class="labels"></div>
+  <div class="scan" aria-hidden="true"></div>
+  <aside class="fx">
+    <section class="box"><h3>Bande</h3><ul id="gangs"></ul></section>
+    <section class="box"><h3>Animazioni</h3>
+      <div class="row">
+        <button class="btn small" id="b-enter">Conquista</button>
+        <button class="btn small" id="b-raid">Retata</button>
+        <button class="btn small" id="b-leave">Via la polizia</button>
+        <button class="btn small" id="b-project">Progetto urbano</button>
+      </div>
+    </section>
+    <section class="box"><h3>Qualità</h3>
+      <div class="row" id="lvl">
+        <button class="btn ghost small" data-q="alta">Alta</button>
+        <button class="btn ghost small" data-q="bassa">Bassa</button>
+      </div>
+    </section>
+  </aside>
+  <p id="loading" class="loading">Carico Milano…</p>
+  <script type="module" src="js/mockup-fazioni.js"></script>
+</body>
+</html>
