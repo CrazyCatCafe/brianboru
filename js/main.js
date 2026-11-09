@@ -537,7 +537,7 @@ function hypeMini(s) { // la carta Hype anche accanto al cartello del municipio 
   document.querySelectorAll('.rlabel .hymini').forEach(x => x.remove());
   const k = s.marriage && !s.marriage.princess ? s.marriage.region : null;
   const lab = k && document.querySelector(`.rlabel[data-region="${k}"]`);
-  if (lab) lab.insertAdjacentHTML('beforeend', `<span class="hymini" title="La carta Hype dà un quartiere qui">${characterArt(characterIndex(s.marriage))}<b>+${s.marriage.points}</b></span>`);
+  if (lab) lab.insertAdjacentHTML('beforeend', `<span class="hymini" title="La carta Hype dà un quartiere qui">Hype</span>`);
 }
 function renderHypeCard(s) {
   const el = $('hypecard'), c = s.marriage;
