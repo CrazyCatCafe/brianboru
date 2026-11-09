@@ -472,8 +472,8 @@ tr:nth-child(2n) .logo { animation-delay: -3s; }
 .rp .rlabel.focus .tri { animation: spin3d 2s linear infinite; }
 .rp .opt svg { transform-style: preserve-3d; }
 /* cartello del municipio in gioco: più grande (sale un po', così non copre i quartieri) */
-.rp .rlabel { transition: scale .25s, translate .25s; }
-.rp .rlabel.focus { scale: 1.3; translate: -50% -85%; z-index: 3; }
+.rp .rlabel { transition: scale .25s; }
+.rp .rlabel.focus { scale: 1.15; z-index: 3; } /* zona in gioco: cartello appena più grande, resta dov'è */
 @media (prefers-reduced-motion: reduce) { .vgrid tr.on .logo, .vgrid tr.flash .logo, .box.on h3 .logo, .logo.spin, .rp .opt[aria-checked="true"] svg, .hypecard[aria-pressed="true"] .tri, .rp .rlabel.focus .tri { animation: none; } }
 
 .vgrid td.got { animation: flashrow 1s ease-in-out infinite; color: #ffd400; }
