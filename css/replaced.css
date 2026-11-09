@@ -567,3 +567,22 @@ tr:nth-child(2n) .logo { animation-delay: -3s; }
   .offline #lobby #p-solo { display: block; }
   .dash-nav a[aria-current="true"] { background: var(--rp-red); color: #fff; border-color: var(--rp-red); }
 }
+
+/* carta riassuntiva: numeri da 1 a 25 col loro colore */
+.rp-ref { bottom: calc(var(--card-w) * 1.45 + 122px); font: 700 12px var(--num); }
+@media (max-width: 899px) { .rp-ref { top: calc(var(--gap) + 142px); bottom: auto; } }
+.rp-dialog.refdlg { width: min(300px, calc(100vw - 24px)); max-height: calc(100vh - 24px); overflow: hidden; padding: 14px 16px; }
+.refdlg > * { zoom: var(--fit, 1); }
+.refdlg h2 { margin: 0 0 10px; text-align: center; }
+.refgrid { display: grid; gap: 5px; padding: 10px; background: #f4f1ea; border: 2px solid #111; }
+.rrow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.rrow.wide { grid-template-columns: 1fr; }
+.rc { display: grid; place-items: center; height: 34px; font: 800 18px var(--num); border: 2px solid #111; }
+.rc.yellow { background: #ffc20e; color: #111; }
+.rc.red { background: #e62e2d; color: #fff; }
+.rc.blue { background: #1f8fff; color: #fff; }
+.rc.white { background: #111; color: #fff; letter-spacing: .1em; }
+.rc { position: relative; }
+.rc.mine { box-shadow: 0 0 0 3px #f4f1ea, 0 0 0 6px #111; z-index: 1; } /* in mano: doppio bordo e stellina */
+.rc.mine::after { content: '★'; position: absolute; top: -9px; right: -7px; font: 700 13px var(--font); color: #111; background: #ffd400; border: 2px solid #111; width: 18px; height: 18px; display: grid; place-items: center; line-height: 1; }
+.rc.gone { opacity: .3; }

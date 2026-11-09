@@ -160,12 +160,19 @@
       <div id="turn"></div>
       <details class="log"><summary>Cronaca</summary><ol id="log"></ol></details>
     </aside>
+    <button id="ref" class="rp-help rp-ref" aria-haspopup="dialog" aria-label="Carta riassuntiva: i 25 numeri e i loro colori" title="Carta riassuntiva">25</button>
+    <dialog id="refcard" class="rp-dialog refdlg" aria-labelledby="ref-title">
+      <h2 id="ref-title">Le 25 carte</h2>
+      <div id="ref-grid" class="refgrid"></div>
+      <p class="note">In evidenza le carte che hai in mano, sbiadite quelle già giocate in questo round.</p>
+      <form method="dialog"><button class="btn">Chiudi</button></form>
+    </dialog>
     <button id="help" class="rp-help" aria-haspopup="dialog" aria-label="Simboli e regole" title="Simboli e regole">?</button>
     <dialog id="glossary" class="rp-dialog" aria-labelledby="glossary-title">
       <h2 id="glossary-title">Simboli delle carte</h2>
       <ul id="glossary-list" class="glossary"></ul>
       <h3>Come si vince una zona</h3>
-      <p>Una zona è in palio quando i quartieri occupati raggiungono la sua <b>soglia</b>. A fine round la controlla chi ha più quartieri lì (un progetto urbano conta doppio) e a fine partita vale i suoi <b>punti</b>.</p>
+      <p>Una zona è in palio quando i quartieri occupati raggiungono la sua <b>soglia</b>. A fine round la controlla la banda con più quartieri lì (un progetto urbano conta doppio, i presidi della polizia contano solo per la soglia) e prende subito i suoi <b>punti</b>; se un'altra banda gliela toglie, i punti passano a lei.</p>
       <h3>Scorciatoie</h3>
       <p><kbd>1</kbd>–<kbd>9</kbd> carte · <kbd>Invio</kbd> conferma · <kbd>Spazio</kbd> avanza il racconto · <kbd>Esc</kbd> annulla la scelta · <kbd>WASD</kbd> o frecce sulla mappa</p>
       <form method="dialog"><button class="btn">Chiudi</button></form>

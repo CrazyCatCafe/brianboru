@@ -75,6 +75,7 @@ const STAGES = {
     log(s, `Round ${s.round}: arrivano ${v} unità di polizia.${s.final ? ' Ultimo round!' : ''}`);
     event(s, { k: 'prep', round: s.round, police: v, area: s.area, character: s.marriage, final: s.final });
     const n = s.players.length, per = { 3: 8, 4: 6, 5: 5 }[n];
+    s.playedRound = [];
     const deck = shuffle(s, Object.keys(CARDS).map(Number));
     s.draft = { packets: s.players.map((_, i) => deck.slice(i * per, (i + 1) * per)), picks: s.players.map(() => null) };
     s.players.forEach(pl => (pl.hand = []));
@@ -316,7 +317,7 @@ const MOVES = {
       if (!fits(card) && hand.some(fits)) fail('Chi apre deve giocare il colore del quartiere o Briano Borro');
     }
     hand.splice(hand.indexOf(card), 1);
-    t.plays.push({ p, card });
+    t.plays.push({ p, card }); (s.playedRound ??= []).push(card); // carte giocate nel round (carta di riferimento)
     log(s, `${name(s, p)} gioca ${card}.`);
   },
   action(s, p, m, pend) {

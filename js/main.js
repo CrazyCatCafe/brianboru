@@ -3,7 +3,7 @@ import { botMove } from './game/bot.js';
 import { move as applyMove, current, emptyTowns, leadTowns, ownTowns, expandTargets, vikingTowns, newGame } from './game/engine.js';
 import { CARDS, MARRIAGES, TOWNS, REGIONS, MARRIAGE_TRACK } from './game/data.js';
 import { THEME, THEME_REPLACED, PIXEL_SCALE } from './milano/theme.js';
-import { cardSVG, characterSVG, characterArt } from './milano/card.js';
+import { cardSVG, characterSVG, characterArt, cardLabel } from './milano/card.js';
 import { icon, setIconSet, logo, LOGO_NAMES } from './milano/icons.js';
 import { ESTRID, SYMBOLS, CHARACTERS } from './milano/lore.js';
 import { createCity, WEATHER_TYPES, QUALITY } from './milano/city3d.js';
@@ -201,6 +201,16 @@ async function enterGame(s) {
   }
   state = s; ingestEvents(s); render();
 }
+// carta riassuntiva: i numeri da 1 a 25 col loro colore (giallo, rosso, blu in colonna; Briano Borro su tutta la riga).
+// In evidenza le carte che hai in mano, sbiadite quelle già giocate nel round.
+const REF_ORDER = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12], [13], [14, 15, 16], [17, 18, 19], [20], [21], [22], [23, 24, 25]];
+function renderRef() {
+  const s = state, mine = new Set(s?.players[seat]?.hand || []);
+  const played = new Set([...(s?.trick?.plays || []).map(x => x.card), ...(s?.playedRound || [])]);
+  const chip = v => { const c = CARDS[v].color; return `<span class="rc ${c}${mine.has(v) ? ' mine' : ''}${played.has(v) ? ' gone' : ''}" title="${v} · ${cardLabel(v)}">${v}</span>`; };
+  $('ref-grid').innerHTML = REF_ORDER.map(row => `<div class="rrow${row.length === 1 ? ' wide' : ''}">${row.map(chip).join('')}</div>`).join('');
+}
+$('ref').onclick = () => { renderRef(); $('refcard').showModal(); requestAnimationFrame(() => fitZoom($('refcard'))); }; // tutto in vista, senza scorrere
 $('help').onclick = () => {
   $('glossary-list').innerHTML = Object.entries(SYMBOLS).map(([k, t]) => `<li>${icon(k, 22, 'currentColor', HOLE)}<span>${t}</span></li>`).join('');
   $('glossary').showModal();
