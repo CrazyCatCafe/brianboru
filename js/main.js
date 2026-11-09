@@ -245,8 +245,8 @@ function exactText(x, n, pl) {
     case 'C': return n > 1 ? `+${n} crediti` : '+1 credito';
     case 'P': return pl.coins >= n ? `Paghi ${n} ${n > 1 ? 'crediti' : 'credito'}` : `Paghi ${n} ${n > 1 ? 'crediti' : 'credito'}: ne hai ${pl.coins}, il resto lo paghi con 2 punti vittoria l'uno`;
     case 'M': return `Sali di ${n} nell'hype (2 crediti per ogni passo in più)`;
-    case 'A': return `Neutralizzi ${n} ${n > 1 ? 'unità' : 'unità'} di polizia (2 crediti per ognuna in più)`;
-    case 'X': return `+${n} alla comunità (2 crediti per ognuno in più)`;
+    case 'A': return `Neutralizzi ${n} unità di polizia`;
+    case 'X': return `+${n} alla comunità`;
     case 'R': return `+${n} street cred`;
     default: return SYMBOLS[x];
   }
@@ -628,7 +628,7 @@ function renderStage(s = state, pd = current(state)) {
   const opts = pd.won ? [['p', card.primary]] : card.secondary.map((x, i) => [i, x]);
   if (opts.length === 1) ui.opt ??= opts[0][0]; // con più opzioni nessuna è scelta finché non la tocchi
   const syms = ui.opt == null ? [] : opts.find(o => o[0] === ui.opt)[1];
-  const buy = syms.find(x => 'MAX'.includes(x)), maxExtra = Math.floor(pl.coins / 2);
+  const buy = syms.find(x => x === 'M'), maxExtra = Math.floor(pl.coins / 2);
   ui.extra = Math.min(ui.extra || 0, maxExtra);
   const count = k => syms.filter(x => x === k).length;
   const after = Math.max(0, pl.coins + count('C') - count('P')) - (buy ? ui.extra * 2 : 0) - (ui.expand != null ? 5 : 0); // il "paga" senza crediti costa punti, non blocca

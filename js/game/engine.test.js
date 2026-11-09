@@ -29,7 +29,7 @@ function botMove(s) {
       const opt = pd.won ? 'p' : pick(card.secondary.map((_, i) => i));
       const syms = opt === 'p' ? card.primary : card.secondary[opt];
       const m = { opt, extra: 0 };
-      if (syms.includes('X') && pl.coins >= 4) m.extra = 1;
+      if (syms.includes('M') && pl.coins >= 4 && pl.mar + syms.filter(x => x === 'M').length < 9) m.extra = 1;
       if (syms.includes('E') && pl.coins + syms.filter(x => x === 'C').length >= 5) m.expand = pick([null, ...expandTargets(s, pd.p)]);
       if (syms.includes('V')) m.viking = pick(vikingTowns(s));
       return [pd.p, m];
@@ -88,5 +88,17 @@ assert.equal(leadMiss, 0, 'chi apre senza carte giocabili');
 for (let g = 0; g < 60; g++) {
   let b = newGame(['A', 'B', 'C', 'D', 'E'].slice(0, 3 + (g % 3)), 9000 + g), n = 0;
   while (b.stage !== 'end') { const [q, m] = smartBot(b); b = move(b, q, m); assert.ok(++n < 2000, 'bot bloccato'); }
+}
+// regola della casa: si pagano passi in più solo per l'hype
+{
+  let g = newGame(['A', 'B', 'C'], 3);
+  for (let n = 0; n < 2000 && g.stage !== 'end'; n++) {
+    const pd = current(g);
+    if (pd.type === 'action') {
+      const card = CARDS[pd.card], opt = pd.won ? 'p' : 0, sy = opt === 'p' ? card.primary : card.secondary[0];
+      if (!sy.includes('M') && (sy.includes('X') || sy.includes('A'))) { g.players[pd.p].coins = 9; assert.throws(() => move(g, pd.p, { opt, extra: 1 }), /hype/); break; }
+    }
+    const [q, m] = botMove(g); g = move(g, q, m);
+  }
 }
 console.log('ok: 600 partite simulate, 60 partite tra bot');

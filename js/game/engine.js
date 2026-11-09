@@ -309,16 +309,15 @@ const MOVES = {
     if (m.opt === 'p') { if (!pend.won) fail('Solo chi vince la presa usa l\'azione VINCI'); syms = card.primary; }
     else { if (pend.won) fail('Hai vinto: usa l\'azione VINCI'); syms = card.secondary[m.opt] || fail('Azione non valida'); }
     const pl = s.players[p], extra = Math.max(0, m.extra | 0);
+    if (extra && !syms.includes('M')) fail('Si pagano passi in più solo per l\'hype'); // regola della casa: niente acquisti extra per polizia e comunità
     syms.forEach((sym, i) => {
       const last = syms.lastIndexOf(sym) === i, buy = n => { if (pl.coins < 2 * n) fail('Crediti insufficienti'); pl.coins -= 2 * n; return n; };
       if (sym === 'T') { s.towns[s.trick.town].owner = p; s.active = p; }
       if (sym === 'C') pl.coins++;
       if (sym === 'P') { if (pl.coins) pl.coins--; else pl.points = Math.max(0, pl.points - 2); }
-      if (sym === 'X') pl.church += 1 + (last ? buy(extra) : 0);
+      if (sym === 'X') pl.church += 1;
       if (sym === 'A') {
-        const k = Math.min(s.area, 1 + (last ? extra : 0));
-        if (last && extra > Math.max(0, s.area - 1)) fail('Non ci sono abbastanza unità di polizia');
-        if (last) buy(extra);
+        const k = Math.min(s.area, 1);
         s.area -= k; pl.raiders += k;
       }
       if (sym === 'M') {
