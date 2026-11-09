@@ -187,9 +187,10 @@ const STAGES = {
       const total = Object.values(regionCounts(s, r)).reduce((a, b) => a + b, 0);
       if (!cl.up && total >= c.threshold) { cl.up = true; ev.flips.push(r); log(s, `${c.name} è in palio.`); }
       if (!cl.up) continue;
-      const max = Math.max(...Object.values(counts)), top = Object.keys(counts).filter(k => counts[k] === max);
-      if (top.length !== 1) continue;
-      const owner = top[0] === 'V' ? null : Number(top[0]);
+      // la polizia conta solo per la soglia: il controllo si decide tra le bande (regola della casa)
+      const bands = Object.keys(counts).filter(k => k !== 'V'), max = Math.max(0, ...bands.map(k => counts[k])), top = bands.filter(k => counts[k] === max);
+      if (max === 0 || top.length !== 1) continue;
+      const owner = Number(top[0]);
       if (owner !== cl.owner) {
         // regola della casa: i punti della zona si prendono subito e passano a chi la conquista dopo
         if (cl.owner !== null) s.players[cl.owner].points = Math.max(0, s.players[cl.owner].points - c.points);
@@ -240,7 +241,7 @@ function score(s) {
     const cl = s.claims[r];
     if (!cl.up) continue;
     if (cl.owner !== null) { ev.zones.push({ r, owner: cl.owner, pts: c.points, half: [], counted: true }); continue; } // già nei punti in partita
-    const counts = regionCounts(s, r, 'military'), max = Math.max(0, ...Object.values(counts)), half = [];
+    const counts = regionCounts(s, r, 'military'), max = Math.max(0, ...Object.entries(counts).filter(([k]) => k !== 'V').map(([, v]) => v)), half = [];
     if (max > 0) pls.forEach((pl, i) => { if (counts[i] === max) { ev.zonePts[i] += Math.floor(c.points / 2); half.push(i); } });
     ev.zones.push({ r, owner: null, pts: c.points, half });
   }

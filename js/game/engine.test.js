@@ -146,4 +146,14 @@ for (let g = 0; g < 40; g++) {
   }
   assert.ok(seen > 0, 'nessuna zona conquistata nelle prove');
 }
+// la polizia non toglie il controllo di una zona: conta solo per la soglia
+{
+  let b = newGame(['A', 'B', 'C'], 42);
+  const ids = TOWNS.filter(t => t.region === 'MUN').map(t => t.id); // Sud-Ovest: 10 quartieri, soglia 7
+  ids.forEach((id, k) => { b.towns[id].owner = k < 5 ? 0 : k < 9 ? 1 : null; if (k >= 5 && k < 9) b.towns[id].viking = true; });
+  b.claims.MUN = { up: false, owner: null };
+  b.pending = []; b.stage = 'claim';
+  b = move({ ...b, pending: [{ type: 'princess', p: 0 }] }, 0, { choice: 'spurn' }); // fa girare l'upkeep fino all'uprising
+  assert.equal(b.claims.MUN.owner, 0, 'con 5 quartieri contro 4 presidi la zona resta alla banda');
+}
 console.log('ok: 600 partite simulate, 60 partite tra bot');

@@ -380,7 +380,7 @@ function steps(e) {
       z.forEach((x, k) => out.push({ zone: x.r, t: `Zona ${REGIONS[x.r].name}`, b: finalTable(e, cols, 4, k) + (x.owner !== null
         ? `<p>${who(s, x.owner)} controlla ${REGIONS[x.r].name}: i suoi ${x.pts} punti li ha già presi durante la partita.</p>`
         : x.half.length ? `<p>Nessuno la controlla: ${x.half.map(i => who(s, i)).join(', ')} ${x.half.length > 1 ? 'pareggiano' : 'ha'} per più quartieri e ${x.half.length > 1 ? 'prendono' : 'prende'} metà dei punti: <b class="ptsup">+${Math.floor(x.pts / 2)}</b>.</p>`
-        : '<p>La controlla la polizia: nessun punto.</p>') }));
+        : '<p>Nessuna banda ha quartieri qui: nessun punto.</p>') }));
       out.push({ t: 'Presenza nelle zone', b: finalTable(e, cols, 5) + `<p>Punti per il numero di zone in cui hai almeno un quartiere:</p><table class="ptable regscore"><tr><td>Zone</td>${['1–2', '3–4', '5', '6', '7', '8'].map(x => `<td>${x}</td>`).join('')}</tr><tr><td>Punti</td>${[0, 1, 3, 5, 7, 10].map(x => `<td>${x}</td>`).join('')}</tr></table>` });
       out.push({ t: e.winner.length > 1 ? 'Pareggio!' : `Vince ${esc(s.players[e.winner[0]].name)}!`, b: finalTable(e, cols, 6) + (e.winner.length > 1 ? '<p>Pari punti, zone controllate e carte Hype: vittoria condivisa.</p>' : tieNote(e)) });
       return out;
