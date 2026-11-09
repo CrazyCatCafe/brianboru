@@ -370,6 +370,13 @@ export async function createCity(container, overlay, view = {}) {
       const o = s.claims?.[k]?.owner ?? null;
       r.owner = o === null ? null : new THREE.Color(T.players[o]);
       r.edgeMat.color.copy(r.owner || r.color); r.tint.material.color.copy(r.owner || r.color);
+      // cartello: zona controllata → quadratino e nome della banda al posto di triangolino e nome della zona
+      const b = r.title?.querySelector('b'), who = o === null ? null : (s.names?.[o] || `Banda ${o + 1}`);
+      if (b && b.dataset.who !== String(who)) {
+        b.dataset.who = String(who); b.classList.toggle('owned', o !== null);
+        b.style.setProperty('--rc', o === null ? T.region[k] : T.players[o]);
+        b.textContent = who ?? map.regions[k].name;
+      }
     }
   }
 
@@ -381,7 +388,7 @@ export async function createCity(container, overlay, view = {}) {
   };
   for (const [k, r] of Object.entries(map.regions)) {
     const [lx, ly] = r.label.tx ? [r.label.tx, r.label.ty] : [r.label.x, r.label.y];
-    addLabel(`<b style="--rc:${T.region[k]}">${r.name}</b><span>${r.municipio}</span><i title="Quartieri per far scattare l'Uprising">${r.threshold}${logo('uprising', 13)}</i><i title="Punti per chi controlla la zona">${r.points}${logo('punti', 13)}</i>`, 'rlabel', lx, ly, 0.02, k);
+    regions[k].title = addLabel(`<b style="--rc:${T.region[k]}" title="${r.name}">${r.name}</b><span>${r.municipio}</span><i title="Quartieri per far scattare l'Uprising">${r.threshold}${logo('uprising', 13)}</i><i title="Punti per chi controlla la zona">${r.points}${logo('punti', 13)}</i>`, 'rlabel', lx, ly, 0.02, k);
   }
   const firstTown = labels.length;
   towns.forEach(t => addLabel(t.name, 'tlabel', t.x, t.y, OV + 0.16, t.region));

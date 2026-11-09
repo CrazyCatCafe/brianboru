@@ -28,7 +28,7 @@ for (const [p, ids] of Object.entries(own)) ids.forEach(id => (towns[idx[id]].ow
 towns[idx.S2].monastery = towns[idx.N5].monastery = true;
 towns[idx.C4].viking = true;
 const active = T.findIndex((t, i) => t.region === 'SUN' && t.suit === 'red' && towns[i].owner === null);
-city.update({ towns, activeTown: active, claims: { SUN: { up: true, owner: 0 }, NUN: { up: true, owner: 1 } } });
+city.update({ towns, activeTown: active, claims: { SUN: { up: true, owner: 0 }, NUN: { up: true, owner: 1 } }, names: players.map(p => p.name) });
 const police = 8, phase = q.get('fase') || 'guerrilla';
 const zones = { SUN: 0, NUN: 1, CON: null }; // in palio: chi le controlla (null = contesa)
 
