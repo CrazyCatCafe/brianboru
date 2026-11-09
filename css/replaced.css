@@ -509,3 +509,11 @@ tr:nth-child(2n) .logo { animation-delay: -3s; }
 .rp .results li:last-child { animation: newres 1.2s ease-out; }
 @keyframes newres { from { background: rgba(255, 212, 0, .35); } }
 @media (prefers-reduced-motion: reduce) { .rp .results li:last-child { animation: none; } }
+
+/* logo dell'Hype in cima alla sua colonna (grigio) */
+.vhype { padding-top: 0; }
+.vhype .vtop { display: flex; justify-content: center; align-items: center; height: 30px; flex: none; }
+.vhype .vtop .logo { width: 22px; height: 22px; display: inline-grid; place-items: center; background: #eef1f3; }
+.vhype .vtop .logo svg { width: 16px; height: 16px; }
+.vhype.on .vtop .logo, .vhype.flash .vtop .logo { animation: spinlogo 2.4s linear infinite; }
+@media (prefers-reduced-motion: reduce) { .vhype.on .vtop .logo, .vhype.flash .vtop .logo { animation: none; } }

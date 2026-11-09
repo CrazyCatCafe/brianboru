@@ -95,7 +95,7 @@ function renderColumns() {
     <tbody>${row('punti', 'points')}${row('crediti', 'coins')}${row('guerrilla', 'raiders', 'guerrilla')}${row('community', 'church', 'community')}</tbody>
     <tfoot><tr${phase === 'guerrilla' ? ' class="on"' : ''}><th>${lab('polizia')}</th><td colspan="${players.length}">${police}</td></tr></tfoot>
   </table>
-  <div class="vhype${phase === 'party' ? ' on' : ''}" title="Hype: Conte Galleria">${MARRIAGE_TRACK.map((b, c) => [b, c]).reverse().map(([b, c]) =>
+  <div class="vhype${phase === 'party' ? ' on' : ''}" title="Hype: Conte Galleria"><span class="vtop">${logo('hype', 16)}</span>${MARRIAGE_TRACK.map((b, c) => [b, c]).reverse().map(([b, c]) =>
     `<span class="vc${b ? ' bonus' : ''}" title="Casella ${c + 1}: ${b ? BONUS[b] : 'nessun bonus'}"><span class="g">${b ? icon(b === 'CC' ? 'C' : b, 10, 'currentColor', '#0f1316') + (b === 'CC' ? '<sup>2</sup>' : '') : ''}</span>${players.map((pl, i) => (pl.mar === c ? dot(i) : '')).join('')}</span>`).join('')}</div></div>`;
   g.querySelector('.zoom').onclick = () => { bigGrid = !bigGrid; renderColumns(); };
   const fit = () => document.documentElement.style.setProperty('--lw', g.offsetWidth + 'px');
