@@ -117,6 +117,7 @@ export async function connect(config) {
       const s = move(JSON.parse(g.state), me, m);
       return { ...g, state: JSON.stringify(s), status: s.stage === 'end' ? 'end' : 'play' };
     }),
+    ack: (code, n) => D.set(ref(`games/${code}/acks/${uid()}`), n), // "Avanti" alla fine del party
     watchGame: (code, cb) => D.onValue(ref('games/' + code), s => s.exists() && cb({ code, ...s.val(), players: Object.values(s.val().players || {}) })),
   };
   return api;

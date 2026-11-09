@@ -3,7 +3,7 @@ import { botMove } from './game/bot.js';
 import { move as applyMove, current, emptyTowns, leadTowns, ownTowns, expandTargets, vikingTowns, newGame } from './game/engine.js';
 import { CARDS, MARRIAGES, TOWNS, REGIONS, MARRIAGE_TRACK } from './game/data.js';
 import { THEME, THEME_REPLACED, PIXEL_SCALE } from './milano/theme.js';
-import { cardSVG, characterSVG } from './milano/card.js';
+import { cardSVG, characterSVG, characterArt } from './milano/card.js';
 import { icon, setIconSet, logo, LOGO_NAMES } from './milano/icons.js';
 import { ESTRID, SYMBOLS, CHARACTERS } from './milano/lore.js';
 import { createCity, WEATHER_TYPES, QUALITY } from './milano/city3d.js';
@@ -91,7 +91,7 @@ async function openRoom(code, join = true) {
     room = g;
     if (g.status === 'lobby') { if (!$('game').hidden) show('lobby'); renderRoom(); }
     else if (g.status === 'chiusa') { leaveRoomUi(); toast('La partita è stata chiusa'); }
-    else enterGame(JSON.parse(g.state));
+    else { enterGame(JSON.parse(g.state)); checkAcks(); }
   });
 }
 function leaveRoomUi() { unwatch?.(); unwatch = null; roomCode = room = null; history.replaceState(null, '', location.pathname); $('room').hidden = true; show('lobby'); }
@@ -149,9 +149,7 @@ $('local').onclick = guard(() => {
   seenN = null; enterGame(newGame(names));
 });
 $('to-lobby').onclick = () => {
-  const b = $('to-lobby');
-  if (!b.dataset.sure) { b.dataset.sure = 1; b.textContent = 'Esci davvero?'; setTimeout(() => { delete b.dataset.sure; b.textContent = 'Lobby'; }, 3000); return; }
-  delete b.dataset.sure; b.textContent = 'Lobby';
+  if (!confirm(local ? 'Uscire dalla partita? La partita locale andrà persa.' : 'Uscire dalla partita? Potrai rientrare dalla lobby.')) return;
   if (local) { local = false; state = null; clearTimeout(botTimer); }
   show(!net || me ? 'lobby' : 'auth');
 };
@@ -199,7 +197,7 @@ function renderPixel() {
 }
 function renderQuality() { // grafica: Auto scende da sola se il computer fatica
   const q = city.quality();
-  $('quality').innerHTML = ['auto', ...Object.keys(QUALITY)].map(k => `<button data-q="${k}" aria-pressed="${k === q.setting}">${k === 'auto' ? `Auto${q.setting === 'auto' ? ' · ' + QUALITY[q.level].label : ''}` : QUALITY[k].label}</button>`).join('');
+  $('quality').innerHTML = Object.keys(QUALITY).map(k => `<button data-q="${k}" aria-pressed="${k === q.level}">${QUALITY[k].label}</button>`).join(''); // in automatico si accende il livello in uso
   $('quality').querySelectorAll('[data-q]').forEach(b => (b.onclick = () => { city.setQuality(b.dataset.q); try { localStorage.setItem('bb-quality', b.dataset.q); } catch {} renderQuality(); }));
 }
 
@@ -240,6 +238,18 @@ function actionSyms(s, pd) {
   return (ui.opt === 'p' ? card.primary : card.secondary[ui.opt]) || [];
 }
 const SHORT_SYM = { T: 'quartiere', C: '+1 credito', P: '−1 credito', M: '+1 hype', A: '+1 guerrilla', X: '+1 community', V: 'via un presidio', R: '+1 street cred' };
+// testo esatto di un simbolo ripetuto n volte: "+3 crediti", non "+1 credito"
+function exactText(x, n, pl) {
+  switch (x) {
+    case 'C': return n > 1 ? `+${n} crediti` : '+1 credito';
+    case 'P': return pl.coins >= n ? `Paghi ${n} ${n > 1 ? 'crediti' : 'credito'}` : `Paghi ${n} ${n > 1 ? 'crediti' : 'credito'}: ne hai ${pl.coins}, il resto lo paghi con 2 punti vittoria l'uno`;
+    case 'M': return `Sali di ${n} nell'hype (2 crediti per ogni passo in più)`;
+    case 'A': return `Neutralizzi ${n} ${n > 1 ? 'unità' : 'unità'} di polizia (2 crediti per ognuna in più)`;
+    case 'X': return `+${n} alla comunità (2 crediti per ognuno in più)`;
+    case 'R': return `+${n} street cred`;
+    default: return SYMBOLS[x];
+  }
+}
 const FLASH_ROW = { C: 'crediti', P: 'crediti', E: 'crediti', A: 'guerrilla', X: 'community', R: 'punti' };
 function onTown(town) {
   const pd = current(state);
@@ -275,9 +285,23 @@ function ingestEvents(s) {
 }
 const STEP_MS = 4500;
 const held = () => $('stage').matches(':hover, :focus-within'); // chi sta leggendo ferma il racconto
-function tick() { clearTimeout(timer); timer = setTimeout(() => (held() ? tick() : advance()), STEP_MS); }
+function tick() { clearTimeout(timer); if (showing?.k === 'party') return; timer = setTimeout(() => (held() ? tick() : advance()), STEP_MS); } // il party non avanza da solo
 function nextEvent() { showing = queue.shift() || null; step = 0; clearTimeout(timer); if (showing) tick(); if (state) render(); }
-function advance() { if (!showing) return; if (++step >= steps(showing).length) nextEvent(); else { tick(); render(); } }
+function advance() {
+  if (!showing) return;
+  if (step + 1 >= steps(showing).length && showing.k === 'party') { // party: tutti devono cliccare Avanti
+    acked = showing.n; if (!local && room) net.ack(roomCode, showing.n);
+    if (waitingAcks().length) { render(); return; }
+  }
+  if (++step >= steps(showing).length) nextEvent(); else { tick(); render(); }
+}
+// chi deve ancora cliccare Avanti alla fine del party (in locale lo schermo è uno solo: basta un clic)
+let acked = null;
+function waitingAcks() {
+  if (!showing || showing.k !== 'party' || local || !room) return [];
+  return room.players.map((p, i) => [p, i]).filter(([p]) => (room.acks?.[p.uid] ?? -1) < showing.n).map(([, i]) => i);
+}
+function checkAcks() { if (showing?.k === 'party' && acked === showing.n && !waitingAcks().length) { acked = null; nextEvent(); } }
 
 function hypeTrack(pos, { mark = null, note = '' } = {}) { // pos[i] = casella del giocatore i (0..9)
   return `<div class="track">${MARRIAGE_TRACK.map((b, c) => `<div class="cell${c === mark ? ' mark' : ''}" title="Casella ${c + 1}">
@@ -289,16 +313,15 @@ function steps(e) {
   const s = state, list = arr => arr.join('');
   switch (e.k) {
     case 'prep': return [{ t: `Round ${e.round}${e.final ? ' · ultimo' : ''}`, b: `<p>Arrivano <b>${e.police}</b> unità di polizia: in allerta ora ce ne sono ${e.area}.</p><p>Personaggio da ingaggiare: <b>${characterName(e.character)}</b>.</p>` }];
-    case 'party': {
-      const after = e.track.map((p, i) => (i === e.winner ? 0 : p)), out = [{ t: 'La track dell\'hype', b: hypeTrack(e.track) + '<p>Chi è più avanti ingaggia il personaggio.</p>' }];
-      if (e.winner === null) return [...out, { t: 'Nessun ingaggio', b: `<p>Nessuno ha hype: ${characterName(e.card)} se ne va.</p>` }];
-      out.push({ t: `${esc(s.players[e.winner].name)} ingaggia ${characterName(e.card)}`, b: `<p>${who(s, e.winner)} è più avanti di tutti nell'hype.</p>` });
-      out.push({ t: `${esc(s.players[e.winner].name)} riparte dall'inizio`, b: hypeTrack(after) });
-      if (e.bonuses.length) out.push({ t: 'Bonus della track', b: `<ul class="plain">${list(e.bonuses.map(x => `<li>${who(s, x.p)} ${BONUS[x.b]}</li>`))}</ul>` });
-      const c = e.card;
-      out.push({ t: 'Effetto del personaggio', b: c.princess ? `<p>${who(s, e.winner)} sceglie come usare la Regina Estrid.</p>`
-        : `<p>${who(s, e.winner)} prende <b>${c.points} punti</b>${c.renown ? ' e +1 street cred' : ''}${c.region ? ` e un quartiere in <b>${REGIONS[c.region].name}</b>` : ''}.</p>` });
-      return out;
+    case 'party': { // una sola tabella: chi ingaggia il personaggio (con la carta) e i bonus degli altri; il vincitore riparte da 1
+      const after = e.track.map((p, i) => (i === e.winner ? 0 : p)), c = e.card;
+      if (e.winner === null) return [{ t: 'Underground Party', b: hypeTrack(e.track) + `<p>Nessuno ha hype: ${characterName(c)} se ne va.</p>` }];
+      const eff = c.princess ? 'sceglie come usare la Regina Estrid' : `+${c.points} punti${c.renown ? ', +1 street cred' : ''}${c.region ? `, un quartiere in ${REGIONS[c.region].name}` : ''}`;
+      return [{ t: `${esc(s.players[e.winner].name)} ottiene più hype`, b: `<div class="partyres"><figure>${characterSVG(characterIndex(c))}</figure>
+        <table class="ptable"><tr class="win"><td>${who(s, e.winner)}</td><td>ingaggia <b>${characterName(c)}</b>: ${eff}. Riparte dalla casella 1.</td></tr>
+        ${e.bonuses.map(x => `<tr><td>${who(s, x.p)}</td><td>${BONUS[x.b]} · resta dov'è</td></tr>`).join('')}
+        ${s.players.map((p, i) => i).filter(i => i !== e.winner && !e.bonuses.some(x => x.p === i)).map(i => `<tr><td>${who(s, i)}</td><td>nessun bonus · resta dov'è</td></tr>`).join('')}</table></div>
+        ${hypeTrack(after)}` }];
     }
     case 'guerrilla': {
       const out = [{ t: 'Guerrilla', b: `<p>Polizia in allerta: <b>${e.area}</b>.</p><ul class="plain">${list(e.raiders.map((r, i) => `<li>${who(s, i)} ha neutralizzato ${r} unità</li>`))}</ul>` }];
@@ -350,7 +373,7 @@ function render() {
   mapPicking = picks.length > 0 && (pd.type !== 'action' || !!ui.pick);
   document.body.classList.toggle('map-pick', mapPicking);
   const pk = picks.length ? JSON.stringify([pd?.type, ui.pick, picks.length]) : null;
-  if (pk && pk !== framedKey && picks.length < 30) city.frame(picks);
+  if (pk && pk !== framedKey && picks.length < 30 && pd?.type !== 'action') city.frame(picks); // espansione: si segnalano gli spot, niente zoom
   framedKey = pk;
   document.querySelectorAll('[data-sort]').forEach(b => b.setAttribute('aria-pressed', b.dataset.sort === handSort));
   renderPhases(s, pd); renderBoard(s, pd); renderTurn(s, pd, wk); renderStage(s, pd); renderHand(s, pd);
@@ -364,6 +387,22 @@ function render() {
 const pdot = i => `<i class="pd" style="--pc:${THEME.players[i]}"></i>`;
 const pname = (s, i) => `${pdot(i)}<b>${esc(s.players[i].name)}</b>`;
 // carta del personaggio in hype: si apre di fianco alla plancia, senza coprire gli altri riquadri
+// carta del personaggio in Hype: sempre visibile accanto alla plancia, sotto la barra delle fasi.
+// Niente descrizione: nome, punti con la coppa, zona con il triangolo che ruota (e chi la controlla). Cliccandola si illumina la zona.
+let hypeLit = false;
+function renderHypeCard(s) {
+  const el = $('hypecard'), c = s.marriage;
+  el.hidden = !c; document.body.classList.toggle('has-hype', !!c);
+  if (!c) { city?.highlight(null); return; }
+  const i = characterIndex(c), m = c.princess ? null : c, k = m?.region, own = k ? s.claims[k]?.owner ?? null : null;
+  el.innerHTML = `<span class="lab">Hype</span>${characterArt(i)}<b class="nm">${esc(characterName(c))}</b>
+    ${m ? `<span class="rw"><span>+${m.points}${logo('punti', 13)}</span>${m.renown ? `<span>+1 street cred</span>` : ''}</span>` : '<span class="rw">IA libera: tre scelte</span>'}
+    ${k ? `<span class="zone"><i class="tri" style="--rc:${THEME.region[k]}" aria-hidden="true"><i></i><i></i><i></i><i></i></i>${REGIONS[k].name}${own !== null ? ` <em>(${esc(s.players[own].name)})</em>` : ''}</span>` : ''}`;
+  el.setAttribute('aria-pressed', String(hypeLit && !!k));
+  el.title = k ? `Clic: illumina ${REGIONS[k].name} sulla mappa` : '';
+  el.onclick = () => { if (!k) return; hypeLit = !hypeLit; city.highlight(hypeLit ? k : null); renderHypeCard(state); };
+  city.highlight(hypeLit && k ? k : null);
+}
 function bindPeek(s) {
   const b = $('b-players').querySelector('.peek'), card = $('peekcard');
   card.hidden = true;
@@ -409,14 +448,14 @@ function renderBoard(s, pd) {
     </table>
     <div class="vhype${phaseNow === 'party' ? ' on' : ''}${actionSyms(s, pd).includes('M') ? ' flash' : ''}" style="--np:${s.players.length}" role="img" aria-label="Hype: ${s.players.map(p => `${esc(p.name)} casella ${p.mar + 1}`).join(', ')}">${MARRIAGE_TRACK.map((b, c) => [b, c]).reverse().map(([b, c]) =>
       `<span class="vc${b ? ' bonus' : ''}" title="Hype ${c + 1}: ${b ? BONUS_TIP[b] : 'nessun bonus'}"><span class="g">${b ? icon(b === 'CC' ? 'C' : b, 10, 'currentColor', HOLE) + (b === 'CC' ? '<sup>2</sup>' : '') : ''}</span>${s.players.map((p, i) => (p.mar === c ? pdot(i) : '')).join('')}</span>`).join('')}</div></div>
-    ${s.marriage ? `<p class="sub hypeline">Hype: <b>${esc(characterName(s.marriage))}</b><button class="peek" type="button" aria-label="Vedi il personaggio: ${esc(characterName(s.marriage))}">${characterSVG(characterIndex(s.marriage))}</button></p>` : ''}`;
+    ${s.marriage ? `<p class="sub hypeline narrow-only">Hype: <b>${esc(characterName(s.marriage))}</b><button class="peek" type="button" aria-label="Vedi il personaggio: ${esc(characterName(s.marriage))}">${characterSVG(characterIndex(s.marriage))}</button></p>` : ''}`;
   $('b-players').querySelector('.zoom').onclick = () => { bigBoard = !bigBoard; try { localStorage.setItem('bb-board', bigBoard ? 'big' : 'small'); } catch {} render(); };
-  bindPeek(s);
+  bindPeek(s); renderHypeCard(s);
   // uprising: zone sbloccate e chi le tiene
   on('b-uprising', 'uprising');
   const up = Object.entries(s.claims).filter(([, c]) => c.up);
   $('b-uprising').innerHTML = `<h3>${logo('uprising')}Uprising <em>zone in palio</em></h3>${up.length ? `<ul>${up.map(([r, c]) =>
-    `<li><i class="rz" style="--rc:${c.owner === null ? THEME.region[r] : THEME.players[c.owner]}"></i><b>${REGIONS[r].name}</b><span class="own">${c.owner === null ? 'contesa' : pname(s, c.owner)}</span></li>`).join('')}</ul>` : '<p class="sub">Nessuna zona ancora in palio.</p>'}`;
+    `<li><i class="rz" style="--rc:${c.owner === null ? THEME.region[r] : THEME.players[c.owner]}"></i><b>${REGIONS[r].name}</b><span class="own">${c.owner === null ? 'contesa' : pname(s, c.owner)}</span></li>`).join('')}</ul>` : ''}`;
 }
 
 function renderTurn(s, pd, wk) {
@@ -457,14 +496,15 @@ function renderHand(s, pd) {
 }
 function playCard(v, ok, choosingTown) {
   if (!ok(v)) return choosingTown && ui.town == null ? toast('Prima scegli il quartiere attivo sulla mappa o dall\'elenco') : toast('Questa carta non si può giocare adesso');
-  if (coarse && ui.armed !== v) { ui.armed = v; return render(); } // touch: primo tocco seleziona, il secondo (o il pulsante) gioca
+  if (ui.armed !== v) { ui.armed = v; return render(); } // ogni scelta va confermata: il clic seleziona, il pulsante gioca
   if (choosingTown) act({ town: ui.town }, { card: v }); else act({ card: v });
 }
 
 function trickRow(s) {
   const t = s.trick;
   if (!t?.plays.length) return '';
-  return `<div class="trickrow">${t.plays.map(x => `<figure class="${t.winner === x.p ? 'win' : ''}" style="--pc:${THEME.players[x.p]}">${cardSVG(x.card)}<figcaption>${esc(s.players[x.p].name)}${t.winner === x.p ? '<em>vince la presa</em>' : ''}</figcaption></figure>`).join('')}</div>`;
+  const now = current(s), acting = now?.type === 'action' || now?.type === 'play' ? now.p : null;
+  return `<div class="trickrow">${t.plays.map(x => `<figure class="${t.winner === x.p ? 'win' : ''}${x.p === acting && now.type === 'action' && x.card === now.card ? ' now' : ''}" style="--pc:${THEME.players[x.p]}">${cardSVG(x.card)}<figcaption>${esc(s.players[x.p].name)}${t.winner === x.p ? '<em>vince la presa</em>' : ''}</figcaption></figure>`).join('')}</div>`;
 }
 
 function hypePreview(s, pl, syms, extra) { // dove arriva il disco sulla track, con la regola delle caselle occupate
@@ -475,6 +515,7 @@ function hypePreview(s, pl, syms, extra) { // dove arriva il disco sulla track, 
   const aim = pos;
   while (pos > 0 && others.includes(pos)) pos--;
   const note = pos === aim ? `<p>Arrivi alla casella <b>${pos + 1}</b>.</p>`
+    : extra > 0 ? `<p class="warn" role="alert">Attenzione: paghi ${extra * 2} crediti ma la casella ${aim + 1} è occupata, scendi alla <b>${pos + 1}</b>.</p>`
     : `<p>La casella ${aim + 1} è occupata: scendi alla <b>${pos + 1}</b>. Con 2 crediti in più fai un passo in più.</p>`;
   return hypeTrack(s.players.map((o, i) => (o === pl ? pos : o.mar)), { mark: pos, note });
 }
@@ -506,8 +547,9 @@ function renderStage(s = state, pd = current(state)) {
   if (showing) {
     const st = steps(showing), cur = st[Math.min(step, st.length - 1)];
     el.innerHTML = head(cur.t, `${PHASES.find(p => p[0] === showing.k)?.[1] || ''} · passo ${step + 1} di ${st.length}`, cur.b) +
-      `<div class="row end"><button class="btn ghost small" id="skipall">Salta tutto</button><button class="btn ghost small" id="skip">Salta questa fase</button><button class="btn small" id="next" aria-keyshortcuts="Space">Avanti</button></div>`;
-    $('next').onclick = advance; $('skip').onclick = () => nextEvent(); $('skipall').onclick = () => { queue = []; nextEvent(); };
+      (waitingAcks().length && acked === showing.n ? `<p class="waitack">In attesa che clicchino Avanti: ${waitingAcks().map(i => `<span class="blink">${who(s, i)}</span>`).join(' ')}</p>`
+        : `<div class="row end"><button class="btn small" id="next" aria-keyshortcuts="Space">Avanti</button></div>`);
+    $('next') && ($('next').onclick = advance);
     return;
   }
   if (!pd) { // fine partita
@@ -560,9 +602,11 @@ function renderStage(s = state, pd = current(state)) {
     }
     case 'princess':
       el.innerHTML = head('Regina Estrid', mine, `<p>L'IA libera è dalla tua parte. Scegli come usarla:</p>
-        <div class="choices"><button class="btn" data-c="military">${ESTRID.options.military}</button><button class="btn" data-c="trade">${ESTRID.options.trade}</button><button class="btn ghost" data-c="spurn">${ESTRID.options.spurn} (+4 punti)</button></div>
+        <div class="choices">${['military', 'trade', 'spurn'].map(k => `<button class="btn ${ui.choice === k ? '' : 'ghost'}" data-c="${k}" aria-pressed="${ui.choice === k}">${ESTRID.options[k]}${k === 'spurn' ? ' (+4 punti)' : ''}</button>`).join('')}</div>
+        <button id="ok" class="btn wide" ${ui.choice ? '' : 'disabled'} aria-keyshortcuts="Enter">${ui.choice ? 'Conferma: ' + ESTRID.options[ui.choice] : 'Scegli un\'opzione'}</button>
         <p class="note">${ESTRID.options.military}: i quartieri presidiati dalla polizia contano come tuoi per il controllo delle zone. ${ESTRID.options.trade}: contano come tuoi per il numero di zone a fine partita.</p>`);
-      el.querySelectorAll('[data-c]').forEach(b => (b.onclick = () => act({ choice: b.dataset.c })));
+      el.querySelectorAll('[data-c]').forEach(b => (b.onclick = () => { ui.choice = b.dataset.c; render(); }));
+      $('ok').onclick = () => act({ choice: ui.choice });
       return;
   }
   // azione dopo la presa
@@ -582,8 +626,8 @@ function renderStage(s = state, pd = current(state)) {
     return;
   }
   el.innerHTML = trick + head(title, `${mine} · Carta ${pd.card}`,
-    `<div class="opts" role="radiogroup" aria-label="Azione">${opts.map(([k, sy]) => `<button class="opt" role="radio" data-o="${k}" aria-checked="${k === ui.opt}" aria-pressed="${k === ui.opt}"><small>${k === 'p' ? 'Vinci' : k ? 'Oppure' : 'Riserva'}</small>${sy.map(x => `<span title="${SYMBOLS[x]}">${icon(x, 24, 'currentColor', HOLE)}</span>`).join('')}</button>`).join('')}</div>
-    <ul class="explain">${[...new Set(syms)].map(x => `<li>${icon(x, 16, 'currentColor', HOLE)} ${SYMBOLS[x]}</li>`).join('')}</ul>
+    `<div class="opts" role="radiogroup" aria-label="Azione">${opts.map(([k, sy]) => `<button class="opt" role="radio" data-o="${k}" aria-checked="${k === ui.opt}" aria-pressed="${k === ui.opt}">${k === 'p' ? '<small>Vinci</small>' : ''}${sy.map(x => `<span title="${SYMBOLS[x]}">${icon(x, 24, 'currentColor', HOLE)}</span>`).join('')}</button>`).join('')}</div>
+    <ul class="explain">${[...new Set(syms)].map(x => `<li>${icon(x, 16, 'currentColor', HOLE)} ${exactText(x, count(x), pl)}</li>`).join('')}</ul>
     ${buy ? `<div class="stepper"><span>Passi extra, 2 crediti l'uno</span><button class="btn small" data-x="-1" aria-label="Un passo in meno">−</button><b>${ui.extra}</b><button class="btn small" data-x="1" aria-label="Un passo in più" ${ui.extra >= maxExtra ? 'disabled' : ''}>+</button></div>` : ''}
     ${hypePreview(s, pl, syms, buy === 'M' ? ui.extra : 0)}
     ${syms.includes('E') ? `<p><button class="btn ghost small" id="pick-e">${ui.expand != null ? 'Espansione: ' + esc(TOWNS[ui.expand].name) + ' (cambia)' : 'Scegli dove espanderti (facoltativo, 5 crediti)'}</button>${ui.expand != null ? ' <button class="link" id="no-e">annulla</button>' : ''}</p>` : ''}
@@ -596,7 +640,15 @@ function renderStage(s = state, pd = current(state)) {
   $('pick-e') && ($('pick-e').onclick = () => { ui.pick = 'expand'; render(); });
   $('no-e') && ($('no-e').onclick = () => { ui.expand = null; render(); });
   $('pick-v') && ($('pick-v').onclick = () => { ui.pick = 'viking'; render(); });
-  $('ok').onclick = () => act({ opt: ui.opt, extra: buy ? ui.extra : 0, expand: ui.expand ?? null, viking: ui.viking });
+  const move = { opt: ui.opt, extra: buy ? ui.extra : 0, expand: ui.expand ?? null, viking: ui.viking };
+  const lost = Math.max(0, count('P') - (pl.coins + count('C'))) * 2; // simboli "paga" senza crediti: 2 punti vittoria l'uno
+  $('ok').onclick = () => (lost ? (ui.review = true, render()) : act(move));
+  if (ui.review) { // scelta importante: riepilogo con Annulla e Conferma prima di passare la mano
+    el.innerHTML = trick + head('Paghi in punti vittoria', `${mine} · Carta ${pd.card}`, `<p>Non hai crediti abbastanza: perdi <b>${lost} punti vittoria</b> (da ${pl.points} a ${Math.max(0, pl.points - lost)}).</p>
+      <div class="row end"><button class="btn ghost" id="undo">Annulla</button><button class="btn" id="ok" aria-keyshortcuts="Enter">Conferma</button></div>`);
+    $('undo').onclick = () => { ui.review = false; render(); };
+    $('ok').onclick = () => act(move);
+  }
 }
 const HOLE = '#0d1114'; // il "foro" delle icone piene deve essere scuro su un pannello scuro
 function bindArmed(choosingTown) {

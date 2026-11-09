@@ -345,7 +345,7 @@ export async function createCity(container, overlay, view = {}) {
   const led = new THREE.Mesh(new THREE.SphereGeometry(0.006, 8, 6), new THREE.MeshBasicMaterial({ color: T.accent }));
   led.position.y = -0.008; droneProto.add(led);
   const spinners = [], glows = [];
-  let selected = null, active = null;
+  let selected = null, active = null, lit = null; // lit: zona illuminata a richiesta (carta Hype)
 
   function update(s) {
     for (const r of Object.values(regions)) r.pieces.clear();
@@ -517,7 +517,7 @@ export async function createCity(container, overlay, view = {}) {
     // municipio del quartiere selezionato: si alza e si colora
     const selRegion = selected !== null ? spots[selected].region : null, actRegion = active !== null ? spots[active].region : null; // anche la zona del quartiere in palio, per tutti
     for (const [k, r] of Object.entries(regions)) {
-      r.lift += ((k === selRegion || k === actRegion ? 1 : 0) - r.lift) * Math.min(1, dt * 6);
+      r.lift += ((k === selRegion || k === actRegion || k === lit ? 1 : 0) - r.lift) * Math.min(1, dt * 6);
       r.g.position.y = r.lift * LIFT;
       r.tint.material.opacity = (r.owner ? 0.4 : 0) + r.lift * 0.2;
       r.glow.forEach(g => (g.material.opacity = r.lift * (0.45 + (still ? 0 : Math.sin(t * 3) * 0.15))));
@@ -582,6 +582,7 @@ export async function createCity(container, overlay, view = {}) {
     towns, regions: map.regions,
     update,
     select: i => { selected = i ?? null; },
+    highlight: k => { lit = k ?? null; },
     resetView: () => { goal.camera.copy(HOME.camera); goal.target.copy(HOME.target); homing = 1; },
     // porta in vista gli spot indicati (es. dove ci si può espandere), senza cambiare l'angolo della telecamera
     frame: ids => {

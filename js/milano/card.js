@@ -56,10 +56,9 @@ export function characterSVG(i) {
     ${m.region ? `${iconAt('T', 74, 240, 28, THEME.ink)}${tag(106, 254, ch.zone, THEME.ink)}${tag(106, 266, 'UN QUARTIERE', THEME.muted)}` : ''}
     ${m.renown ? `${iconAt('R', 74, 240, 28, THEME.ink)}${tag(106, 258, 'STREET CRED', THEME.ink)}` : ''}`;
   const choices = isE ? Object.values(ESTRID.options).map((o, k) => tag(22, 238 + k * 14, `${k + 1} · ${o.toUpperCase()}`, THEME.ink)).join('') : '';
-  return frame(`${band(THEME.ink, '#fff', isE ? 'IA' : '★', isE ? 'IA LIBERA' : 'PERSONAGGIO')}
+  return frame(`${band(THEME.ink, '#fff', isE ? 'IA' : '★', isE ? 'IA LIBERA' : '')}
     ${art(isE ? ESTRID_ART(THEME.suit.yellow.fill) : CHARACTER_ART[i](THEME.suit.yellow.fill))}
     ${title(ch.name)}
-    ${wrap(ch.who).map((l, k) => `<text x="${W / 2}" y="${178 + k * 13}" text-anchor="middle" ${F} font-size="11" fill="${THEME.muted}">${l}</text>`).join('')}
     <path d="M14 214H186" stroke="#d5d9dc" stroke-width="1.5"/>${reward}${choices}`, `Personaggio: ${ch.name}`);
 }
 
@@ -72,3 +71,6 @@ export function policeSVG(i) {
     <text x="${W / 2}" y="236" text-anchor="middle" ${F} font-weight="800" font-size="54" fill="${THEME.ink}">${p.strength}</text>
     ${tag(W / 2 - 42, 262, 'UNITÀ IN ARRIVO', THEME.muted)}`, `Polizia: ${p.name}, ${p.strength} unità`);
 }
+
+// solo l'illustrazione del personaggio (per la carta Hype compatta accanto alla plancia)
+export const characterArt = i => `<svg viewBox="0 0 184 104" preserveAspectRatio="xMidYMid slice" aria-hidden="true">${i === 'estrid' ? ESTRID_ART(THEME.suit.yellow.fill) : CHARACTER_ART[i](THEME.suit.yellow.fill)}</svg>`;

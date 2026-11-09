@@ -354,15 +354,15 @@ body:not(.board-big) #b-uprising h3 em { display: none; }
    Zona conquistata: cubetto del colore della banda. */
 .rp .rlabel b::before { content: none; }
 .rp .rlabel b { display: flex; align-items: center; gap: 8px; }
-.rp .rlabel .tri { position: relative; display: inline-block; width: 13px; height: 12px; flex: none; transform-style: preserve-3d; animation: spin3d 3.2s linear infinite; }
-.rp .rlabel .tri i { position: absolute; inset: 0; background: var(--rc); clip-path: polygon(0 0, 100% 0, 50% 100%); }
-.rp .rlabel .tri i:nth-child(1) { transform: translateZ(3px); }
-.rp .rlabel .tri i:nth-child(2) { transform: translateZ(1px); filter: brightness(.55); }
-.rp .rlabel .tri i:nth-child(3) { transform: translateZ(-1px); filter: brightness(.55); }
-.rp .rlabel .tri i:nth-child(4) { transform: translateZ(-3px); filter: brightness(.8); }
+.rp .tri { position: relative; display: inline-block; width: 13px; height: 12px; flex: none; transform-style: preserve-3d; animation: spin3d 3.2s linear infinite; }
+.rp .tri i { position: absolute; inset: 0; background: var(--rc); clip-path: polygon(0 0, 100% 0, 50% 100%); }
+.rp .tri i:nth-child(1) { transform: translateZ(3px); }
+.rp .tri i:nth-child(2) { transform: translateZ(1px); filter: brightness(.55); }
+.rp .tri i:nth-child(3) { transform: translateZ(-1px); filter: brightness(.55); }
+.rp .tri i:nth-child(4) { transform: translateZ(-3px); filter: brightness(.8); }
 .rp .rlabel b.owned .tri i { clip-path: none; }
 @keyframes spin3d { from { transform: perspective(80px) rotateY(0); } to { transform: perspective(80px) rotateY(360deg); } }
-@media (prefers-reduced-motion: reduce) { .rp .rlabel .tri { animation: none; transform: perspective(80px) rotateY(-25deg); } }
+@media (prefers-reduced-motion: reduce) { .rp .tri { animation: none; transform: perspective(80px) rotateY(-25deg); } }
 /* Hype: con 4-5 bande la colonna si allarga quanto serve, glifo del bonus sopra e quadratini sotto */
 .vhype { width: max(34px, calc(var(--np, 3) * 9px + 6px)); }
 #b-players.big .vhype { width: max(44px, calc(var(--np, 3) * 10px + 8px)); }
@@ -373,3 +373,42 @@ body:not(.board-big) #b-uprising h3 em { display: none; }
 .vgrid tr.flash, .vhype.flash { animation: flashrow 1s ease-in-out infinite; }
 @keyframes flashrow { 50% { background: rgba(255, 210, 60, .28); box-shadow: inset 2px 0 0 #ffd23c; } }
 @media (prefers-reduced-motion: reduce) { .vgrid tr.flash, .vhype.flash { animation: none; background: rgba(255, 210, 60, .22); } }
+
+/* carta del personaggio in Hype: sempre visibile accanto alla plancia, sotto la barra delle fasi */
+.rp { --hype-w: 124px; }
+.hypecard { position: fixed; z-index: 2; left: calc(var(--board-w) + 2 * var(--gap)); top: calc(var(--gap) + 44px); width: var(--hype-w); display: grid; gap: 4px; padding: 6px 7px 8px;
+  background: #f4f1ea; color: #111; border: 2px solid #111; text-align: left; font: 12px var(--font); cursor: pointer; box-shadow: 0 6px 16px rgba(0, 0, 0, .4); }
+.hypecard[hidden] { display: none; }
+.hypecard .lab { font: 400 10px var(--pix); text-transform: uppercase; letter-spacing: .06em; background: #111; color: #ffd400; padding: 2px 5px; justify-self: start; }
+.hypecard svg { width: 100%; height: auto; aspect-ratio: 184 / 104; display: block; border: 1px solid #111; }
+.hypecard .nm { font: 800 13px/1.15 var(--font); text-transform: uppercase; overflow-wrap: anywhere; }
+.hypecard .rw { display: flex; flex-wrap: wrap; gap: 4px 8px; font: 700 14px var(--font); }
+.hypecard .rw span { display: inline-flex; align-items: center; gap: 4px; }
+.hypecard .logo { display: inline-grid; place-items: center; width: 17px; height: 17px; background: #111; --hole: #111; }
+.hypecard .logo svg { width: 13px; height: 13px; border: 0; aspect-ratio: auto; filter: invert(1); }
+.hypecard .zone { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; font: 700 12px/1.2 var(--font); text-transform: uppercase; overflow-wrap: anywhere; }
+.hypecard .zone em { font-style: normal; font-weight: 600; text-transform: none; }
+.hypecard[aria-pressed="true"] { outline: 3px solid #ffd400; outline-offset: 2px; }
+.hypecard:focus-visible { outline: 3px solid #fff; outline-offset: 2px; }
+body.has-hype #game .rp-stage { left: calc(var(--board-w) + var(--hype-w) + 3 * var(--gap)); }
+.narrow-only { display: none !important; }
+@media (max-width: 899px) { .hypecard { display: none; } .narrow-only { display: flex !important; } body.has-hype #game .rp-stage { left: var(--gap); } }
+/* strumenti stretti; Esci in fondo, sotto a tutto */
+.rp .tools .sets b { display: flex; flex-wrap: wrap; }
+.rp .tools .sets button { padding: 5px 8px; }
+.rp .rp-left > .exit { width: 0; min-width: 100%; box-sizing: border-box; background: var(--rp-panel); color: var(--rp-ink); border: 1px solid var(--rp-line); padding: 8px; }
+.rp .rp-left > .exit:hover, .rp .rp-left > .exit:focus-visible { border-color: var(--rp-red); color: #fff; }
+/* fase azioni: la carta di chi sta agendo è illuminata */
+.rp .trickrow figure.now { outline: 3px solid #ffd400; outline-offset: 2px; animation: flashrow 1.2s ease-in-out infinite; }
+/* party: tabella del risultato, attesa di chi deve ancora cliccare Avanti */
+.partyres { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 8px; }
+.partyres figure { width: 92px; flex: none; margin: 0; }
+.partyres figure svg { width: 100%; height: auto; display: block; }
+.ptable { border-collapse: collapse; font-size: 13px; }
+.ptable td { padding: 4px 6px; border-top: 1px solid var(--rp-line); vertical-align: top; }
+.ptable tr.win td { background: rgba(255, 212, 0, .14); }
+.waitack { margin: 10px 0 0; }
+.blink { animation: blink 1s steps(2, start) infinite; }
+@keyframes blink { 50% { opacity: .25; } }
+.rp .warn { color: #ffd400; font-weight: 700; }
+@media (prefers-reduced-motion: reduce) { .blink, .rp .trickrow figure.now { animation: none; } }
