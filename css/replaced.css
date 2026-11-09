@@ -187,7 +187,7 @@ body.app.rp { background: radial-gradient(ellipse at 50% 30%, #aab3b9, #6f787f 7
 @media (max-width: 899px) {
   #game .kept { flex: none; margin-right: 6px; }
   #game .kept figure { width: 34px; }
-  #game .kept span { font-size: 9px; }
+  #game .kept span { font-size: 11px; }
 }
 /* telefono in orizzontale e schermi bassi: il pannello sta a destra, la mappa resta visibile */
 @media (max-height: 560px) and (min-width: 640px) {
@@ -319,7 +319,7 @@ body:not(.board-big) #b-uprising h3 em { display: none; }
 .vgrid tbody th, .vgrid tfoot th { text-align: left; white-space: nowrap; }
 .vgrid th .logo { width: 22px; height: 22px; display: inline-grid; place-items: center; background: #eef1f3; vertical-align: middle; }
 .vgrid th .logo svg { width: 16px; height: 16px; }
-.vgrid th .lname { font: 400 10.5px var(--pix); text-transform: uppercase; letter-spacing: .04em; color: var(--rp-muted); margin-left: 7px; vertical-align: middle; }
+.vgrid th .lname { font: 400 11px var(--pix); text-transform: uppercase; letter-spacing: .04em; color: var(--rp-muted); margin-left: 7px; vertical-align: middle; }
 .vgrid td { text-align: center; font: 600 15px var(--num); color: var(--rp-ink); min-width: 28px; font-variant-numeric: tabular-nums; }
 .vgrid td.pts { font-size: 19px; color: #fff; }
 .vgrid tfoot td { color: var(--rp-police); }
@@ -379,7 +379,7 @@ body:not(.board-big) #b-uprising h3 em { display: none; }
 .hypecard { position: fixed; z-index: 2; left: calc(var(--board-w) + 2 * var(--gap)); top: calc(var(--gap) + 44px); width: var(--hype-w); display: grid; gap: 4px; padding: 6px 7px 8px;
   background: #f4f1ea; color: #111; border: 2px solid #111; text-align: left; font: 12px var(--font); cursor: pointer; box-shadow: 0 6px 16px rgba(0, 0, 0, .4); }
 .hypecard[hidden] { display: none; }
-.hypecard .lab { font: 400 10px var(--pix); text-transform: uppercase; letter-spacing: .06em; background: #111; color: #ffd400; padding: 2px 5px; justify-self: start; }
+.hypecard .lab { font: 400 11px var(--pix); text-transform: uppercase; letter-spacing: .06em; background: #111; color: #ffd400; padding: 2px 5px; justify-self: start; }
 .hypecard svg { width: 100%; height: auto; aspect-ratio: 184 / 104; display: block; border: 1px solid #111; }
 .hypecard .nm { font: 800 13px/1.15 var(--font); text-transform: uppercase; overflow-wrap: anywhere; }
 .hypecard .rw { display: flex; flex-wrap: wrap; gap: 4px 8px; font: 700 14px var(--font); }
@@ -427,7 +427,7 @@ body.has-hype #game .rp-stage { left: calc(var(--board-w) + var(--hype-w) + 3 * 
 .ptrack .pc { height: 56px; border: 1px solid var(--rp-line); background: rgba(255, 255, 255, .04); display: flex; flex-direction: column; align-items: center; padding-top: 3px; gap: 2px; }
 .ptrack .pc.bonus { background: rgba(255, 255, 255, .1); }
 .ptrack .pc.got { outline: 2px solid #ffd400; background: rgba(255, 212, 0, .2); }
-.ptrack .pc .n { font: 600 10px var(--num); color: var(--rp-muted); }
+.ptrack .pc .n { font: 600 11px var(--num); color: var(--rp-muted); }
 .ptrack .pc .b { display: flex; color: var(--rp-ink); --hole: #0d1114; }
 .ptrack .pt { position: absolute; width: 12px; height: 12px; background: var(--pc); border: 1px solid #000;
   left: calc((var(--x) + .5) * 10% - 6px); bottom: calc(10px + var(--y) * 14px); transition: left .6s; }
@@ -440,7 +440,7 @@ body.has-hype #game .rp-stage { left: calc(var(--board-w) + var(--hype-w) + 3 * 
 @media (prefers-reduced-motion: reduce) { .ptrack.zoom, .ptrack .pt[data-move] { animation: none; } }
 .ptable td:first-child { white-space: nowrap; }
 
-.rp .meta .goto { margin-left: 8px; padding: 3px 8px; font-size: 10.5px; vertical-align: 1px; }
+.rp .meta .goto { margin-left: 8px; padding: 3px 8px; font-size: 11px; vertical-align: 1px; }
 /* tutti i loghi: tasselli 3D che ruotano lentamente (fermi con "riduci movimento") */
 .logo { transform-style: preserve-3d; transform: perspective(70px) rotateY(-20deg); box-shadow: 2px 0 0 rgba(0, 0, 0, .35); }
 .logo:nth-of-type(2n) { animation-delay: -1.5s; }
@@ -456,7 +456,7 @@ tr:nth-child(2n) .logo { animation-delay: -3s; }
 .prep .pol b { font: 800 34px var(--num); color: var(--rp-police); }
 .prep .pol .cap { grid-column: 1 / -1; font-size: 12px; color: var(--rp-muted); }
 .prep .hy { display: grid; gap: 4px; width: 132px; }
-.prep .hy .cap { font: 400 10.5px var(--pix); text-transform: uppercase; color: #111; }
+.prep .hy .cap { font: 400 11px var(--pix); text-transform: uppercase; color: #111; }
 .prep .hy { --hc: 1; }
 .prep .hy .lab { display: none; }
 .prep .hy { background: #f4f1ea; color: #111; border: 2px solid #111; padding: 6px 7px 8px; }
@@ -485,7 +485,7 @@ tr:nth-child(2n) .logo { animation-delay: -3s; }
 .gpol .logo { width: 46px; height: 46px; background: #eef1f3; display: grid; place-items: center; animation: polin .7s ease-out both; }
 .gpol .logo svg { width: 34px; height: 34px; }
 .gpol b { font: 800 30px var(--num); color: var(--rp-police); }
-.gpol span { font: 400 10px var(--pix); text-transform: uppercase; color: var(--rp-muted); }
+.gpol span { font: 400 11px var(--pix); text-transform: uppercase; color: var(--rp-muted); }
 .gpol.raid .logo { animation: raid .5s ease-in-out infinite alternate; box-shadow: 0 0 0 3px #d6232a, 0 0 0 6px #1f8fff; }
 .gpol.gone { opacity: .35; }
 @keyframes polin { from { transform: translateY(-30px) scale(.6); opacity: 0; } }
@@ -518,10 +518,10 @@ tr:nth-child(2n) .logo { animation-delay: -3s; }
 
 /* punteggio finale */
 .ftable { border-collapse: collapse; width: 100%; font-size: 13px; margin: 4px 0 10px; }
-.ftable th { font: 400 10px var(--pix); text-transform: uppercase; color: var(--rp-muted); padding: 4px 6px; text-align: right; white-space: nowrap; }
+.ftable th { font: 400 11px var(--pix); text-transform: uppercase; color: var(--rp-muted); padding: 4px 6px; text-align: right; white-space: nowrap; }
 .ftable th:first-child, .ftable td:first-child { text-align: left; white-space: nowrap; }
 .ftable td { padding: 6px; text-align: right; border-top: 1px solid var(--rp-line); font: 600 15px var(--num); }
-.ftable td small { font: 400 10px var(--font); color: var(--rp-muted); }
+.ftable td small { font: 400 11px var(--font); color: var(--rp-muted); }
 .ftable .cur { background: rgba(255, 212, 0, .12); color: #fff; }
 .ftable td.got { color: #ffd400; animation: newres 1.2s ease-out; }
 .ftable td.tot { font-size: 19px; color: #fff; }
