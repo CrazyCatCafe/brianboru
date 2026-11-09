@@ -29,6 +29,7 @@ let net = null, me = null, roomCode = null, room = null, unwatch = null;
 let human = 0, botTimer = null; // partita locale: ultimo posto umano, timer della mossa del bot
 const isBot = i => local && !!room?.players[i]?.bot;
 let state = null, seat = -1, local = false, ui = {}, city = null, lastTown = null;
+const FACTION_NAMES = ['Technoborghesi', 'Punk', 'Partite Iva', 'Startuppers', 'Le Sciure'];
 const gang = () => document.querySelector('[name=gang]:checked').value;
 
 // ---------- avvio ----------
@@ -71,7 +72,7 @@ let lobbyReady = false, friends = [];
 function enterLobby() {
   show('lobby');
   $('me').innerHTML = `<b>${esc(me.nick)}</b>`;
-  const saved = localStorage.getItem('bb-gang'); if (saved) document.querySelector(`[name=gang][value="${saved}"]`).checked = true;
+  const saved = localStorage.getItem('bb-gang'), sv = saved && document.querySelector(`[name=gang][value="${saved}"]`); if (sv) sv.checked = true;
   if (lobbyReady) return;
   lobbyReady = true;
   net.goOnline();
@@ -145,7 +146,7 @@ $('local').onclick = guard(() => {
   if (!humans.length) throw new Error('Scrivi almeno il tuo nome');
   if (names.length < 3 || names.length > 5) throw new Error(`Servono da 3 a 5 giocatori in tutto, bot compresi (ora ${names.length})`);
   local = true; roomCode = null; human = 0;
-  room = { players: names.map((nick, i) => ({ nick, gang: i % 2 ? 'Punk' : 'Technoborghesi', bot: i >= humans.length })) };
+  room = { players: names.map((nick, i) => ({ nick, gang: FACTION_NAMES[i % FACTION_NAMES.length], bot: i >= humans.length })) };
   seenN = null; enterGame(newGame(names));
 });
 $('to-lobby').onclick = () => {
@@ -308,20 +309,35 @@ function hypeTrack(pos, { mark = null, note = '' } = {}) { // pos[i] = casella d
     <span class="b">${b === 'CC' ? icon('C', 13) + icon('C', 13) : b ? icon(b, 14) : ''}</span>
     <span class="tok">${pos.map((p, i) => (p === c ? `<i style="--pc:${THEME.players[i]}" title="${esc(state.players[i].name)}"></i>` : '')).join('')}</span></div>`).join('')}</div>${note}`;
 }
+// track dell'hype in orizzontale con le pedine posizionate: si possono animare (zoom d'ingresso, pedina che torna indietro)
+function partyTrack(pos, { zoom = false, hi = null, from = {}, bonus = null } = {}) {
+  const cells = MARRIAGE_TRACK.map((b, c) => `<div class="pc${b ? ' bonus' : ''}${bonus !== null && pos[bonus] === c ? ' got' : ''}"><span class="n">${c + 1}</span><span class="b">${b === 'CC' ? icon('C', 12) + icon('C', 12) : b ? icon(b, 13) : ''}</span></div>`).join('');
+  const stack = {};
+  const toks = pos.map((p, i) => { const k = stack[p] = (stack[p] ?? -1) + 1; return `<i class="pt${i === hi ? ' hi' : ''}" style="--pc:${THEME.players[i]};--x:${p};--y:${k};${from[i] != null ? `--fx:${from[i]};` : ''}"${from[i] != null ? ' data-move' : ''} title="${esc(state.players[i].name)}"></i>`; }).join('');
+  return `<div class="ptrack${zoom ? ' zoom' : ''}"><div class="cells">${cells}</div>${toks}</div>`;
+}
 const BONUS = { C: '+1 credito', CC: '+2 crediti', R: '+1 street cred', T: 'prende un quartiere libero a scelta' };
 function steps(e) {
   const s = state, list = arr => arr.join('');
   switch (e.k) {
     case 'prep': return [{ t: `Round ${e.round}${e.final ? ' · ultimo' : ''}`, b: `<p>Arrivano <b>${e.police}</b> unità di polizia: in allerta ora ce ne sono ${e.area}.</p><p>Personaggio da ingaggiare: <b>${characterName(e.character)}</b>.</p>` }];
-    case 'party': { // una sola tabella: chi ingaggia il personaggio (con la carta) e i bonus degli altri; il vincitore riparte da 1
-      const after = e.track.map((p, i) => (i === e.winner ? 0 : p)), c = e.card;
-      if (e.winner === null) return [{ t: 'Underground Party', b: hypeTrack(e.track) + `<p>Nessuno ha hype: ${characterName(c)} se ne va.</p>` }];
+    case 'party': { // la track in orizzontale si avvicina; dal più avanti: usa la carta, torna all'inizio, gli altri prendono i bonus
+      const c = e.card, W = e.winner, after = e.track.map((p, i) => (i === W ? 0 : p));
+      if (W === null) return [{ t: 'Underground Party', b: partyTrack(e.track, { zoom: true }) + `<p>Nessuno ha hype: ${characterName(c)} se ne va.</p>` }];
       const eff = c.princess ? 'sceglie come usare la Regina Estrid' : `+${c.points} punti${c.renown ? ', +1 street cred' : ''}${c.region ? `, un quartiere in ${REGIONS[c.region].name}` : ''}`;
-      return [{ t: `${esc(s.players[e.winner].name)} ottiene più hype`, b: `<div class="partyres"><figure>${characterSVG(characterIndex(c))}</figure>
-        <table class="ptable"><tr class="win"><td>${who(s, e.winner)}</td><td>ingaggia <b>${characterName(c)}</b>: ${eff}. Riparte dalla casella 1.</td></tr>
-        ${e.bonuses.map(x => `<tr><td>${who(s, x.p)}</td><td>${BONUS[x.b]} · resta dov'è</td></tr>`).join('')}
-        ${s.players.map((p, i) => i).filter(i => i !== e.winner && !e.bonuses.some(x => x.p === i)).map(i => `<tr><td>${who(s, i)}</td><td>nessun bonus · resta dov'è</td></tr>`).join('')}</table></div>
-        ${hypeTrack(after)}` }];
+      const order = s.players.map((p, i) => i).filter(i => i !== W).sort((a, b) => e.track[b] - e.track[a]);
+      const bonusOf = i => e.bonuses.find(x => x.p === i)?.b;
+      const res = (upto, cardHi) => `<div class="partyres"><figure class="${cardHi ? 'hi' : ''}">${characterSVG(characterIndex(c))}</figure><table class="ptable">
+        <tr class="win${upto >= 0 ? ' on' : ''}"><td>${who(s, W)}</td><td>${upto >= 0 ? `ingaggia <b>${characterName(c)}</b>: ${eff}${upto >= 1 ? ' · torna alla casella 1' : ''}` : 'ottiene più hype'}</td></tr>
+        ${order.map((i, k) => `<tr class="${upto >= 2 + k ? 'on' : 'dim'}"><td>${who(s, i)}</td><td>${upto >= 2 + k ? (bonusOf(i) ? BONUS[bonusOf(i)] : 'nessun bonus') + ' · resta dov\'è' : ''}</td></tr>`).join('')}</table></div>`;
+      const out = [
+        { t: 'Underground Party', b: partyTrack(e.track, { zoom: true }) + `<p>Chi è più avanti nell'hype ingaggia ${characterName(c)}.</p>` },
+        { t: `${esc(s.players[W].name)} ottiene più hype`, b: partyTrack(e.track, { hi: W }) + res(0, true) },
+        { t: `${esc(s.players[W].name)} torna all'inizio`, b: partyTrack(after, { hi: W, from: { [W]: e.track[W] } }) + res(1) },
+      ];
+      order.forEach((i, k) => out.push({ t: bonusOf(i) ? `${esc(s.players[i].name)}: ${BONUS[bonusOf(i)]}` : `${esc(s.players[i].name)}: nessun bonus`,
+        b: partyTrack(after, { hi: i, bonus: i }) + res(2 + k) }));
+      return out;
     }
     case 'guerrilla': {
       const out = [{ t: 'Guerrilla', b: `<p>Polizia in allerta: <b>${e.area}</b>.</p><ul class="plain">${list(e.raiders.map((r, i) => `<li>${who(s, i)} ha neutralizzato ${r} unità</li>`))}</ul>` }];
@@ -520,15 +536,6 @@ function hypePreview(s, pl, syms, extra) { // dove arriva il disco sulla track, 
   return hypeTrack(s.players.map((o, i) => (o === pl ? pos : o.mar)), { mark: pos, note });
 }
 
-// elenco degli spot validi: la stessa scelta della mappa, fattibile anche da tastiera e lettore di schermo
-function spotPicker(ids, value) {
-  if (!ids.length) return '';
-  const byRegion = {};
-  ids.forEach(id => (byRegion[TOWNS[id].region] ??= []).push(id));
-  return `<label class="spotpick">Oppure dall'elenco <select id="spot"><option value="">Scegli…</option>${Object.entries(byRegion).map(([r, list]) =>
-    `<optgroup label="${REGIONS[r].name}">${list.map(id => `<option value="${id}" ${id === value ? 'selected' : ''}>${esc(TOWNS[id].name)} · ${SUIT_WORD[TOWNS[id].color]}</option>`).join('')}</optgroup>`).join('')}</select></label>`;
-}
-
 function endRecap(s) { // riepilogo di fine partita: come si è vinto
   const rank = s.players.map((p, i) => i).sort((a, b) => s.players[b].points - s.players[a].points);
   const towns = i => s.towns.filter(t => t.owner === i && !t.viking).length, projects = i => s.towns.filter(t => t.owner === i && t.monastery).length;
@@ -577,7 +584,7 @@ function renderStage(s = state, pd = current(state)) {
   }
   const picks = clickable(s, pd);
   const confirmTown = (title, text) => {
-    el.innerHTML = head(title, mine, `<p>${text}</p><p class="pickline">Scelta: ${ui.town != null ? townChip(ui.town) : '<em>clicca uno spot evidenziato</em>'}</p>${spotPicker(picks, ui.town)}
+    el.innerHTML = head(title, mine, `<p>${text}</p><p class="pickline">Scelta: ${ui.town != null ? townChip(ui.town) : '<em>clicca uno spot evidenziato</em>'}</p>
       <button id="ok" class="btn wide" ${ui.town != null ? '' : 'disabled'} aria-keyshortcuts="Enter">Conferma</button>`);
     $('ok').onclick = () => act({ town: ui.town });
   };
@@ -590,13 +597,13 @@ function renderStage(s = state, pd = current(state)) {
     case 'monastery': return confirmTown('Avvia un progetto urbano', 'Scegli un tuo quartiere: conterà doppio per il controllo della zona.');
     case 'activeTown':
       el.innerHTML = head('Scegli il quartiere attivo', mine, `<p>Clicca uno spot libero di un colore che hai in mano (qualsiasi, se hai una carta di Briano Borro), poi <b>gioca una carta</b> di quel colore o di Briano Borro per confermare.</p>
-        <p class="pickline">Scelta: ${ui.town != null ? `${townChip(ui.town)} · ${REGIONS[TOWNS[ui.town].region].name}` : '<em>nessuna</em>'}</p>${spotPicker(picks, ui.town)}
+        <p class="pickline">Scelta: ${ui.town != null ? `${townChip(ui.town)} · ${REGIONS[TOWNS[ui.town].region].name}` : '<em>nessuna</em>'}</p>
         ${ui.armed != null && ui.town != null ? `<button id="playarmed" class="btn wide">Gioca la carta ${ui.armed}</button>` : ''}`);
       bindArmed(true); return;
     case 'play': {
       const word = SUIT_WORD[TOWNS[town].color];
       el.innerHTML = trick + head('Gioca una carta', `${mine} · Quartiere attivo: ${townChip(town)}`,
-        `<p>Vince la carta di ${word} più alta, oppure una di Briano Borro.${seat === s.trick.leader ? ' Apri tu: gioca ' + word + ' o Briano Borro.' : ''}</p>
+        `${seat === s.trick.leader ? `<p>Apri tu: gioca ${word} o Briano Borro.</p>` : ''}
         ${ui.armed != null ? `<button id="playarmed" class="btn wide">Gioca la carta ${ui.armed}</button>` : ''}`);
       bindArmed(false); return;
     }
@@ -617,11 +624,11 @@ function renderStage(s = state, pd = current(state)) {
   const buy = syms.find(x => 'MAX'.includes(x)), maxExtra = Math.floor(pl.coins / 2);
   ui.extra = Math.min(ui.extra || 0, maxExtra);
   const count = k => syms.filter(x => x === k).length;
-  const after = pl.coins + count('C') - count('P') - (buy ? ui.extra * 2 : 0) - (ui.expand != null ? 5 : 0);
+  const after = Math.max(0, pl.coins + count('C') - count('P')) - (buy ? ui.extra * 2 : 0) - (ui.expand != null ? 5 : 0); // il "paga" senza crediti costa punti, non blocca
   const title = pd.won ? `Presa vinta con ${pd.card}` : `Mossa di riserva con ${pd.card}`;
   if (mapPicking) { // scelta sulla mappa in corso: pannello ridotto a una striscia
     el.innerHTML = head(ui.pick === 'expand' ? 'Dove ti espandi?' : 'Quale presidio rimuovi?', `${title} · gli spot validi sono evidenziati`,
-      `${spotPicker(picks, ui[ui.pick])}<div class="row end"><button class="btn ghost small" id="nopick">Annulla</button></div>`);
+      `<div class="row end"><button class="btn ghost small" id="nopick">Annulla</button></div>`);
     $('nopick').onclick = () => { ui.pick = null; render(); };
     return;
   }

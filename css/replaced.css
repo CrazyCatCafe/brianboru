@@ -412,3 +412,30 @@ body.has-hype #game .rp-stage { left: calc(var(--board-w) + var(--hype-w) + 3 * 
 @keyframes blink { 50% { opacity: .25; } }
 .rp .warn { color: #ffd400; font-weight: 700; }
 @media (prefers-reduced-motion: reduce) { .blink, .rp .trickrow figure.now { animation: none; } }
+
+/* fase in corso: freccia un po' più grande e testo in grassetto */
+.rp-phases .chev.on { font-weight: 700; font-size: 13px; padding-top: 10px; padding-bottom: 10px; margin-top: -2px; margin-bottom: -2px; z-index: 1; }
+.rp-phases { align-items: center; }
+/* chi vince la presa non si ingrandisce: c'è già la scritta */
+.rp .trickrow figure.win { transform: none; }
+
+/* party: track orizzontale animata */
+.ptrack { position: relative; margin: 6px 0 10px; padding-bottom: 4px; }
+.ptrack.zoom { animation: ptzoom .9s cubic-bezier(.2, .7, .2, 1) both; transform-origin: 0 50%; }
+@keyframes ptzoom { from { transform: translateX(-30%) scale(.55); opacity: 0; } }
+.ptrack .cells { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; }
+.ptrack .pc { height: 56px; border: 1px solid var(--rp-line); background: rgba(255, 255, 255, .04); display: flex; flex-direction: column; align-items: center; padding-top: 3px; gap: 2px; }
+.ptrack .pc.bonus { background: rgba(255, 255, 255, .1); }
+.ptrack .pc.got { outline: 2px solid #ffd400; background: rgba(255, 212, 0, .2); }
+.ptrack .pc .n { font: 600 10px var(--num); color: var(--rp-muted); }
+.ptrack .pc .b { display: flex; color: var(--rp-ink); --hole: #0d1114; }
+.ptrack .pt { position: absolute; width: 12px; height: 12px; background: var(--pc); border: 1px solid #000;
+  left: calc((var(--x) + .5) * 10% - 6px); bottom: calc(10px + var(--y) * 14px); transition: left .6s; }
+.ptrack .pt.hi { outline: 2px solid #fff; outline-offset: 1px; z-index: 1; }
+.ptrack .pt[data-move] { animation: ptback 1.2s .3s ease-in-out both; }
+@keyframes ptback { from { left: calc((var(--fx) + .5) * 10% - 6px); } }
+.partyres figure.hi { outline: 3px solid #ffd400; outline-offset: 2px; }
+.ptable tr.dim td { opacity: .45; }
+.ptable tr.on td { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .ptrack.zoom, .ptrack .pt[data-move] { animation: none; } }
+.ptable td:first-child { white-space: nowrap; }

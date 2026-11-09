@@ -320,17 +320,20 @@ export async function createCity(container, overlay, view = {}) {
   // segnalino del quartiere attivo (anello pulsante)
   const halo = disc(0.15, 0.18, T.accent, OV, 7);
   scene.add(halo);
-  // sopra il quartiere in palio: un sound system che gira, con i coni che pulsano
-  const sound = new THREE.Group(), speakerMat = new THREE.MeshLambertMaterial({ color: '#1b1f24' }), coneMat = new THREE.MeshBasicMaterial({ color: T.accent });
-  const box = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.16, 0.08), speakerMat); sound.add(box);
-  const cones = [];
-  for (const side of [1, -1]) for (const [y, r] of [[0.035, 0.032], [-0.04, 0.02]]) {
-    const c = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.01, 16), coneMat); c.rotation.x = Math.PI / 2; c.position.set(0, y, side * 0.041); sound.add(c); cones.push(c);
-  }
-  const soundGlow = new THREE.Mesh(new THREE.CircleGeometry(0.1, 24), new THREE.MeshBasicMaterial({ color: T.accent, transparent: true, opacity: 0.25, depthWrite: false }));
-  soundGlow.rotation.x = -Math.PI / 2;
-  sound.traverse(o => { o.castShadow = true; });
-  scene.add(sound, soundGlow);
+  // sul quartiere in palio: fari da prima cinematografica che si muovono e sparano un raggio di luce nel cielo
+  const beams = new THREE.Group(), beamGeo = new THREE.CylinderGeometry(0.035, 0.004, 1.6, 16, 1, true).translate(0, 0.8, 0);
+  const beamMat = new THREE.MeshBasicMaterial({ color: '#fff6d8', transparent: true, opacity: 0.32, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+  const lampMat = new THREE.MeshLambertMaterial({ color: '#1b1f24' }), lensMat = new THREE.MeshBasicMaterial({ color: '#fffbe8' });
+  const lights = [0, 1, 2].map(k => {
+    const base = new THREE.Group(), a = k / 3 * Math.PI * 2 + 0.4;
+    base.position.set(Math.cos(a) * 0.075, 0, Math.sin(a) * 0.075);
+    const head = new THREE.Group(); head.position.y = 0.025; base.add(head);
+    head.add(new THREE.Mesh(new THREE.CylinderGeometry(0.016, 0.02, 0.03, 10), lampMat));
+    const lens = new THREE.Mesh(new THREE.CircleGeometry(0.014, 10), lensMat); lens.rotation.x = -Math.PI / 2; lens.position.y = 0.016; head.add(lens);
+    head.add(new THREE.Mesh(beamGeo, beamMat));
+    beams.add(base); return { head, a, k };
+  });
+  scene.add(beams);
 
   // --- pedine ---
   const mats = {};
@@ -530,13 +533,15 @@ export async function createCity(container, overlay, view = {}) {
       sp.option.visible = clickable.has(i) && !on;
       if (sp.option.visible) sp.option.material.opacity = 0.55 + (still ? 0.3 : Math.sin(t * 5) * 0.35);
     });
-    halo.visible = sound.visible = soundGlow.visible = active !== null;
+    halo.visible = beams.visible = active !== null;
     if (active !== null) {
       const sp = spots[active];
       halo.position.set(sp.g.position.x, OV + regions[sp.region].g.position.y, sp.g.position.z);
-      sound.position.set(sp.g.position.x, regions[sp.region].g.position.y + 0.2 + (still ? 0 : Math.sin(t * 2) * 0.02), sp.g.position.z);
-      soundGlow.position.set(sp.g.position.x, regions[sp.region].g.position.y + OV + 0.002, sp.g.position.z);
-      if (!still) { sound.rotation.y = t * 1.2; const beat = Math.max(0, Math.sin(t * Math.PI * 4)) ** 4; cones.forEach(c => c.scale.set(1 + beat * 0.35, 1, 1 + beat * 0.35)); }
+      beams.position.set(sp.g.position.x, regions[sp.region].g.position.y + OV, sp.g.position.z);
+      lights.forEach(({ head, a, k }) => { // ognuno oscilla per conto suo, inclinato verso l'esterno
+        const w = still ? 0 : t * (0.7 + k * 0.17) + k * 2.1;
+        head.rotation.set(0.35 + Math.sin(w) * 0.25, 0, 0); head.parent.rotation.y = -a + Math.PI / 2 + (still ? 0 : Math.sin(w * 0.8) * 0.6);
+      });
       halo.scale.setScalar((active === selected ? 1.7 : 1) * (1 + (still ? 0 : Math.sin(t * 4) * 0.08)));
     }
     if (!still) { spinners.forEach(s => (s.rotation.y = t * 1.6)); glows.forEach(g => g.scale.setScalar(1 + Math.sin(t * 2.5) * 0.12)); }
