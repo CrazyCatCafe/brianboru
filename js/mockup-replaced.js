@@ -62,7 +62,7 @@ function render() {
   // uprising: zone sbloccate e chi le tiene
   $('b-uprising').className = `box${phase === 'uprising' ? ' on' : ''}`;
   $('b-uprising').innerHTML = `<h3>${logo('uprising')}Uprising <em>zone in palio</em></h3>
-    <ul>${Object.entries(zones).map(([r, o]) => `<li><i class="rz" style="--rc:${THEME.region[r]}"></i><b>${city.regions[r].name}</b><span class="own">${o === null ? 'contesa' : nameOf(o)}</span></li>`).join('')}</ul>`;
+    <ul>${Object.entries(zones).map(([r, o]) => `<li><i class="rz" style="--rc:${o === null ? THEME.region[r] : THEME.players[o]}"></i><b>${city.regions[r].name}</b><span class="own">${o === null ? 'contesa' : nameOf(o)}</span></li>`).join('')}</ul>`;
 
   renderColumns(); // plancia come nel gioco: griglia verticale
 

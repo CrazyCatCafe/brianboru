@@ -319,6 +319,17 @@ export async function createCity(container, overlay, view = {}) {
   // segnalino del quartiere attivo (anello pulsante)
   const halo = disc(0.15, 0.18, T.accent, OV, 7);
   scene.add(halo);
+  // sopra il quartiere in palio: un sound system che gira, con i coni che pulsano
+  const sound = new THREE.Group(), speakerMat = new THREE.MeshLambertMaterial({ color: '#1b1f24' }), coneMat = new THREE.MeshBasicMaterial({ color: T.accent });
+  const box = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.16, 0.08), speakerMat); sound.add(box);
+  const cones = [];
+  for (const side of [1, -1]) for (const [y, r] of [[0.035, 0.032], [-0.04, 0.02]]) {
+    const c = new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.01, 16), coneMat); c.rotation.x = Math.PI / 2; c.position.set(0, y, side * 0.041); sound.add(c); cones.push(c);
+  }
+  const soundGlow = new THREE.Mesh(new THREE.CircleGeometry(0.1, 24), new THREE.MeshBasicMaterial({ color: T.accent, transparent: true, opacity: 0.25, depthWrite: false }));
+  soundGlow.rotation.x = -Math.PI / 2;
+  sound.traverse(o => { o.castShadow = true; });
+  scene.add(sound, soundGlow);
 
   // --- pedine ---
   const mats = {};
@@ -370,6 +381,7 @@ export async function createCity(container, overlay, view = {}) {
       const o = s.claims?.[k]?.owner ?? null;
       r.owner = o === null ? null : new THREE.Color(T.players[o]);
       r.edgeMat.color.copy(r.owner || r.color); r.tint.material.color.copy(r.owner || r.color);
+      r.glow.forEach(g => g.material.color.copy(r.owner || r.color));
       // cartello: zona controllata → quadratino e nome della banda al posto di triangolino e nome della zona
       const b = r.title?.querySelector('b'), who = o === null ? null : (s.names?.[o] || `Banda ${o + 1}`);
       if (b && b.dataset.who !== String(who)) {
@@ -388,7 +400,7 @@ export async function createCity(container, overlay, view = {}) {
   };
   for (const [k, r] of Object.entries(map.regions)) {
     const [lx, ly] = r.label.tx ? [r.label.tx, r.label.ty] : [r.label.x, r.label.y];
-    regions[k].title = addLabel(`<b style="--rc:${T.region[k]}" title="${r.name}">${r.name}</b><span>${r.municipio}</span><i title="Quartieri per far scattare l'Uprising">${r.threshold}${logo('uprising', 13)}</i><i title="Punti per chi controlla la zona">${r.points}${logo('punti', 13)}</i>`, 'rlabel', lx, ly, 0.02, k);
+    regions[k].title = addLabel(`<b style="--rc:${T.region[k]}" title="${r.name}">${r.name}</b><i title="Quartieri per far scattare l'Uprising">${r.threshold}${logo('uprising', 13)}</i><i title="Punti per chi controlla la zona">${r.points}${logo('punti', 13)}</i>`, 'rlabel', lx, ly, 0.02, k);
   }
   const firstTown = labels.length;
   towns.forEach(t => addLabel(t.name, 'tlabel', t.x, t.y, OV + 0.16, t.region));
@@ -503,13 +515,13 @@ export async function createCity(container, overlay, view = {}) {
     controls.update();
     if (view.compass) view.compass.style.setProperty('--az', `${controls.getAzimuthalAngle()}rad`);
     // municipio del quartiere selezionato: si alza e si colora
-    const selRegion = selected !== null ? spots[selected].region : null;
+    const selRegion = selected !== null ? spots[selected].region : null, actRegion = active !== null ? spots[active].region : null; // anche la zona del quartiere in palio, per tutti
     for (const [k, r] of Object.entries(regions)) {
-      r.lift += ((k === selRegion ? 1 : 0) - r.lift) * Math.min(1, dt * 6);
+      r.lift += ((k === selRegion || k === actRegion ? 1 : 0) - r.lift) * Math.min(1, dt * 6);
       r.g.position.y = r.lift * LIFT;
-      r.tint.material.opacity = (r.owner ? 0.35 : 0) + r.lift * 0.3;
+      r.tint.material.opacity = (r.owner ? 0.4 : 0) + r.lift * 0.2;
       r.glow.forEach(g => (g.material.opacity = r.lift * (0.45 + (still ? 0 : Math.sin(t * 3) * 0.15))));
-      if (r.bld) r.bld.material.color.copy(white).lerp(r.owner || r.color, (r.owner ? 0.3 : 0) + r.lift * 0.4); // controllato: anche i palazzi prendono il colore della banda
+      if (r.bld) r.bld.material.color.copy(white).lerp(r.owner || r.color, (r.owner ? 0.4 : 0) + r.lift * 0.3); // controllato: anche i palazzi prendono il colore della banda
     }
     spots.forEach((sp, i) => {
       const on = i === selected;
@@ -518,10 +530,13 @@ export async function createCity(container, overlay, view = {}) {
       sp.option.visible = clickable.has(i) && !on;
       if (sp.option.visible) sp.option.material.opacity = 0.55 + (still ? 0.3 : Math.sin(t * 5) * 0.35);
     });
-    halo.visible = active !== null;
+    halo.visible = sound.visible = soundGlow.visible = active !== null;
     if (active !== null) {
       const sp = spots[active];
       halo.position.set(sp.g.position.x, OV + regions[sp.region].g.position.y, sp.g.position.z);
+      sound.position.set(sp.g.position.x, regions[sp.region].g.position.y + 0.2 + (still ? 0 : Math.sin(t * 2) * 0.02), sp.g.position.z);
+      soundGlow.position.set(sp.g.position.x, regions[sp.region].g.position.y + OV + 0.002, sp.g.position.z);
+      if (!still) { sound.rotation.y = t * 1.2; const beat = Math.max(0, Math.sin(t * Math.PI * 4)) ** 4; cones.forEach(c => c.scale.set(1 + beat * 0.35, 1, 1 + beat * 0.35)); }
       halo.scale.setScalar((active === selected ? 1.7 : 1) * (1 + (still ? 0 : Math.sin(t * 4) * 0.08)));
     }
     if (!still) { spinners.forEach(s => (s.rotation.y = t * 1.6)); glows.forEach(g => g.scale.setScalar(1 + Math.sin(t * 2.5) * 0.12)); }

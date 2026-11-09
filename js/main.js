@@ -404,7 +404,7 @@ function renderBoard(s, pd) {
   on('b-uprising', 'uprising');
   const up = Object.entries(s.claims).filter(([, c]) => c.up);
   $('b-uprising').innerHTML = `<h3>${logo('uprising')}Uprising <em>zone in palio</em></h3>${up.length ? `<ul>${up.map(([r, c]) =>
-    `<li><i class="rz" style="--rc:${THEME.region[r]}"></i><b>${REGIONS[r].name}</b><span class="own">${c.owner === null ? 'contesa' : pname(s, c.owner)}</span></li>`).join('')}</ul>` : '<p class="sub">Nessuna zona ancora in palio.</p>'}`;
+    `<li><i class="rz" style="--rc:${c.owner === null ? THEME.region[r] : THEME.players[c.owner]}"></i><b>${REGIONS[r].name}</b><span class="own">${c.owner === null ? 'contesa' : pname(s, c.owner)}</span></li>`).join('')}</ul>` : '<p class="sub">Nessuna zona ancora in palio.</p>'}`;
 }
 
 function renderTurn(s, pd, wk) {
