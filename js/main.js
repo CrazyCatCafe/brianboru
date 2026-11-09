@@ -210,7 +210,9 @@ function renderRef() {
   const chip = v => { const c = CARDS[v].color; return `<span class="rc ${c}${mine.has(v) ? ' mine' : ''}${played.has(v) ? ' gone' : ''}" title="${v} · ${cardLabel(v)}">${v}</span>`; };
   $('ref-grid').innerHTML = REF_ORDER.map(row => `<div class="rrow${row.length === 1 ? ' wide' : ''}">${row.map(chip).join('')}</div>`).join('');
 }
-$('ref').onclick = () => { renderRef(); $('refcard').showModal(); requestAnimationFrame(() => fitZoom($('refcard'))); }; // tutto in vista, senza scorrere
+// strumenti (grafica, pixel) riducibili a icona; si ricorda la scelta
+try { $('tools').open = localStorage.getItem('bb-tools') === 'open'; } catch {}
+$('tools').ontoggle = () => { try { localStorage.setItem('bb-tools', $('tools').open ? 'open' : 'closed'); } catch {} fitZoom($('board')); };
 $('help').onclick = () => {
   $('glossary-list').innerHTML = Object.entries(SYMBOLS).map(([k, t]) => `<li>${icon(k, 22, 'currentColor', HOLE)}<span>${t}</span></li>`).join('');
   $('glossary').showModal();
@@ -450,7 +452,7 @@ function steps(e) {
 
 // ---------- niente scroll: i pannelli rimpiccioliscono il contenuto finché ci sta, le carte in mano si sovrappongono ----------
 function fitZoom(el) {
-  if (!el || el.hidden || !el.offsetParent) return;
+  if (!el || el.hidden || !el.getClientRects().length) return; // (offsetParent è null per gli elementi fissi)
   el.style.setProperty('--fit', 1);
   for (let k = 0, z = 1; k < 4 && el.scrollHeight > el.clientHeight + 1; k++) {
     z = Math.max(0.45, z * (el.clientHeight / el.scrollHeight) * 0.98); el.style.setProperty('--fit', z);
@@ -579,7 +581,7 @@ function renderBoard(s, pd) {
       `<span class="vc${b ? ' bonus' : ''}${c === 9 ? ' top' : ''}" title="Hype ${c + 1}: ${b ? BONUS_TIP[b] : 'nessun bonus'}">${c === 9 ? logo('hype', 12) : ''}<span class="g">${b ? icon(b === 'CC' ? 'C' : b, 10, 'currentColor', HOLE) + (b === 'CC' ? '<sup>2</sup>' : '') : ''}</span>${s.players.map((p, i) => (p.mar === c ? pdot(i) : '')).join('')}</span>`).join('')}</div></div>
     ${s.marriage ? `<p class="sub hypeline narrow-only">Hype: <b>${esc(characterName(s.marriage))}</b><button class="peek" type="button" aria-label="Vedi il personaggio: ${esc(characterName(s.marriage))}">${characterSVG(characterIndex(s.marriage))}</button></p>` : ''}`;
   $('b-players').querySelector('.zoom').onclick = () => { bigBoard = !bigBoard; try { localStorage.setItem('bb-board', bigBoard ? 'big' : 'small'); } catch {} render(); };
-  bindPeek(s); renderHypeCard(s);
+  bindPeek(s); renderHypeCard(s); renderRef();
   // uprising: zone sbloccate e chi le tiene
   on('b-uprising', 'uprising');
   const up = Object.entries(s.claims).filter(([, c]) => c.up);

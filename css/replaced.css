@@ -568,21 +568,24 @@ tr:nth-child(2n) .logo { animation-delay: -3s; }
   .dash-nav a[aria-current="true"] { background: var(--rp-red); color: #fff; border-color: var(--rp-red); }
 }
 
-/* carta riassuntiva: numeri da 1 a 25 col loro colore */
-.rp-ref { bottom: calc(var(--card-w) * 1.45 + 122px); font: 700 12px var(--num); }
-@media (max-width: 899px) { .rp-ref { top: calc(var(--gap) + 142px); bottom: auto; } }
-.rp-dialog.refdlg { width: min(300px, calc(100vw - 24px)); max-height: calc(100vh - 24px); overflow: hidden; padding: 14px 16px; }
-.refdlg > * { zoom: var(--fit, 1); }
-.refdlg h2 { margin: 0 0 10px; text-align: center; }
-.refgrid { display: grid; gap: 5px; padding: 10px; background: #f4f1ea; border: 2px solid #111; }
-.rrow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+/* carta riassuntiva nella plancia, sopra gli strumenti */
+#b-ref { padding: 6px; }
+.refgrid { display: grid; gap: 3px; padding: 5px; background: #f4f1ea; border: 2px solid #111; }
+.rrow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
 .rrow.wide { grid-template-columns: 1fr; }
-.rc { display: grid; place-items: center; height: 34px; font: 800 18px var(--num); border: 2px solid #111; }
+.rc { display: grid; place-items: center; height: 17px; font: 800 12px var(--num); border: 1.5px solid #111; }
 .rc.yellow { background: #ffc20e; color: #111; }
 .rc.red { background: #e62e2d; color: #fff; }
 .rc.blue { background: #1f8fff; color: #fff; }
 .rc.white { background: #111; color: #fff; letter-spacing: .1em; }
+/* strumenti riducibili a icona */
+#tools > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 8px; font: 700 16px var(--font); color: var(--rp-ink); }
+#tools > summary::-webkit-details-marker { display: none; }
+#tools > summary span { font: 400 11px var(--pix); text-transform: uppercase; color: var(--rp-muted); }
+#tools:not([open]) { width: max-content !important; min-width: 0 !important; padding: 6px 10px; }
+#tools[open] > summary { margin-bottom: 6px; }
 .rc { position: relative; }
-.rc.mine { box-shadow: 0 0 0 3px #f4f1ea, 0 0 0 6px #111; z-index: 1; } /* in mano: doppio bordo e stellina */
-.rc.mine::after { content: '★'; position: absolute; top: -9px; right: -7px; font: 700 13px var(--font); color: #111; background: #ffd400; border: 2px solid #111; width: 18px; height: 18px; display: grid; place-items: center; line-height: 1; }
-.rc.gone { opacity: .3; }
+.rc.mine { box-shadow: 0 0 0 2px #f4f1ea, 0 0 0 4px #111; z-index: 1; } /* in mano: doppio bordo e stellina */
+.rc.mine::after { content: '★'; position: absolute; top: -6px; right: -5px; font: 700 9px var(--font); color: #111; background: #ffd400; border: 1.5px solid #111; width: 12px; height: 12px; display: grid; place-items: center; line-height: 1; }
+.rc.gone { background: none !important; border: 2px dashed #b9b2a3; color: transparent; } /* già giocata in questo round: tolta, resta solo il posto */
+.rc.gone::after { content: none; }

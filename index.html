@@ -145,11 +145,13 @@
     <aside id="board" class="rp-left" aria-label="Plancia">
       <section class="box" id="b-players"></section>
       <section class="box" id="b-uprising"></section>
-      <section class="box tools">
+      <section class="box" id="b-ref" aria-label="Carta riassuntiva: i 25 numeri e i loro colori"><div id="ref-grid" class="refgrid"></div></section>
+      <details class="box tools" id="tools">
+        <summary title="Grafica e partita" aria-label="Grafica e partita">⚙<span>Grafica</span></summary>
         <span id="code"></span>
         <div class="sets"><span>Grafica</span><b id="quality" role="group" aria-label="Qualità grafica"></b></div>
         <div class="sets"><span>Pixel</span><b id="pixel" role="group" aria-label="Mappa in pixel art"><button data-px="1">Sì</button><button data-px="0">No</button></b></div>
-      </section>
+      </details>
       <button id="to-lobby" class="btn ghost small exit">Esci</button>
     </aside>
     <button id="hypecard" class="hypecard" type="button" hidden></button>
@@ -160,13 +162,6 @@
       <div id="turn"></div>
       <details class="log"><summary>Cronaca</summary><ol id="log"></ol></details>
     </aside>
-    <button id="ref" class="rp-help rp-ref" aria-haspopup="dialog" aria-label="Carta riassuntiva: i 25 numeri e i loro colori" title="Carta riassuntiva">25</button>
-    <dialog id="refcard" class="rp-dialog refdlg" aria-labelledby="ref-title">
-      <h2 id="ref-title">Le 25 carte</h2>
-      <div id="ref-grid" class="refgrid"></div>
-      <p class="note">In evidenza le carte che hai in mano, sbiadite quelle già giocate in questo round.</p>
-      <form method="dialog"><button class="btn">Chiudi</button></form>
-    </dialog>
     <button id="help" class="rp-help" aria-haspopup="dialog" aria-label="Simboli e regole" title="Simboli e regole">?</button>
     <dialog id="glossary" class="rp-dialog" aria-labelledby="glossary-title">
       <h2 id="glossary-title">Simboli delle carte</h2>
