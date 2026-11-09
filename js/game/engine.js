@@ -190,7 +190,13 @@ const STAGES = {
       const max = Math.max(...Object.values(counts)), top = Object.keys(counts).filter(k => counts[k] === max);
       if (top.length !== 1) continue;
       const owner = top[0] === 'V' ? null : Number(top[0]);
-      if (owner !== cl.owner) { cl.owner = owner; ev.changes.push({ r, owner }); log(s, `${c.name}: ${owner === null ? 'nessuno la controlla' : 'la controlla ' + name(s, owner)}.`); }
+      if (owner !== cl.owner) {
+        // regola della casa: i punti della zona si prendono subito e passano a chi la conquista dopo
+        if (cl.owner !== null) s.players[cl.owner].points = Math.max(0, s.players[cl.owner].points - c.points);
+        if (owner !== null) s.players[owner].points += c.points;
+        ev.changes.push({ r, owner, from: cl.owner, pts: c.points }); cl.owner = owner;
+        log(s, `${c.name}: ${owner === null ? 'nessuno la controlla' : 'la controlla ' + name(s, owner) + ` (+${c.points} punti)`}.`);
+      }
     }
     s.players.forEach((pl, i) => (pl.claims = Object.keys(REGIONS).filter(r => s.claims[r].owner === i)));
     event(s, ev);
@@ -233,7 +239,7 @@ function score(s) {
   for (const [r, c] of Object.entries(REGIONS)) {
     const cl = s.claims[r];
     if (!cl.up) continue;
-    if (cl.owner !== null) { ev.zonePts[cl.owner] += c.points; ev.zones.push({ r, owner: cl.owner, pts: c.points, half: [] }); continue; }
+    if (cl.owner !== null) { ev.zones.push({ r, owner: cl.owner, pts: c.points, half: [], counted: true }); continue; } // già nei punti in partita
     const counts = regionCounts(s, r, 'military'), max = Math.max(0, ...Object.values(counts)), half = [];
     if (max > 0) pls.forEach((pl, i) => { if (counts[i] === max) { ev.zonePts[i] += Math.floor(c.points / 2); half.push(i); } });
     ev.zones.push({ r, owner: null, pts: c.points, half });

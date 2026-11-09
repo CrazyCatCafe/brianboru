@@ -128,4 +128,22 @@ for (let g = 0; g < 40; g++) {
   assert.ok(f, 'manca il racconto del punteggio finale');
   b.players.forEach((p, i) => assert.equal(f.start[i] + f.coins[i] + f.active[i] + f.renown[i] + f.zonePts[i] + f.presence[i], p.points));
 }
+// uprising: chi prende il controllo di una zona ne prende subito i punti
+{
+  let seen = 0;
+  for (let g = 0; g < 60 && seen < 20; g++) {
+    let b = newGame(['A', 'B', 'C'], 1300 + g);
+    while (b.stage !== 'end') {
+      const before = b.players.map(p => p.points), n0 = b.eventN || 0, [q, m] = botMove(b); b = move(b, q, m);
+      const up = b.events.find(e => e.n > n0 && e.k === 'uprising' && e.changes.some(c => c.owner !== null));
+      if (up && b.stage !== 'end') {
+        const gain = b.players.map(() => 0);
+        up.changes.forEach(c => { if (c.owner !== null) gain[c.owner] += c.pts; if (c.from != null) gain[c.from] -= c.pts; });
+        b.players.forEach((p, i) => assert.ok(p.points >= before[i] + gain[i] - 0, 'punti della zona non sommati subito'));
+        seen++;
+      }
+    }
+  }
+  assert.ok(seen > 0, 'nessuna zona conquistata nelle prove');
+}
 console.log('ok: 600 partite simulate, 60 partite tra bot');
