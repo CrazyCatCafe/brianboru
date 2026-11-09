@@ -295,7 +295,7 @@ function renderPhases(s, pd) {
 let seenN = null, queue = [], showing = null, step = 0, timer = null;
 function ingestEvents(s) {
   const n = s.eventN || 0;
-  if (seenN === null) { seenN = n; return; } // entrando a partita in corso non si rivede il passato
+  if (seenN === null) { seenN = s.round <= 1 && !s.trick && !s.players.some(p => p.hand.length) ? 0 : n; if (seenN === n) return; } // a inizio partita si vede tutto; entrando a partita in corso non si rivede il passato
   queue.push(...(s.events || []).filter(e => e.n > seenN)); seenN = n;
   if (!showing) nextEvent();
 }
@@ -550,7 +550,7 @@ function renderBoard(s, pd) {
 function renderTurn(s, pd, wk) {
   const total = s.players.length === 3 ? 3 : 4;
   const turn = !pd ? 'Partita finita' : pd.type === 'draft' ? `<span>Draft</span> ${s.draft.picks.flatMap((x, i) => (x ? [] : [pdot(i)])).join('')}` : `<span>Turno di</span> ${pname(s, pd.p)}${pd.p === seat && !local ? ' <small>tu</small>' : ''}`;
-  $('turn').innerHTML = `<p class="big">${turn}</p><p class="sub">Round ${s.round} di ${total} · ${WEATHER_TYPES[wk]}</p>`;
+  $('turn').innerHTML = `<p class="big">${turn}</p><p class="sub">${s.round ? `Round ${s.round} di ${total}` : 'Preparazione della partita'} · ${WEATHER_TYPES[wk]}</p>`;
 }
 
 const SUIT_WORD = { red: 'Guerrilla', blue: 'Community Projects', yellow: 'Underground Party' };
