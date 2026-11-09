@@ -325,6 +325,7 @@ function advance() {
   if (!showing) return;
   if (step + 1 >= steps(showing).length && ACK_ALL.has(showing.k)) { // preparazione e party: tutti devono cliccare Avanti
     acked = showing.n; if (!local && room) net.ack(roomCode, showing.n);
+    if (!showing) return; // l'ultimo Avanti può aver già chiuso il racconto (aggiornamento immediato dal database)
     if (waitingAcks().length) { render(); return; }
   }
   if (++step >= steps(showing).length) nextEvent(); else { tick(); render(); }

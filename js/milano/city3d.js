@@ -500,6 +500,7 @@ export async function createCity(container, overlay, view = {}) {
   let last = 0;
   let lastFrame = 0;
   renderer.setAnimationLoop(time => {
+    if (!container.clientWidth || !container.clientHeight) return; // mappa nascosta (menu): niente disegno
     if (q.fps && time - lastFrame < 1000 / q.fps - 2) return; // qualità bassa: al massimo 30 fotogrammi al secondo
     lastFrame = time;
     const t = time / 1000, real = t - last, dt = Math.min(0.05, real || 0); last = t;

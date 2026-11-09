@@ -89,6 +89,7 @@ export async function connect(config) {
       const code = Array.from({ length: 5 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random() * 24)]).join('');
       const players = [{ uid: uid(), nick, gang }, ...Array.from({ length: Math.min(bots, MAX - 1) }, (_, i) => ({ uid: `bot-${i + 1}`, nick: `Bot ${i + 1}`, gang: botGangs[i] || '', bot: true }))];
       await D.set(ref('games/' + code), { host: uid(), status: 'lobby', created: D.serverTimestamp(), uids: { [uid()]: true }, players });
+      await D.set(ref(`users/${uid()}/games/${code}`), true); // elenco delle mie partite, senza interrogare tutte le partite
       return code;
     },
     // bot nella sala d'attesa: li aggiunge e toglie solo chi ha creato la partita
@@ -105,11 +106,13 @@ export async function connect(config) {
     }),
     // le mie partite: quelle in cui ci sono, tranne quelle che ho tolto dall'elenco
     watchMyGames(cb) {
-      let games = [], hidden = {};
-      const emit = () => cb(games.filter(g => !hidden[g.code] && g.status !== 'chiusa'));
+      const games = {}, subs = {};
+      let hidden = {};
+      const emit = () => cb(Object.values(games).filter(g => g && !hidden[g.code] && g.status !== 'chiusa' && g.uids?.[uid()]).sort((a, b) => (b.created || 0) - (a.created || 0)));
       D.onValue(ref(`users/${uid()}/hidden`), s => { hidden = s.val() || {}; emit(); });
-      return D.onValue(D.query(ref('games'), D.orderByChild(`uids/${uid()}`), D.equalTo(true)), s => {
-        games = Object.entries(s.val() || {}).map(([code, g]) => ({ code, ...g, players: Object.values(g.players || {}) })).sort((a, b) => (b.created || 0) - (a.created || 0));
+      return D.onValue(ref(`users/${uid()}/games`), s => { // segue una per una le partite del mio elenco
+        const codes = Object.keys(s.val() || {});
+        for (const code of codes) if (!subs[code]) subs[code] = D.onValue(ref('games/' + code), g => { games[code] = g.exists() ? { code, ...g.val(), players: Object.values(g.val().players || {}) } : null; emit(); });
         emit();
       });
     },
@@ -124,6 +127,7 @@ export async function connect(config) {
         if (players.length >= MAX) throw new Error('Partita piena');
         return { ...g, uids: { ...g.uids, [uid()]: true }, players: [...players, { uid: uid(), nick, gang }] };
       });
+      await D.set(ref(`users/${uid()}/games/${code}`), true);
     },
     leaveGame: code => gameTx(code, g => {
       if (g.status !== 'lobby') return null;
