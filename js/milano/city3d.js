@@ -330,12 +330,15 @@ export async function createCity(container, overlay, view = {}) {
   }
   const led = new THREE.Mesh(new THREE.SphereGeometry(0.006, 8, 6), new THREE.MeshBasicMaterial({ color: T.accent }));
   led.position.y = -0.008; droneProto.add(led);
-  const spinners = [], glows = [];
+  const spinners = [], glows = [], dancers = [], cones = [];
+  const raveGeo = { box: new THREE.BoxGeometry(0.05, 0.04, 0.04), cone: new THREE.CircleGeometry(0.013, 10), body: new THREE.BoxGeometry(0.016, 0.03, 0.012), head: new THREE.BoxGeometry(0.013, 0.013, 0.013) };
+  const raveMat = { cone: new THREE.MeshBasicMaterial({ color: '#ff2d87' }) };
+  const RAVE_COLORS = ['#ff2d87', '#00e5ff', '#ffd400', '#7cff4f', '#a34dff'];
   let selected = null, active = null, lit = null; // lit: zona illuminata a richiesta (carta Hype)
 
   function update(s) {
     for (const r of Object.values(regions)) r.pieces.clear();
-    spinners.length = glows.length = 0;
+    spinners.length = glows.length = dancers.length = cones.length = 0;
     s.towns.forEach((st, i) => {
       const sp = spots[i], c = st.owner === null ? null : T.players[st.owner]; // libero: palazzi normali; preso: colore della banda
       if (sp.color !== c) { sp.color = c; paint(i, c); if (c) { sp.fill.material.color.set(c); sp.thick.material.color.set(c); } } // ridipinge solo se cambia
@@ -343,10 +346,23 @@ export async function createCity(container, overlay, view = {}) {
       if (st.owner === null) return;
       const p = spots[i].g.position, parent = regions[spots[i].region].pieces;
       const put = (m, y = OV, order = 5) => { over(m, order); m.position.x += p.x; m.position.y += y; m.position.z += p.z; parent.add(m); return m; };
-      if (st.monastery) { // progetto urbano: anello fluorescente
-        put(new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.016, 10, 64), new THREE.MeshBasicMaterial({ color: T.project })), OV + 0.02, 4).rotation.x = Math.PI / 2;
-        const g = put(new THREE.Mesh(new THREE.TorusGeometry(0.15, 0.05, 10, 64), new THREE.MeshBasicMaterial({ color: T.project, opacity: 0.35, blending: THREE.AdditiveBlending })), OV + 0.02, 3);
-        g.rotation.x = Math.PI / 2; glows.push(g);
+      if (st.monastery) { // community project: rave in strada, due muri di casse e gente che balla
+        const rave = new THREE.Group();
+        for (const side of [-1, 1]) { // casse: tre cubi impilati con il cono acceso
+          for (let k = 0; k < 2; k++) {
+            const box = new THREE.Mesh(raveGeo.box, mat('#16191d')); box.position.set(side * 0.14, 0.02 + k * 0.04, -0.06); rave.add(box);
+            const cone = new THREE.Mesh(raveGeo.cone, raveMat.cone); cone.rotation.x = Math.PI / 2; cone.position.set(side * 0.14, 0.02 + k * 0.04, -0.039); rave.add(cone);
+            cones.push(cone);
+          }
+        }
+        for (let k = 0; k < 6; k++) { // ballerini: corpo e testa, ognuno con il suo tempo
+          const d = new THREE.Group(), a = k / 6 * Math.PI * 2;
+          const body = new THREE.Mesh(raveGeo.body, mat(RAVE_COLORS[k % RAVE_COLORS.length])); body.position.y = 0.022;
+          const head = new THREE.Mesh(raveGeo.head, mat('#e8d6c4')); head.position.y = 0.05;
+          d.add(body, head); d.position.set(Math.cos(a) * 0.075, 0, 0.03 + Math.sin(a) * 0.05); d.userData.ph = k * 1.3;
+          rave.add(d); dancers.push(d);
+        }
+        put(rave, OV, 6);
       }
       if (st.viking) { // presidio di polizia: barricata, droni che girano, stemma
         for (let k = 0; k < 6; k++) {
@@ -529,7 +545,12 @@ export async function createCity(container, overlay, view = {}) {
       });
       halo.scale.setScalar((active === selected ? 1.7 : 1) * (1 + (still ? 0 : Math.sin(t * 4) * 0.08)));
     }
-    if (!still) { spinners.forEach(s => (s.rotation.y = t * 1.6)); glows.forEach(g => g.scale.setScalar(1 + Math.sin(t * 2.5) * 0.12)); }
+    if (!still) {
+      spinners.forEach(s => (s.rotation.y = t * 1.6)); glows.forEach(g => g.scale.setScalar(1 + Math.sin(t * 2.5) * 0.12));
+      const beat = Math.max(0, Math.sin(t * Math.PI * 4)) ** 3; // cassa dritta a 120 bpm
+      cones.forEach(c => c.scale.setScalar(1 + beat * 0.4));
+      dancers.forEach(d => { const ph = d.userData.ph; d.position.y = Math.abs(Math.sin(t * Math.PI * 2 + ph)) * 0.012; d.rotation.y = Math.sin(t * 1.7 + ph) * 0.8; });
+    }
     // meteo
     clouds.children.forEach(c => {
       c.position.addScaledVector(wind, dt);
