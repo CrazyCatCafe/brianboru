@@ -354,7 +354,7 @@ body:not(.board-big) #b-uprising h3 em { display: none; }
    Zona conquistata: cubetto del colore della banda. */
 .rp .rlabel b::before { content: none; }
 .rp .rlabel b { display: flex; align-items: center; gap: 8px; }
-.rp .tri { position: relative; display: inline-block; width: 13px; height: 12px; flex: none; transform-style: preserve-3d; animation: spin3d 3.2s linear infinite; }
+.rp .tri { position: relative; display: inline-block; width: 13px; height: 12px; flex: none; transform-style: preserve-3d; transform: perspective(80px) rotateY(-25deg); }
 .rp .tri i { position: absolute; inset: 0; background: var(--rc); clip-path: polygon(0 0, 100% 0, 50% 100%); }
 .rp .tri i:nth-child(1) { transform: translateZ(3px); }
 .rp .tri i:nth-child(2) { transform: translateZ(1px); filter: brightness(.55); }
@@ -442,8 +442,36 @@ body.has-hype #game .rp-stage { left: calc(var(--board-w) + var(--hype-w) + 3 * 
 
 .rp .meta .goto { margin-left: 8px; padding: 3px 8px; font-size: 10.5px; vertical-align: 1px; }
 /* tutti i loghi: tasselli 3D che ruotano lentamente (fermi con "riduci movimento") */
-.logo { transform-style: preserve-3d; animation: spinlogo 6s linear infinite; box-shadow: 2px 0 0 rgba(0, 0, 0, .35); }
+.logo { transform-style: preserve-3d; transform: perspective(70px) rotateY(-20deg); box-shadow: 2px 0 0 rgba(0, 0, 0, .35); }
 .logo:nth-of-type(2n) { animation-delay: -1.5s; }
 tr:nth-child(2n) .logo { animation-delay: -3s; }
 @keyframes spinlogo { from { transform: perspective(70px) rotateY(0); } to { transform: perspective(70px) rotateY(360deg); } }
 @media (prefers-reduced-motion: reduce) { .logo { animation: none; transform: perspective(70px) rotateY(-20deg); } }
+
+/* preparazione: polizia in arrivo e carta Hype */
+.prep { display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.prep .pol { display: grid; grid-template-columns: auto auto; align-items: center; gap: 2px 10px; }
+.prep .pol .logo { width: 44px; height: 44px; background: #eef1f3; display: grid; place-items: center; }
+.prep .pol .logo svg { width: 34px; height: 34px; }
+.prep .pol b { font: 800 34px var(--num); color: var(--rp-police); }
+.prep .pol .cap { grid-column: 1 / -1; font-size: 12px; color: var(--rp-muted); }
+.prep .hy { display: grid; gap: 4px; width: 132px; }
+.prep .hy .cap { font: 400 10.5px var(--pix); text-transform: uppercase; color: #111; }
+.prep .hy { --hc: 1; }
+.prep .hy .lab { display: none; }
+.prep .hy { background: #f4f1ea; color: #111; border: 2px solid #111; padding: 6px 7px 8px; }
+.prep .hy svg { width: 100%; height: auto; display: block; border: 1px solid #111; }
+.prep .hy .rw { display: flex; gap: 6px; font: 700 14px var(--font); align-items: center; }
+.prep .hy .rw span { display: inline-flex; align-items: center; gap: 4px; }
+.prep .hy .rw .logo { width: 17px; height: 17px; background: #111; display: inline-grid; place-items: center; }
+.prep .hy .rw .logo svg { width: 13px; border: 0; filter: invert(1); }
+.prep .hy .zone { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font: 700 12px var(--font); text-transform: uppercase; }
+
+/* i simboli ruotano solo quando sono chiamati in causa: riga della fase o dell'azione scelta, zona selezionata, opzione scelta */
+.vgrid tr.on .logo, .vgrid tr.flash .logo, .box.on h3 .logo, .logo.spin, .rp .opt[aria-checked="true"] svg, .hypecard[aria-pressed="true"] .tri { animation: spinlogo 2.4s linear infinite; }
+.rp .rlabel.focus .tri { animation: spin3d 2s linear infinite; }
+.rp .opt svg { transform-style: preserve-3d; }
+/* cartello del municipio in gioco: più grande (sale un po', così non copre i quartieri) */
+.rp .rlabel { transition: scale .25s, translate .25s; }
+.rp .rlabel.focus { scale: 1.3; translate: -50% -85%; z-index: 3; }
+@media (prefers-reduced-motion: reduce) { .vgrid tr.on .logo, .vgrid tr.flash .logo, .box.on h3 .logo, .logo.spin, .rp .opt[aria-checked="true"] svg, .hypecard[aria-pressed="true"] .tri, .rp .rlabel.focus .tri { animation: none; } }

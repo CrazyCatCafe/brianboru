@@ -58,7 +58,6 @@ export function characterSVG(i) {
   const choices = isE ? Object.values(ESTRID.options).map((o, k) => tag(22, 238 + k * 14, `${k + 1} · ${o.toUpperCase()}`, THEME.ink)).join('') : '';
   return frame(`${band(THEME.ink, '#fff', isE ? 'IA' : '★', isE ? 'IA LIBERA' : '')}
     ${art(isE ? ESTRID_ART(THEME.suit.yellow.fill) : CHARACTER_ART[i](THEME.suit.yellow.fill))}
-    ${title(ch.name)}
     <path d="M14 214H186" stroke="#d5d9dc" stroke-width="1.5"/>${reward}${choices}`, `Personaggio: ${ch.name}`);
 }
 

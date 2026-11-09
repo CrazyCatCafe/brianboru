@@ -286,6 +286,7 @@ const MOVES = {
     s.towns[town].owner = p;
     s.setupDone++;
     log(s, `${name(s, p)} parte da ${TOWNS[town].name} (${REGIONS[TOWNS[town].region].name}).`);
+    event(s, { k: 'setup', p, town });
   },
   activeTown(s, p, { town }) {
     if (!leadTowns(s, p).includes(town)) fail('Scegli un quartiere libero di un colore che hai in mano (o qualsiasi, con una carta Briano Borro)');

@@ -557,6 +557,7 @@ export async function createCity(container, overlay, view = {}) {
       const ti = i - firstTown, isTown = ti >= 0;
       const show = v.z < 1 && (!isTown || dist < 7 || ti === hover || ti === active || ti === selected);
       el.style.display = show ? '' : 'none';
+      if (!isTown && regions[region]) el.classList.toggle('focus', regions[region].lift > 0.5); // zona in gioco: cartello più grande, triangolo che ruota
       if (show) el.style.transform = `translate(${(v.x + 1) / 2 * w}px, ${(1 - v.y) / 2 * h}px)`;
     });
     // render: scena -> maschera del Comune -> sfocatura -> composizione a schermo

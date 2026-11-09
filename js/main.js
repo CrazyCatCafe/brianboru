@@ -261,7 +261,7 @@ function onTown(town) {
 const WKEYS = Object.keys(WEATHER_TYPES);
 const who = (s, p) => `<b class="who" style="--pc:${THEME.players[p]}">${esc(s.players[p].name)}</b>`;
 const characterIndex = c => (c?.princess ? 'estrid' : MARRIAGES.findIndex(m => JSON.stringify(m) === JSON.stringify(c)));
-const characterName = c => (c?.princess ? ESTRID.name : CHARACTERS[characterIndex(c)]?.name || 'un personaggio');
+const characterName = c => (!c ? 'il personaggio' : c.princess ? 'IA libera' : `+${c.points} punti${c.renown ? ' +1 street cred' : ''}${c.region ? ' · ' + REGIONS[c.region].name : ''}`); // le carte Hype non hanno nome: si descrivono con l'effetto
 const townChip = id => { const t = TOWNS[id], su = THEME.suit[t.color]; return `<b class="chip" style="--sc:${su.fill};--si:${su.ink}">${esc(t.name)}</b>`; };
 
 // ---------- fasi del round ----------
@@ -269,7 +269,7 @@ const PHASES = [['prep', 'Preparazione'], ['draft', 'Draft'], ['trick', 'Azioni'
 let phaseNow = null;
 const PEND_PHASE = { setupTown: 'prep', draft: 'draft', activeTown: 'trick', play: 'trick', action: 'trick', princess: 'party', placeTown: 'party', loseTown: 'guerrilla', monastery: 'community' };
 function renderPhases(s, pd) {
-  const cur = showing ? showing.k : pd ? PEND_PHASE[pd.type] : 'uprising';
+  const cur = showing ? SHOW_PHASE[showing.k] || showing.k : pd ? PEND_PHASE[pd.type] : 'uprising';
   phaseNow = cur;
   const SHORT = { party: 'Party', guerrilla: 'Guerrilla', community: 'Community', uprising: 'Uprising' }; // nomi brevi quando lo schermo è stretto
   $('phases').innerHTML = PHASES.map(([k, l], i) => `<span class="chev${k === cur ? ' on' : ''}${i >= 3 ? ' up' : ''}" data-short="${SHORT[k] || l}"${k === cur ? ' aria-current="step"' : ''}>${l}<span class="pos"> · ${i + 1} di ${PHASES.length}</span></span>`).join('');
@@ -284,13 +284,11 @@ function ingestEvents(s) {
   queue.push(...(s.events || []).filter(e => e.n > seenN)); seenN = n;
   if (!showing) nextEvent();
 }
-const STEP_MS = 4500;
-const held = () => $('stage').matches(':hover, :focus-within'); // chi sta leggendo ferma il racconto
-function tick() { clearTimeout(timer); if (showing?.k === 'party') return; timer = setTimeout(() => (held() ? tick() : advance()), STEP_MS); } // il party non avanza da solo
+function tick() { clearTimeout(timer); } // niente avanza da solo: serve sempre Avanti
 function nextEvent() { showing = queue.shift() || null; step = 0; clearTimeout(timer); if (showing) tick(); if (state) render(); }
 function advance() {
   if (!showing) return;
-  if (step + 1 >= steps(showing).length && showing.k === 'party') { // party: tutti devono cliccare Avanti
+  if (step + 1 >= steps(showing).length && ACK_ALL.has(showing.k)) { // preparazione e party: tutti devono cliccare Avanti
     acked = showing.n; if (!local && room) net.ack(roomCode, showing.n);
     if (waitingAcks().length) { render(); return; }
   }
@@ -299,10 +297,12 @@ function advance() {
 // chi deve ancora cliccare Avanti alla fine del party (in locale lo schermo è uno solo: basta un clic)
 let acked = null;
 function waitingAcks() {
-  if (!showing || showing.k !== 'party' || local || !room) return [];
+  if (!showing || !ACK_ALL.has(showing.k) || local || !room) return [];
   return room.players.map((p, i) => [p, i]).filter(([p]) => (room.acks?.[p.uid] ?? -1) < showing.n).map(([, i]) => i);
 }
-function checkAcks() { if (showing?.k === 'party' && acked === showing.n && !waitingAcks().length) { acked = null; nextEvent(); } }
+const ACK_ALL = new Set(['prep', 'party']);
+const SHOW_PHASE = { setup: 'prep' };
+function checkAcks() { if (ACK_ALL.has(showing?.k) && acked === showing.n && !waitingAcks().length) { acked = null; nextEvent(); } }
 
 function hypeTrack(pos, { mark = null, note = '' } = {}) { // pos[i] = casella del giocatore i (0..9)
   return `<div class="track">${MARRIAGE_TRACK.map((b, c) => `<div class="cell${c === mark ? ' mark' : ''}" title="Casella ${c + 1}">
@@ -320,18 +320,20 @@ const BONUS = { C: '+1 credito', CC: '+2 crediti', R: '+1 street cred', T: 'pren
 function steps(e) {
   const s = state, list = arr => arr.join('');
   switch (e.k) {
-    case 'prep': return [{ t: `Round ${e.round}${e.final ? ' · ultimo' : ''}`, b: `<p>Arrivano <b>${e.police}</b> unità di polizia: in allerta ora ce ne sono ${e.area}.</p><p>Personaggio da ingaggiare: <b>${characterName(e.character)}</b>.</p>` }];
+    case 'setup': return [{ t: `${esc(s.players[e.p].name)} parte da ${esc(TOWNS[e.town].name)}`, b: `<p>${who(s, e.p)} sceglie ${townChip(e.town)} in <b>${REGIONS[TOWNS[e.town].region].name}</b>. <button class="btn ghost small goto" data-goto="${e.town}">Portami lì</button></p>` }];
+    case 'prep': return [{ t: `Round ${e.round}${e.final ? ' · ultimo' : ''}`, b: `<div class="prep"><div class="pol">${logo('polizia', 34)}<b>+${e.police}</b><span class="cap">polizia in arrivo · in allerta ${e.area}</span></div>
+      <div class="hy"><span class="cap">In Hype</span>${hypeCardHTML(e.character, s)}</div></div>` }];
     case 'party': { // la track in orizzontale si avvicina; dal più avanti: usa la carta, torna all'inizio, gli altri prendono i bonus
       const c = e.card, W = e.winner, after = e.track.map((p, i) => (i === W ? 0 : p));
-      if (W === null) return [{ t: 'Underground Party', b: partyTrack(e.track, { zoom: true }) + `<p>Nessuno ha hype: ${characterName(c)} se ne va.</p>` }];
+      if (W === null) return [{ t: 'Underground Party', b: partyTrack(e.track, { zoom: true }) + '<p>Nessuno ha hype: il personaggio se ne va.</p>' }];
       const eff = c.princess ? 'sceglie come usare la Regina Estrid' : `+${c.points} punti${c.renown ? ', +1 street cred' : ''}${c.region ? `, un quartiere in ${REGIONS[c.region].name}` : ''}`;
       const order = s.players.map((p, i) => i).filter(i => i !== W).sort((a, b) => e.track[b] - e.track[a]);
       const bonusOf = i => e.bonuses.find(x => x.p === i)?.b;
       const res = (upto, cardHi) => `<div class="partyres"><figure class="${cardHi ? 'hi' : ''}">${characterSVG(characterIndex(c))}</figure><table class="ptable">
-        <tr class="win${upto >= 0 ? ' on' : ''}"><td>${who(s, W)}</td><td>${upto >= 0 ? `ingaggia <b>${characterName(c)}</b>: ${eff}${upto >= 1 ? ' · torna alla casella 1' : ''}` : 'ottiene più hype'}</td></tr>
+        <tr class="win${upto >= 0 ? ' on' : ''}"><td>${who(s, W)}</td><td>${upto >= 0 ? `ingaggia il personaggio: ${eff}${upto >= 1 ? ' · torna alla casella 1' : ''}` : 'ottiene più hype'}</td></tr>
         ${order.map((i, k) => `<tr class="${upto >= 2 + k ? 'on' : 'dim'}"><td>${who(s, i)}</td><td>${upto >= 2 + k ? (bonusOf(i) ? BONUS[bonusOf(i)] : 'nessun bonus') + ' · resta dov\'è' : ''}</td></tr>`).join('')}</table></div>`;
       const out = [
-        { t: 'Underground Party', b: partyTrack(e.track, { zoom: true }) + `<p>Chi è più avanti nell'hype ingaggia ${characterName(c)}.</p>` },
+        { t: 'Underground Party', b: partyTrack(e.track, { zoom: true }) + '<p>Chi è più avanti nell\'hype ingaggia il personaggio.</p>' },
         { t: `${esc(s.players[W].name)} ottiene più hype`, b: partyTrack(e.track, { hi: W }) + res(0, true) },
         { t: `${esc(s.players[W].name)} torna all'inizio`, b: partyTrack(after, { hi: W, from: { [W]: e.track[W] } }) + res(1) },
       ];
@@ -380,7 +382,7 @@ function render() {
   $('code').textContent = local ? 'partita locale' : `partita ${roomCode}`;
   city.update({ towns: s.towns, activeTown: s.trick?.town ?? null, claims: s.claims, names: s.players.map(p => p.name) });
   // si illumina solo la scelta provvisoria di chi sta giocando: finito il suo turno, si spegne
-  city.select(pd && pd.p === seat && !showing ? (ui.town ?? ui.expand ?? ui.viking ?? null) : null);
+  city.select(showing?.k === 'setup' ? showing.town : pd && pd.p === seat && !showing ? (ui.town ?? ui.expand ?? ui.viking ?? null) : null); // si vede il quartiere di partenza appena scelto
   const wk = WKEYS[(s.round * 5 + s.start * 3) % WKEYS.length]; // meteo diverso a ogni round, uguale per tutti
   if (city.weather() !== wk) city.setWeather(wk);
   const picks = clickable(s, pd);
@@ -406,14 +408,18 @@ const pname = (s, i) => `${pdot(i)}<b>${esc(s.players[i].name)}</b>`;
 // carta del personaggio in Hype: sempre visibile accanto alla plancia, sotto la barra delle fasi.
 // Niente descrizione: nome, punti con la coppa, zona con il triangolo che ruota (e chi la controlla). Cliccandola si illumina la zona.
 let hypeLit = false;
+function hypeCardHTML(c, s) { // carta Hype senza nome: illustrazione, punti con la coppa, zona col triangolo 3D (e chi la controlla)
+  const i = characterIndex(c), m = c.princess ? null : c, k = m?.region, own = k ? s.claims[k]?.owner ?? null : null;
+  return `<span class="lab">Hype</span>${characterArt(i)}
+    ${m ? `<span class="rw"><span>+${m.points}${logo('punti', 13)}</span>${m.renown ? `<span>+1 street cred</span>` : ''}</span>` : '<span class="rw">IA libera: tre scelte</span>'}
+    ${k ? `<span class="zone"><i class="tri" style="--rc:${THEME.region[k]}" aria-hidden="true"><i></i><i></i><i></i><i></i></i>${REGIONS[k].name}${own !== null ? ` <em>(${esc(s.players[own].name)})</em>` : ''}</span>` : ''}`;
+}
 function renderHypeCard(s) {
   const el = $('hypecard'), c = s.marriage;
   el.hidden = !c; document.body.classList.toggle('has-hype', !!c);
   if (!c) { city?.highlight(null); return; }
-  const i = characterIndex(c), m = c.princess ? null : c, k = m?.region, own = k ? s.claims[k]?.owner ?? null : null;
-  el.innerHTML = `<span class="lab">Hype</span>${characterArt(i)}<b class="nm">${esc(characterName(c))}</b>
-    ${m ? `<span class="rw"><span>+${m.points}${logo('punti', 13)}</span>${m.renown ? `<span>+1 street cred</span>` : ''}</span>` : '<span class="rw">IA libera: tre scelte</span>'}
-    ${k ? `<span class="zone"><i class="tri" style="--rc:${THEME.region[k]}" aria-hidden="true"><i></i><i></i><i></i><i></i></i>${REGIONS[k].name}${own !== null ? ` <em>(${esc(s.players[own].name)})</em>` : ''}</span>` : ''}`;
+  const k = c.princess ? null : c.region;
+  el.innerHTML = hypeCardHTML(c, s);
   el.setAttribute('aria-pressed', String(hypeLit && !!k));
   el.title = k ? `Clic: illumina ${REGIONS[k].name} sulla mappa` : '';
   el.onclick = () => { if (!k) return; hypeLit = !hypeLit; city.highlight(hypeLit ? k : null); renderHypeCard(state); };
@@ -554,7 +560,7 @@ function renderStage(s = state, pd = current(state)) {
   el.classList.toggle('compact', !!mapPicking);
   if (showing) {
     const st = steps(showing), cur = st[Math.min(step, st.length - 1)];
-    el.innerHTML = head(cur.t, `${PHASES.find(p => p[0] === showing.k)?.[1] || ''} · passo ${step + 1} di ${st.length}`, cur.b) +
+    el.innerHTML = head(cur.t, `${PHASES.find(p => p[0] === (SHOW_PHASE[showing.k] || showing.k))?.[1] || ''} · passo ${step + 1} di ${st.length}`, cur.b) +
       (waitingAcks().length && acked === showing.n ? `<p class="waitack">In attesa che clicchino Avanti: ${waitingAcks().map(i => `<span class="blink">${who(s, i)}</span>`).join(' ')}</p>`
         : `<div class="row end"><button class="btn small" id="next" aria-keyshortcuts="Space">Avanti</button></div>`);
     $('next') && ($('next').onclick = advance);
