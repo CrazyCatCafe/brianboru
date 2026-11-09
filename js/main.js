@@ -330,7 +330,7 @@ function steps(e) {
       const order = s.players.map((p, i) => i).filter(i => i !== W).sort((a, b) => e.track[b] - e.track[a]);
       const bonusOf = i => e.bonuses.find(x => x.p === i)?.b;
       const res = (upto, cardHi) => `<div class="partyres"><figure class="${cardHi ? 'hi' : ''}">${characterSVG(characterIndex(c))}</figure><table class="ptable">
-        <tr class="win${upto >= 0 ? ' on' : ''}"><td>${who(s, W)}</td><td>${upto >= 0 ? `ingaggia il personaggio: ${eff}${upto >= 1 ? ' · torna alla casella 1' : ''}` : 'ottiene più hype'}</td></tr>
+        <tr class="win${upto >= 0 ? ' on' : ''}"><td>${who(s, W)}</td><td>${upto >= 0 ? `ingaggia il personaggio: ${eff}${e.before && !c.princess ? ` · <b class="ptsup">punti ${e.before[W]} → ${e.before[W] + c.points}</b>` : ''}${upto >= 1 ? ' · torna alla casella 1' : ''}` : 'ottiene più hype'}</td></tr>
         ${order.map((i, k) => `<tr class="${upto >= 2 + k ? 'on' : 'dim'}"><td>${who(s, i)}</td><td>${upto >= 2 + k ? (bonusOf(i) ? BONUS[bonusOf(i)] : 'nessun bonus') + ' · resta dov\'è' : ''}</td></tr>`).join('')}</table></div>`;
       const out = [
         { t: 'Underground Party', b: partyTrack(e.track, { zoom: true }) + '<p>Chi è più avanti nell\'hype ingaggia il personaggio.</p>' },
@@ -458,7 +458,8 @@ function renderBoard(s, pd) {
   $('b-players').classList.toggle('big', bigBoard); document.body.classList.toggle('board-big', bigBoard);
   const lab = kind => `${logo(kind, 16)}${bigBoard ? `<span class="lname">${LOGO_NAMES[kind]}</span>` : ''}`;
   const fl = new Set(actionSyms(s, pd).map(x => FLASH_ROW[x]));
-  const row = (kind, key, k) => `<tr class="${phaseNow === k ? 'on' : ''}${fl.has(kind) ? ' flash' : ''}"><th scope="row">${lab(kind)}</th>${s.players.map(p => `<td${key === 'points' ? ' class="pts"' : ''}>${p[key]}</td>`).join('')}</tr>`;
+  const gotPts = showing?.k === 'party' && showing.winner !== null && step >= 1 ? showing.winner : -1; // party: i punti del personaggio lampeggiano sulla plancia
+  const row = (kind, key, k) => `<tr class="${phaseNow === k ? 'on' : ''}${fl.has(kind) ? ' flash' : ''}"><th scope="row">${lab(kind)}</th>${s.players.map((p, i) => `<td class="${key === 'points' ? 'pts' : ''}${key === 'points' && i === gotPts ? ' got' : ''}">${p[key]}</td>`).join('')}</tr>`;
   const tip = (p, i) => [p.name, isBot(i) ? 'bot' : i === seat && !local ? 'tu' : '', room.players[i]?.gang, `street cred ${p.renown}`, `${p.hand.length} carte in mano`,
     p.claims.length ? 'zone: ' + p.claims.map(r => REGIONS[r].name).join(', ') : '', p.marriages.length ? 'personaggi: ' + p.marriages.map(characterName).join(', ') : '',
     p.princess ? 'Estrid alleata' : '', i === s.active ? 'ha il segnalino del quartiere attivo' : ''].filter(Boolean).join(' · ');

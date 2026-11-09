@@ -116,7 +116,7 @@ const STAGES = {
   },
   marriage(s) {
     const pls = s.players, top = Math.max(...pls.map(pl => pl.mar));
-    const card = s.marriage, track = pls.map(pl => pl.mar), ev = { k: 'party', track, card, winner: null, bonuses: [] };
+    const card = s.marriage, track = pls.map(pl => pl.mar), ev = { k: 'party', track, card, winner: null, bonuses: [], before: pls.map(pl => pl.points) };
     s.marriage = null;
     if (top === 0) log(s, 'Nessuno ha abbastanza hype: il personaggio se ne va.');
     else {

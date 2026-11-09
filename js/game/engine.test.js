@@ -101,4 +101,13 @@ for (let g = 0; g < 60; g++) {
     const [q, m] = botMove(g); g = move(g, q, m);
   }
 }
+// le carte Hype danno subito i loro punti a chi le ingaggia
+for (let g = 0; g < 60; g++) {
+  let b = newGame(['A', 'B', 'C', 'D'].slice(0, 3 + g % 2), 500 + g);
+  while (b.stage !== 'end') {
+    const n0 = b.eventN || 0, [q, m] = botMove(b); b = move(b, q, m);
+    for (const e of b.events.filter(e => e.n > n0 && e.k === 'party' && e.winner !== null && !e.card.princess))
+      assert.ok(b.players[e.winner].points >= e.before[e.winner] + e.card.points, 'punti della carta Hype non assegnati');
+  }
+}
 console.log('ok: 600 partite simulate, 60 partite tra bot');
