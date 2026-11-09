@@ -3,17 +3,17 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Brian Boru · Milano 2077</title>
+  <title>Briano Borromeo 2077</title>
   <link rel="stylesheet" href="css/milano.css">
   <link rel="stylesheet" href="css/replaced.css">
   <script type="importmap">{ "imports": { "three": "./vendor/three/three.module.min.js" } }</script>
 </head>
 <body class="app rp">
-  <!-- accesso -->
+  <!-- P1: titolo, copertina, accesso -->
   <main id="auth" class="screen center" hidden>
-    <section class="panel narrow">
-      <h1 class="title">Brian Boru <span>Milano 2077</span></h1>
-      <p class="lead">Bande di technoborghesi e punk si contendono i quartieri tra retate, progetti di comunità e rave clandestini.</p>
+    <section class="panel narrow cover-page">
+      <h1 class="title">Briano Borromeo <span>2077</span></h1>
+      <figure class="cover"><img src="assets/milano/art/24.webp" alt="Milano 2077: una camionetta della polizia rovesciata in una strada piena di fumo" width="640" height="360"></figure>
       <div id="auth-online">
         <button id="google" class="btn wide">Entra con Google</button>
         <p class="or">oppure con email</p>
@@ -44,33 +44,53 @@
     </form>
   </main>
 
-  <!-- lobby -->
+  <!-- P2: menu principale -->
   <main id="lobby" class="screen" hidden>
     <header class="topbar">
-      <span class="brand">Brian Boru <em>Milano 2077</em></span>
+      <span class="brand">Briano Borromeo <em>2077</em></span>
       <span id="me" class="me"></span>
-      <button id="logout" class="btn ghost small online-only">Esci</button>
-      <p class="note offline-only">Server online non raggiungibile: puoi giocare in locale.</p>
+      <p class="note offline-only">Server online non raggiungibile: puoi giocare in solitario.</p>
     </header>
+    <nav class="dash-nav online-only" aria-label="Menu principale">
+      <a href="#p-create">Crea partita online</a><a href="#p-mine">Le mie partite</a><a href="#p-solo">Gioca in solitario</a><a href="#p-profile">Profilo</a><a href="#p-friends">Amici</a>
+    </nav>
     <div class="lobby-grid">
-      <section class="panel online-only">
-        <h2>Gioca</h2>
+      <section class="panel online-only" id="p-create">
+        <h2>Crea partita online</h2>
         <fieldset class="gang">
           <legend>La tua banda</legend>
-          <label><input type="radio" name="gang" value="Technoborghesi" checked> Technoborghesi</label>
-          <label><input type="radio" name="gang" value="Punk"> Punk</label>
-          <label><input type="radio" name="gang" value="Partite Iva"> Partite Iva</label>
-          <label><input type="radio" name="gang" value="Startuppers"> Startuppers</label>
-          <label><input type="radio" name="gang" value="Le Sciure"> Le Sciure</label>
+            <label><input type="radio" name="gang" value="Technoborghesi" checked> Technoborghesi</label>
+            <label><input type="radio" name="gang" value="Punk"> Punk</label>
+            <label><input type="radio" name="gang" value="Partite Iva"> Partite Iva</label>
+            <label><input type="radio" name="gang" value="Startuppers"> Startuppers</label>
+            <label><input type="radio" name="gang" value="Le Sciure"> Le Sciure</label>
         </fieldset>
+        <label class="field">Bot nella partita <select id="create-bots"><option selected>0</option><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
+        <p class="note">I bot li muove il computer di chi crea la partita. Puoi aggiungerne o toglierne anche nella sala d'attesa.</p>
         <button id="create" class="btn wide">Crea partita</button>
         <div id="room" class="room" hidden></div>
+      </section>
+      <section class="panel online-only" id="p-mine">
+        <h2>Le mie partite</h2>
         <h3>Inviti</h3>
         <ul id="invites" class="list"><li class="empty">Nessun invito.</li></ul>
-        <h3>Partite aperte</h3>
-        <ul id="games" class="list"><li class="empty">Nessuna partita aperta.</li></ul>
+        <h3>Partite</h3>
+        <ul id="mygames" class="list"><li class="empty">Nessuna partita.</li></ul>
       </section>
-      <section class="panel online-only">
+      <section class="panel" id="p-solo">
+        <h2>Gioca in solitario</h2>
+        <p class="note">Tu contro i bot, su questo dispositivo.</p>
+        <label class="field">Il tuo nome <input id="solo-name" maxlength="16" value="Tu"></label>
+        <label class="field">Bot <select id="local-bots"><option>2</option><option>3</option><option>4</option></select></label>
+        <button id="local" class="btn wide">Gioca</button>
+      </section>
+      <section class="panel online-only" id="p-profile">
+        <h2>Profilo</h2>
+        <dl class="profile"><dt>Nickname</dt><dd id="pf-nick"></dd><dt>Account</dt><dd id="pf-mail"></dd></dl>
+        <p class="note">La banda scelta in "Crea partita online" resta salvata su questo dispositivo.</p>
+        <button id="logout" class="btn ghost wide">Esci dall'account</button>
+      </section>
+      <section class="panel online-only" id="p-friends">
         <h2>Amici</h2>
         <form id="friend-form" class="row">
           <input id="friend-nick" placeholder="Nickname" aria-label="Nickname dell'amico" maxlength="16">
@@ -78,13 +98,6 @@
         </form>
         <p id="friend-msg" class="msg" role="alert"></p>
         <ul id="friends" class="list"><li class="empty">Ancora nessun amico.</li></ul>
-      </section>
-      <section class="panel">
-        <h2>Partita locale</h2>
-        <p class="note">Tu contro i bot, oppure più persone sullo stesso schermo a turno. In tutto da 3 a 5 giocatori.</p>
-        <label class="field">Persone (una per riga) <textarea id="local-names" rows="2">Luigi</textarea></label>
-        <label class="field">Bot <select id="local-bots"><option>0</option><option>1</option><option selected>2</option><option>3</option><option>4</option></select></label>
-        <button id="local" class="btn ghost wide">Inizia in locale</button>
       </section>
     </div>
   </main>

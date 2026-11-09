@@ -29,7 +29,7 @@ export async function connect(config) {
     signUpEmail: (e, p) => A.createUserWithEmailAndPassword(auth, e, p),
     resetPassword: e => A.sendPasswordResetEmail(auth, e),
     signOut: () => A.signOut(auth),
-    uid,
+    uid, email: () => auth.currentUser?.email || '',
 
     async profile() { return (await D.get(ref('users/' + uid()))).val(); },
     async claimNick(nick) {
@@ -84,12 +84,37 @@ export async function connect(config) {
     // partite
     watchOpenGames: cb => D.onValue(D.query(ref('games'), D.orderByChild('status'), D.equalTo('lobby')),
       s => cb(Object.entries(s.val() || {}).map(([code, g]) => ({ code, ...g, players: Object.values(g.players || {}) })))),
-    async createGame(gang) {
+    async createGame(gang, bots = 0, botGangs = []) {
       const nick = (await api.profile()).nick;
       const code = Array.from({ length: 5 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random() * 24)]).join('');
-      await D.set(ref('games/' + code), { host: uid(), status: 'lobby', created: D.serverTimestamp(), uids: { [uid()]: true }, players: [{ uid: uid(), nick, gang }] });
+      const players = [{ uid: uid(), nick, gang }, ...Array.from({ length: Math.min(bots, MAX - 1) }, (_, i) => ({ uid: `bot-${i + 1}`, nick: `Bot ${i + 1}`, gang: botGangs[i] || '', bot: true }))];
+      await D.set(ref('games/' + code), { host: uid(), status: 'lobby', created: D.serverTimestamp(), uids: { [uid()]: true }, players });
       return code;
     },
+    // bot nella sala d'attesa: li aggiunge e toglie solo chi ha creato la partita
+    addBot: (code, gang) => gameTx(code, g => {
+      const players = Object.values(g.players || {});
+      if (g.host !== uid() || g.status !== 'lobby') throw new Error('Solo chi ha creato la partita può aggiungere bot');
+      if (players.length >= MAX) throw new Error('Partita piena');
+      let n = 1; while (players.some(p => p.uid === `bot-${n}`)) n++;
+      return { ...g, players: [...players, { uid: `bot-${n}`, nick: `Bot ${n}`, gang, bot: true }] };
+    }),
+    removeBot: (code, botUid) => gameTx(code, g => {
+      if (g.host !== uid() || g.status !== 'lobby') return null;
+      return { ...g, players: Object.values(g.players || {}).filter(p => p.uid !== botUid) };
+    }),
+    // le mie partite: quelle in cui ci sono, tranne quelle che ho tolto dall'elenco
+    watchMyGames(cb) {
+      let games = [], hidden = {};
+      const emit = () => cb(games.filter(g => !hidden[g.code] && g.status !== 'chiusa'));
+      D.onValue(ref(`users/${uid()}/hidden`), s => { hidden = s.val() || {}; emit(); });
+      return D.onValue(D.query(ref('games'), D.orderByChild(`uids/${uid()}`), D.equalTo(true)), s => {
+        games = Object.entries(s.val() || {}).map(([code, g]) => ({ code, ...g, players: Object.values(g.players || {}) })).sort((a, b) => (b.created || 0) - (a.created || 0));
+        emit();
+      });
+    },
+    closeGame: code => gameTx(code, g => { if (g.host !== uid()) throw new Error('Solo chi ha creato la partita può cancellarla'); return { ...g, status: 'chiusa' }; }),
+    hideGame: code => D.set(ref(`users/${uid()}/hidden/${code}`), true),
     async joinGame(code, gang) {
       const nick = (await api.profile()).nick;
       await gameTx(code, g => {
@@ -112,8 +137,13 @@ export async function connect(config) {
       if (players.length < 3) throw new Error('Servono almeno 3 bande');
       return { ...g, status: 'play', state: JSON.stringify(newGame(players.map(p => p.nick))) };
     }),
-    act: (code, m) => gameTx(code, g => {
-      const me = Object.values(g.players).findIndex(p => p.uid === uid());
+    act: (code, m, seat = null) => gameTx(code, g => {
+      const players = Object.values(g.players);
+      let me = players.findIndex(p => p.uid === uid());
+      if (seat !== null) { // mossa di un bot: la gioca il computer di chi ha creato la partita
+        if (g.host !== uid() || !players[seat]?.bot) throw new Error('Solo l\'host muove i bot');
+        me = seat;
+      }
       const s = move(JSON.parse(g.state), me, m);
       return { ...g, state: JSON.stringify(s), status: s.stage === 'end' ? 'end' : 'play' };
     }),

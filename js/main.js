@@ -27,7 +27,7 @@ function friendly(e) {
 
 let net = null, me = null, roomCode = null, room = null, unwatch = null;
 let human = 0, botTimer = null; // partita locale: ultimo posto umano, timer della mossa del bot
-const isBot = i => local && !!room?.players[i]?.bot;
+const isBot = i => !!room?.players?.[i]?.bot;
 let state = null, seat = -1, local = false, ui = {}, city = null, lastTown = null;
 const FACTION_NAMES = ['Technoborghesi', 'Punk', 'Partite Iva', 'Startuppers', 'Le Sciure'];
 const gang = () => document.querySelector('[name=gang]:checked').value;
@@ -72,19 +72,22 @@ let lobbyReady = false, friends = [];
 function enterLobby() {
   show('lobby');
   $('me').innerHTML = `<b>${esc(me.nick)}</b>`;
+  $('pf-nick').textContent = me.nick; $('pf-mail').textContent = net.email();
+  if ($('solo-name').value === 'Tu') $('solo-name').value = me.nick;
   const saved = localStorage.getItem('bb-gang'), sv = saved && document.querySelector(`[name=gang][value="${saved}"]`); if (sv) sv.checked = true;
   if (lobbyReady) return;
   lobbyReady = true;
   net.goOnline();
   net.watchFriends(list => { friends = list; renderFriends(); });
   net.watchInvites(renderInvites);
-  net.watchOpenGames(renderGames);
+  net.watchMyGames(renderMyGames);
   const code = location.hash.slice(1).toUpperCase();
   if (/^[A-Z]{5}$/.test(code)) openRoom(code, true).catch(e => toast(friendly(e)));
 }
 document.querySelectorAll('[name=gang]').forEach(r => (r.onchange = () => localStorage.setItem('bb-gang', gang())));
 
-$('create').onclick = guard(async () => openRoom(await net.createGame(gang())));
+const otherGangs = () => FACTION_NAMES.filter(g => g !== gang());
+$('create').onclick = guard(async () => openRoom(await net.createGame(gang(), +$('create-bots').value, otherGangs())));
 async function openRoom(code, join = true) {
   if (join) await net.joinGame(code, gang());
   unwatch?.(); roomCode = code; location.hash = code; local = false; seenN = null;
@@ -103,19 +106,31 @@ function renderRoom() {
   if (!mine) return;
   const inRoom = new Set(room.players.map(p => p.uid));
   r.innerHTML = `<h3>Sala d'attesa <span class="code">${roomCode}</span></h3>
-    <ol class="list">${room.players.map(p => `<li><b>${esc(p.nick)}</b> <em>${esc(p.gang)}</em>${p.uid === room.host ? ' <small>host</small>' : ''}</li>`).join('')}</ol>
+    <ol class="list">${room.players.map(p => `<li><span><b>${esc(p.nick)}</b> <em>${esc(p.gang)}</em>${p.uid === room.host ? ' <small>host</small>' : ''}${p.bot ? ' <small>bot</small>' : ''}</span>${p.bot && host ? `<button class="btn ghost small" data-rmbot="${p.uid}">Togli</button>` : ''}</li>`).join('')}</ol>
+    ${host && room.players.length < 5 ? '<button class="btn ghost small" id="addbot">Aggiungi un bot</button>' : ''}
     <p class="note">Link da condividere: <a href="${location.href}">${esc(location.href)}</a></p>
     ${friends.filter(f => f.st === 'ok' && !inRoom.has(f.id)).map(f => `<button class="btn ghost small" data-inv="${f.id}">Invita ${esc(f.nick)}</button>`).join(' ')}
     <div class="row">${host ? `<button id="start" class="btn" ${room.players.length < 3 ? 'disabled' : ''}>Inizia (${room.players.length}/5)</button>` : '<span class="note">In attesa che l\'host avvii…</span>'}
       <button id="leave" class="btn ghost">${host ? 'Chiudi' : 'Esci'}</button></div>`;
   r.querySelectorAll('[data-inv]').forEach(b => (b.onclick = guard(async () => { await net.invite(b.dataset.inv, roomCode); toast('Invito inviato'); })));
   $('start') && ($('start').onclick = guard(() => net.startGame(roomCode)));
+  $('addbot') && ($('addbot').onclick = guard(() => net.addBot(roomCode, otherGangs().find(g => !room.players.some(p => p.gang === g)) || '')));
+  r.querySelectorAll('[data-rmbot]').forEach(b => (b.onclick = guard(() => net.removeBot(roomCode, b.dataset.rmbot))));
   $('leave').onclick = guard(async () => { await net.leaveGame(roomCode); leaveRoomUi(); });
 }
-function renderGames(list) {
-  $('games').innerHTML = list.length ? list.map(g => `<li><span><b>${g.code}</b> · ${esc(g.players[0]?.nick)} · ${g.players.length}/5</span>
-    <button class="btn small" data-join="${g.code}">${g.players.some(p => p.uid === net.uid()) ? 'Apri' : 'Entra'}</button></li>`).join('') : '<li class="empty">Nessuna partita aperta.</li>';
-  $('games').querySelectorAll('[data-join]').forEach(b => (b.onclick = guard(() => openRoom(b.dataset.join))));
+// le mie partite: apri, cancella (se le hai create tu) o esci (se sei stato invitato)
+const STATUS = { lobby: 'in attesa', play: 'in corso', end: 'finita' };
+function renderMyGames(list) {
+  const mine = g => g.host === net.uid();
+  $('mygames').innerHTML = list.length ? list.map(g => `<li><span><b>${g.code}</b> · ${STATUS[g.status] || g.status} · ${g.players.map(p => esc(p.nick)).join(', ')}</span>
+    <span><button class="btn small" data-open="${g.code}">Apri</button> <button class="btn ghost small" data-${mine(g) ? 'del' : 'out'}="${g.code}">${mine(g) ? 'Cancella' : 'Esci'}</button></span></li>`).join('') : '<li class="empty">Nessuna partita.</li>';
+  $('mygames').querySelectorAll('[data-open]').forEach(b => (b.onclick = guard(() => openRoom(b.dataset.open))));
+  $('mygames').querySelectorAll('[data-del]').forEach(b => (b.onclick = guard(async () => { if (confirm(`Cancellare la partita ${b.dataset.del} per tutti?`)) await net.closeGame(b.dataset.del); })));
+  $('mygames').querySelectorAll('[data-out]').forEach(b => (b.onclick = guard(async () => {
+    const g = list.find(x => x.code === b.dataset.out);
+    if (!confirm(`Uscire dalla partita ${g.code}?`)) return;
+    if (g.status === 'lobby') await net.leaveGame(g.code); else await net.hideGame(g.code);
+  })));
 }
 function renderInvites(list) {
   $('invites').innerHTML = list.length ? list.map(i => `<li><span><b>${esc(i.from)}</b> ti invita (${i.code})</span>
@@ -141,10 +156,8 @@ $('friend-form').onsubmit = guard(async e => {
 
 // ---------- partita locale ----------
 $('local').onclick = guard(() => {
-  const humans = $('local-names').value.split('\n').map(s => s.trim()).filter(Boolean), bots = +$('local-bots').value;
+  const humans = [$('solo-name').value.trim() || 'Tu'], bots = +$('local-bots').value;
   const names = [...humans, ...Array.from({ length: bots }, (_, i) => `Bot ${i + 1}`)];
-  if (!humans.length) throw new Error('Scrivi almeno il tuo nome');
-  if (names.length < 3 || names.length > 5) throw new Error(`Servono da 3 a 5 giocatori in tutto, bot compresi (ora ${names.length})`);
   local = true; roomCode = null; human = 0;
   room = { players: names.map((nick, i) => ({ nick, gang: FACTION_NAMES[i % FACTION_NAMES.length], bot: i >= humans.length })) };
   seenN = null; enterGame(newGame(names));
@@ -158,9 +171,11 @@ $('to-lobby').onclick = () => {
 // ---------- bot (partita locale) ----------
 function botTurn(s, pd) {
   clearTimeout(botTimer);
-  if (!local || !pd || showing || !isBot(actorOf(s, pd))) return;
-  botTimer = setTimeout(() => {
+  if (!pd || showing || !isBot(actorOf(s, pd))) return;
+  if (!local && room?.host !== net?.uid()) return; // online i bot li muove solo il computer di chi ha creato la partita
+  botTimer = setTimeout(async () => {
     const r = botMove(state); if (!r) return;
+    if (!local) { try { await net.act(roomCode, r[1], r[0]); } catch (e) { console.error('bot', e); } return; }
     try { state = applyMove(state, r[0], r[1]); } catch (e) { console.error('bot', e); return; }
     ingestEvents(state); render();
   }, pd.type === 'draft' ? 300 : 1100);
@@ -298,7 +313,7 @@ function advance() {
 let acked = null;
 function waitingAcks() {
   if (!showing || !ACK_ALL.has(showing.k) || local || !room) return [];
-  return room.players.map((p, i) => [p, i]).filter(([p]) => (room.acks?.[p.uid] ?? -1) < showing.n).map(([, i]) => i);
+  return room.players.map((p, i) => [p, i]).filter(([p]) => !p.bot && (room.acks?.[p.uid] ?? -1) < showing.n).map(([, i]) => i);
 }
 const ACK_ALL = new Set(['prep', 'party', 'final']);
 const SHOW_PHASE = { setup: 'prep', final: 'uprising' };
