@@ -112,6 +112,7 @@ const STAGES = {
       log(s, t.winner === null ? 'Nessuno vince la presa.' : `${name(s, t.winner)} vince la presa.`);
     }
     if (t.done < n) { const { p, card } = t.order[t.done]; s.pending.push({ type: 'action', p, card, won: p === t.winner }); return; }
+    s.lastTrick = { town: t.town, winner: t.winner, results: t.results || [] }; // resta visibile finché non parte la presa dopo
     s.trick = null;
   },
   marriage(s) {
@@ -145,7 +146,7 @@ const STAGES = {
     s.stage = 'battle';
   },
   battle(s) {
-    const pls = s.players, r = pls.map(pl => pl.raiders), ev = { k: 'guerrilla', area: s.area, raiders: [...r], losses: [] };
+    const pls = s.players, r = pls.map(pl => pl.raiders), ev = { k: 'guerrilla', area: s.area, raiders: [...r], losses: [], before: pls.map(pl => pl.points), renown: pls.map(pl => pl.renown) };
     if (s.area > 0) {
       const min = Math.min(...r), max = Math.max(...r), most = r.flatMap((x, i) => (x === max ? [i] : []));
       log(s, 'Retata della polizia!');
@@ -310,6 +311,7 @@ const MOVES = {
     else { if (pend.won) fail('Hai vinto: usa l\'azione VINCI'); syms = card.secondary[m.opt] || fail('Azione non valida'); }
     const pl = s.players[p], extra = Math.max(0, m.extra | 0);
     if (extra && !syms.includes('M')) fail('Si pagano passi in più solo per l\'hype'); // regola della casa: niente acquisti extra per polizia e comunità
+    const was = { coins: pl.coins, points: pl.points, mar: pl.mar, raiders: pl.raiders, church: pl.church };
     syms.forEach((sym, i) => {
       const last = syms.lastIndexOf(sym) === i, buy = n => { if (pl.coins < 2 * n) fail('Crediti insufficienti'); pl.coins -= 2 * n; return n; };
       if (sym === 'T') { s.towns[s.trick.town].owner = p; s.active = p; }
@@ -337,6 +339,11 @@ const MOVES = {
       }
     });
     if (syms.includes('M')) while (pl.mar > 0 && s.players.some((o, i) => i !== p && o.mar === pl.mar)) pl.mar--;
+    // cosa ha fatto, per mostrarlo a tutti: crediti, punti, hype, guerrilla, community, quartieri
+    const d = k => pl[k] - was[k], pays = syms.filter(x => x === 'P').length;
+    (s.trick.results ??= []).push({ p, card: pend.card, won: !!pend.won, coins: d('coins'), points: d('points'), hype: d('mar'), raiders: d('raiders'), church: d('church'),
+      renown: syms.filter(x => x === 'R').length, take: syms.includes('T') ? s.trick.town : null, expand: syms.includes('E') ? m.expand ?? null : null,
+      viking: syms.includes('V') ? m.viking ?? null : null, bought: syms.includes('M') ? extra : 0, paid: pays });
     s.trick.done++;
   },
   placeTown(s, p, { town }, pend) {

@@ -309,6 +309,13 @@ function hypeTrack(pos, { mark = null, note = '' } = {}) { // pos[i] = casella d
     <span class="b">${b === 'CC' ? icon('C', 13) + icon('C', 13) : b ? icon(b, 14) : ''}</span>
     <span class="tok">${pos.map((p, i) => (p === c ? `<i style="--pc:${THEME.players[i]}" title="${esc(state.players[i].name)}"></i>` : '')).join('')}</span></div>`).join('')}</div>${note}`;
 }
+// guerrilla: casco della polizia con le unità in allerta e una barra per banda (unità neutralizzate), animabili
+function guerBoard(e, order, vals, { grow = false, lose = new Set(), raid = false, gone = false, hi = null, from = null } = {}) {
+  const s = state, max = Math.max(1, ...e.raiders, ...vals), his = [].concat(hi ?? []);
+  return `<div class="gboard"><div class="gpol${raid ? ' raid' : ''}${gone ? ' gone' : ''}">${logo('polizia', 30)}<b>${e.area}</b><span>in allerta</span></div>
+    <div class="gbars">${order.map(i => `<div class="gb${lose.has(i) ? ' lose' : ''}${his.includes(i) ? ' hi' : ''}"><span class="nm">${who(s, i)}</span>
+      <span class="bar"><i style="--pc:${THEME.players[i]};--w:${vals[i] / max * 100}%;${from ? `--fw:${from[i] / max * 100}%` : ''}" class="${grow ? 'grow' : ''}${from ? ' shrink' : ''}"></i></span><b>${vals[i]}</b></div>`).join('')}</div></div>`;
+}
 // track dell'hype in orizzontale con le pedine posizionate: si possono animare (zoom d'ingresso, pedina che torna indietro)
 function partyTrack(pos, { zoom = false, hi = null, from = {}, bonus = null } = {}) {
   const cells = MARRIAGE_TRACK.map((b, c) => `<div class="pc${b ? ' bonus' : ''}${bonus !== null && pos[bonus] === c ? ' got' : ''}"><span class="n">${c + 1}</span><span class="b">${b === 'CC' ? icon('C', 12) + icon('C', 12) : b ? icon(b, 13) : ''}</span></div>`).join('');
@@ -341,12 +348,19 @@ function steps(e) {
         b: partyTrack(after, { hi: i, bonus: i }) + res(2 + k) }));
       return out;
     }
-    case 'guerrilla': {
-      const out = [{ t: 'Guerrilla', b: `<p>Polizia in allerta: <b>${e.area}</b>.</p><ul class="plain">${list(e.raiders.map((r, i) => `<li>${who(s, i)} ha neutralizzato ${r} unità</li>`))}</ul>` }];
-      out.push(e.area > 0 ? { t: 'Retata!', b: e.losses.length ? `<ul class="plain">${list(e.losses.map(l => `<li>${who(s, l.victim)} perde un quartiere${l.chooser !== l.victim ? ` (sceglie ${who(s, l.chooser)})` : ''}</li>`))}</ul>` : '<p>Nessuno ha quartieri da perdere.</p>' }
-        : { t: 'Polizia respinta', b: '<p>Nessuna unità in allerta: nessuna retata.</p>' });
-      out.push(e.first !== null ? { t: `${who(s, e.first)} guida la guerriglia`, b: `<p>+1 street cred e <b>+${e.gain} punti</b> (uno per ogni street cred).</p>` } : { t: 'Nessun capo', b: '<p>Pareggio o nessuna unità: niente premio principale.</p>' });
-      if (e.ties.length) out.push({ t: '+1 punto', b: `<p>${e.ties.map(i => who(s, i)).join(', ')}: chi ha più unità rimaste.</p>` });
+    case 'guerrilla': { // animata: la polizia arriva, le barre delle unità neutralizzate crescono, retata, premi, ritirata
+      const n = s.players.length, order = s.players.map((p, i) => i).sort((a, b) => e.raiders[a] - e.raiders[b]);
+      const after = e.raiders.map((r, i) => (i === e.first ? 0 : r)).map((r, i) => (e.ties.includes(i) ? r - 1 : r));
+      const lost = new Set(e.losses.map(l => l.victim));
+      const out = [{ t: 'Guerrilla', b: guerBoard(e, order, e.raiders, { grow: true }) + `<p>Chi ha neutralizzato meno unità rischia la retata.</p>` }];
+      out.push(e.area > 0
+        ? { t: 'Retata!', b: guerBoard(e, order, e.raiders, { lose: lost, raid: true }) + (e.losses.length ? `<ul class="plain">${list(e.losses.map(l => `<li>${who(s, l.victim)} perde un quartiere${l.chooser !== l.victim ? ` · lo sceglie ${who(s, l.chooser)}` : ''}</li>`))}</ul>` : '<p>Nessuno ha quartieri da perdere.</p>') }
+        : { t: 'Polizia respinta', b: guerBoard(e, order, e.raiders, { gone: true }) + '<p>Nessuna unità in allerta: nessuna retata.</p>' });
+      out.push(e.first !== null
+        ? { t: `${esc(s.players[e.first].name)} guida la guerriglia`, b: guerBoard(e, order, e.raiders, { hi: e.first }) + `<p>${who(s, e.first)}: +1 street cred (ora ${e.renown[e.first] + 1}) e <b class="ptsup">+${e.gain} punti</b>, uno per ogni street cred · punti ${e.before[e.first]} → ${e.before[e.first] + e.gain}. Rimette tutte le sue unità.</p>` }
+        : { t: 'Nessun capo', b: guerBoard(e, order, e.raiders, {}) + '<p>Pareggio o nessuna unità: niente premio principale.</p>' });
+      if (e.ties.length) out.push({ t: '+1 punto', b: guerBoard(e, order, e.raiders, { hi: e.ties }) + `<p>${e.ties.map(i => who(s, i)).join(', ')}: più unità rimaste, +1 punto e ne rimette una.</p>` });
+      out.push({ t: 'La polizia si ritira', b: guerBoard(e, order, after, { from: e.raiders }) + '<p>Le unità rimaste restano per il prossimo round.</p>' });
       return out;
     }
     case 'community': {
@@ -523,6 +537,27 @@ function playCard(v, ok, choosingTown) {
   if (choosingTown) act({ town: ui.town }, { card: v }); else act({ card: v });
 }
 
+// cosa hanno fatto gli altri con le carte della presa, con le parole del gioco (Crediti, Hype, Guerrilla, Community, Punti)
+function resultText(s, r) {
+  const parts = [], n = (v, one, many) => `${v} ${v === 1 ? one : many}`;
+  if (r.take != null) parts.push(`conquista ${townChip(r.take)}`);
+  const coins = r.coins + (r.expand != null ? 5 : 0) + r.bought * 2;
+  if (coins > 0) parts.push(`+${n(coins, 'credito', 'crediti')}`);
+  if (coins < 0) parts.push(`paga ${n(-coins, 'credito', 'crediti')}`);
+  if (r.points < 0) parts.push(`paga ${-r.points} punti`);
+  if (r.bought) parts.push(`paga ${r.bought * 2} crediti per ${n(r.bought, 'passo', 'passi')} in più`);
+  if (r.hype > 0) parts.push(`+${r.hype} Hype`);
+  if (r.raiders > 0) parts.push(`+${r.raiders} Guerrilla`);
+  if (r.church > 0) parts.push(`+${r.church} Community`);
+  if (r.renown) parts.push(`+${r.renown} street cred`);
+  if (r.expand != null) parts.push(`paga 5 crediti e si espande a ${townChip(r.expand)}`);
+  if (r.viking != null) parts.push(`rimuove il presidio a ${townChip(r.viking)}`);
+  return `${who(s, r.p)} ${r.won ? 'vince la presa' : 'gioca'} con la ${r.card}: ${parts.join(' · ') || 'niente'}`;
+}
+function resultsList(s) {
+  const list = s.trick?.results?.length ? s.trick.results : !s.trick?.plays?.length ? s.lastTrick?.results : null;
+  return list?.length ? `<ul class="results">${list.map(r => `<li>${resultText(s, r)}</li>`).join('')}</ul>` : '';
+}
 function trickRow(s) {
   const t = s.trick;
   if (!t?.plays.length) return '';
@@ -571,7 +606,7 @@ function renderStage(s = state, pd = current(state)) {
     el.innerHTML = head(s.winner.length > 1 ? 'Pareggio' : `Vince ${esc(s.players[s.winner[0]].name)}`, 'Fine partita', endRecap(s));
     return;
   }
-  const trick = trickRow(s);
+  const trick = trickRow(s) + resultsList(s);
   const mine = local ? `Tocca a ${esc(s.players[seat]?.name || '')}` : 'Tocca a te';
   if (pd.type === 'draft') {
     if (seat >= 0 && !s.draft.picks[seat]) {
@@ -604,7 +639,7 @@ function renderStage(s = state, pd = current(state)) {
       : `Scegli quale quartiere di ${esc(s.players[pd.victim].name)} viene presidiato.`);
     case 'monastery': return confirmTown('Avvia un progetto urbano', 'Scegli un tuo quartiere: conterà doppio per il controllo della zona.');
     case 'activeTown':
-      el.innerHTML = head('Scegli il quartiere attivo', mine, `<p>Clicca uno spot libero di un colore che hai in mano (qualsiasi, se hai una carta di Briano Borro), poi <b>gioca una carta</b> di quel colore o di Briano Borro per confermare.</p>
+      el.innerHTML = resultsList(s) + head('Scegli il quartiere attivo', mine, `<p>Clicca uno spot libero di un colore che hai in mano (qualsiasi, se hai una carta di Briano Borro), poi <b>gioca una carta</b> di quel colore o di Briano Borro per confermare.</p>
         <p class="pickline">Scelta: ${ui.town != null ? `${townChip(ui.town)} · ${REGIONS[TOWNS[ui.town].region].name}` : '<em>nessuna</em>'}</p>
         ${ui.armed != null && ui.town != null ? `<button id="playarmed" class="btn wide">Gioca la carta ${ui.armed}</button>` : ''}`);
       bindArmed(true); return;

@@ -478,3 +478,34 @@ tr:nth-child(2n) .logo { animation-delay: -3s; }
 
 .vgrid td.got { animation: flashrow 1s ease-in-out infinite; color: #ffd400; }
 .ptsup { color: #ffd400; }
+
+/* guerrilla animata */
+.gboard { display: flex; gap: 16px; align-items: center; margin: 4px 0 10px; }
+.gpol { display: grid; justify-items: center; gap: 2px; min-width: 70px; }
+.gpol .logo { width: 46px; height: 46px; background: #eef1f3; display: grid; place-items: center; animation: polin .7s ease-out both; }
+.gpol .logo svg { width: 34px; height: 34px; }
+.gpol b { font: 800 30px var(--num); color: var(--rp-police); }
+.gpol span { font: 400 10px var(--pix); text-transform: uppercase; color: var(--rp-muted); }
+.gpol.raid .logo { animation: raid .5s ease-in-out infinite alternate; box-shadow: 0 0 0 3px #d6232a, 0 0 0 6px #1f8fff; }
+.gpol.gone { opacity: .35; }
+@keyframes polin { from { transform: translateY(-30px) scale(.6); opacity: 0; } }
+@keyframes raid { to { box-shadow: 0 0 0 3px #1f8fff, 0 0 0 6px #d6232a; } }
+.gbars { flex: 1; display: grid; gap: 6px; }
+.gb { display: grid; grid-template-columns: 90px 1fr 28px; align-items: center; gap: 8px; padding: 2px 4px; }
+.gb .nm { white-space: nowrap; overflow: hidden; }
+.gb .bar { height: 14px; background: rgba(255, 255, 255, .06); border: 1px solid var(--rp-line); }
+.gb .bar i { display: block; height: 100%; width: var(--w); background: var(--pc); transition: width .6s; }
+.gb .bar i.grow { animation: bargrow .9s .2s cubic-bezier(.2, .7, .2, 1) both; }
+.gb .bar i.shrink { animation: barshrink 1s .3s ease-in-out both; }
+@keyframes bargrow { from { width: 0; } }
+@keyframes barshrink { from { width: var(--fw); } }
+.gb b { font: 700 16px var(--num); text-align: right; }
+.gb.lose { background: rgba(214, 35, 42, .25); animation: flashrow 1s ease-in-out infinite; }
+.gb.hi { background: rgba(255, 212, 0, .18); outline: 1px solid #ffd400; }
+@media (prefers-reduced-motion: reduce) { .gpol .logo, .gpol.raid .logo, .gb .bar i.grow, .gb .bar i.shrink, .gb.lose { animation: none; } }
+
+/* cosa hanno fatto gli altri nella presa */
+.rp .results { list-style: none; margin: 6px 0 10px; padding: 6px 8px; display: grid; gap: 4px; font-size: 13px; border-left: 2px solid #ffd400; background: rgba(255, 212, 0, .06); }
+.rp .results li:last-child { animation: newres 1.2s ease-out; }
+@keyframes newres { from { background: rgba(255, 212, 0, .35); } }
+@media (prefers-reduced-motion: reduce) { .rp .results li:last-child { animation: none; } }
