@@ -239,7 +239,7 @@ function actionSyms(s, pd) {
   const card = CARDS[pd.card];
   return (ui.opt === 'p' ? card.primary : card.secondary[ui.opt]) || [];
 }
-const SHORT_SYM = { T: 'quartiere', C: '+1 crediti', P: '−1 crediti', M: '+1 hype', A: '+1 guerrilla', X: '+1 community', V: 'via un presidio', R: '+1 street cred' };
+const SHORT_SYM = { T: 'quartiere', C: '+1 credito', P: '−1 credito', M: '+1 hype', A: '+1 guerrilla', X: '+1 community', V: 'via un presidio', R: '+1 street cred' };
 const FLASH_ROW = { C: 'crediti', P: 'crediti', E: 'crediti', A: 'guerrilla', X: 'community', R: 'punti' };
 function onTown(town) {
   const pd = current(state);
@@ -590,7 +590,7 @@ function renderStage(s = state, pd = current(state)) {
     ${syms.includes('V') && vikingTowns(s).length ? `<p><button class="btn ghost small" id="pick-v">${ui.viking != null ? 'Presidio: ' + esc(TOWNS[ui.viking].name) + ' (cambia)' : 'Scegli il presidio da rimuovere'}</button></p>` : ''}
     <p class="balance">Crediti: <b>${pl.coins}</b> → <b class="${after < 0 ? 'neg' : ''}">${Math.max(0, after)}</b>${after < 0 ? ' · non bastano' : ''}</p>
     ${ui.opt == null ? '<p class="note">Scegli una delle opzioni: sulla plancia e sulla mappa lampeggia quello che cambia.</p>' : ''}
-    <button id="ok" class="btn wide" aria-keyshortcuts="Enter" ${after < 0 || ui.opt == null ? 'disabled' : ''}>${ui.opt == null ? 'Scegli un\'opzione' : `Conferma: ${[...new Set(syms)].filter(x => x !== 'E' || ui.expand != null).map(x => (x === 'E' ? 'espansione a ' + esc(TOWNS[ui.expand].name) : SHORT_SYM[x].replace('1', count(x)))).join(' · ')}`}</button>`);
+    <button id="ok" class="btn wide" aria-keyshortcuts="Enter" ${after < 0 || ui.opt == null ? 'disabled' : ''}>${ui.opt == null ? 'Scegli un\'opzione' : `Conferma: ${[...new Set(syms)].filter(x => x !== 'E' || ui.expand != null).map(x => (x === 'E' ? 'espansione a ' + esc(TOWNS[ui.expand].name) : (count(x) > 1 && 'CP'.includes(x) ? SHORT_SYM[x].replace('1 credito', count(x) + ' crediti') : SHORT_SYM[x].replace('1', count(x))))).join(' · ')}`}</button>`);
   el.querySelectorAll('[data-o]').forEach(b => (b.onclick = () => { ui = { opt: b.dataset.o === 'p' ? 'p' : +b.dataset.o }; render(); }));
   el.querySelectorAll('[data-x]').forEach(b => (b.onclick = () => { ui.extra = Math.max(0, Math.min(maxExtra, ui.extra + +b.dataset.x)); render(); }));
   $('pick-e') && ($('pick-e').onclick = () => { ui.pick = 'expand'; render(); });
