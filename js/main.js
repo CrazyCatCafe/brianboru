@@ -354,7 +354,7 @@ function guerBoard(e, order, vals, { grow = false, lose = new Set(), raid = fals
 // track dell'hype in orizzontale con le pedine posizionate: si possono animare (zoom d'ingresso, pedina che torna indietro)
 // tabella del punteggio finale: colonne svelate fino a "upto", la colonna corrente accesa, totale che sale
 const FINAL_COLS = e => [
-  ['start', 'In partita', i => e.start[i]], ['coins', 'Crediti', i => e.coins[i]], ['active', 'Quartiere attivo', i => e.active[i]],
+  ['start', 'In partita', i => e.start[i]], ['coins', 'Crediti', i => e.coins[i]], ['active', 'Q. att.', i => e.active[i]],
   ['renown', 'Street cred', i => e.renown[i]], ['zones', 'Zone', i => e.zonePts[i]], ['presence', 'Presenza', i => e.presence[i]],
 ];
 function finalTable(e, cols, upto, zoneK = null) {
@@ -362,7 +362,7 @@ function finalTable(e, cols, upto, zoneK = null) {
   const val = (c, i) => (c[0] === 'zones' ? zonePart(i) : c[2](i));
   const tot = i => cols.slice(0, Math.min(upto, 5) + 1).reduce((a, c) => a + val(c, i), 0);
   const order = s.players.map((p, i) => i).sort((a, b) => (upto >= 6 ? e.rank.indexOf(a) - e.rank.indexOf(b) : 0));
-  return `<table class="ftable"><thead><tr><th></th>${cols.map((c, k) => `<th class="${k === upto ? 'cur' : ''}">${c[1]}</th>`).join('')}<th>Totale</th></tr></thead>
+  return `<table class="ftable"><thead><tr><th></th>${cols.map((c, k) => `<th class="${k === upto ? 'cur' : ''}"${c[0] === 'active' ? ' title="Quartiere attivo"' : ''}>${c[1]}</th>`).join('')}<th>Totale</th></tr></thead>
     <tbody>${order.map(i => `<tr class="${upto >= 6 && e.winner.includes(i) ? 'champ' : ''}"><td>${who(s, i)}${upto >= 6 && e.winner.includes(i) ? ' 🏆' : ''}</td>${cols.map((c, k) => {
       const v = k > upto ? '' : val(c, i);
       return `<td class="${k === upto ? 'cur' : ''}${k === upto && v > 0 && k ? ' got' : ''}">${v === '' ? '' : k ? (v ? '+' + v : '·') : v}${k === 5 && k <= upto ? `<small> (${e.regions[i]} zone)</small>` : ''}</td>`;
@@ -584,14 +584,14 @@ function renderBoard(s, pd) {
   const lab = kind => `${logo(kind, 16)}${bigBoard ? `<span class="lname">${LOGO_NAMES[kind]}</span>` : ''}`;
   const fl = new Set(actionSyms(s, pd).map(x => FLASH_ROW[x]));
   const gotPts = showing?.k === 'party' && showing.winner !== null && step >= 1 ? showing.winner : -1; // party: i punti del personaggio lampeggiano sulla plancia
-  const row = (kind, key, k) => `<tr class="${phaseNow === k ? 'on' : ''}${fl.has(kind) ? ' flash' : ''}"><th scope="row">${lab(kind)}</th>${s.players.map((p, i) => `<td class="${key === 'points' ? 'pts' : ''}${key === 'points' && i === gotPts ? ' got' : ''}">${p[key]}</td>`).join('')}</tr>`;
+  const row = (kind, key, k) => `<tr class="${phaseNow === k ? 'on' : ''}${fl.has(kind) ? ' flash' : ''}"><th scope="row">${lab(kind)}</th>${s.players.map((p, i) => `<td class="${key === 'points' ? 'pts' : ''}${key === 'points' && i === gotPts ? ' got' : ''}">${typeof key === 'function' ? key(p) : p[key]}</td>`).join('')}</tr>`;
   const tip = (p, i) => [p.name, isBot(i) ? 'bot' : i === seat && !local ? 'tu' : '', room.players[i]?.gang, `street cred ${p.renown}`, `${p.hand.length} carte in mano`,
     p.claims.length ? 'zone: ' + p.claims.map(r => REGIONS[r].name).join(', ') : '', p.marriages.length ? 'personaggi: ' + p.marriages.map(characterName).join(', ') : '',
     p.princess ? 'Estrid alleata' : '', i === s.active ? 'ha il segnalino del quartiere attivo' : ''].filter(Boolean).join(' · ');
   $('b-players').innerHTML = `<button class="zoom" type="button" aria-pressed="${bigBoard}" aria-label="${bigBoard ? 'Rimpicciolisci la plancia' : 'Ingrandisci la plancia'}">${bigBoard ? '−' : '+'}</button>
     <div class="vgrid"><table aria-label="Bande">
     <thead><tr><td></td>${s.players.map((p, i) => `<th scope="col"><span class="ini${waiting.includes(i) ? ' turn' : ''}" style="--pc:${THEME.players[i]}" title="${esc(tip(p, i))}">${esc(bigBoard ? shortName(p.name) : initial(s, i))}</span>${i === s.active ? `<i class="mk" title="Segnalino quartiere attivo">${icon('T', 11, 'currentColor', HOLE)}</i>` : ''}</th>`).join('')}</tr></thead>
-    <tbody>${row('punti', 'points')}${row('crediti', 'coins')}${row('cred', 'renown')}${row('guerrilla', 'raiders', 'guerrilla')}${row('community', 'church', 'community')}</tbody>
+    <tbody>${row('punti', 'points')}${row('crediti', 'coins')}${row('cred', 'renown')}${row('guerrilla', 'raiders', 'guerrilla')}${row('community', 'church', 'community')}${row('uprising', p => p.claims.reduce((a, r) => a + REGIONS[r].points, 0), 'uprising')}</tbody>
     <tfoot><tr${phaseNow === 'guerrilla' ? ' class="on"' : ''}><th scope="row">${lab('polizia')}</th><td colspan="${s.players.length}">${s.area}</td></tr></tfoot>
     </table>
     <div class="vhype${phaseNow === 'party' ? ' on' : ''}${actionSyms(s, pd).includes('M') ? ' flash' : ''}" style="--np:${s.players.length}" role="img" aria-label="Hype: ${s.players.map(p => `${esc(p.name)} casella ${p.mar + 1}`).join(', ')}">${MARRIAGE_TRACK.map((b, c) => [b, c]).reverse().map(([b, c]) =>
@@ -601,7 +601,7 @@ function renderBoard(s, pd) {
   bindPeek(s); renderHypeCard(s); hypeMini(s); renderRef();
   // uprising: zone sbloccate e chi le tiene
   on('b-uprising', 'uprising');
-  const up = Object.entries(s.claims).filter(([, c]) => c.up);
+  const up = Object.entries(s.claims).filter(([, c]) => c.up).sort(([, a], [, b]) => (a.owner ?? 99) - (b.owner ?? 99)); // zone raggruppate per banda, contese in fondo
   $('b-uprising').innerHTML = `<h3>${logo('uprising')}Uprising <em>zone in palio</em></h3>${up.length ? `<ul>${up.map(([r, c]) =>
     `<li><i class="rz" style="--rc:${c.owner === null ? THEME.region[r] : THEME.players[c.owner]}"></i><b>${REGIONS[r].name}</b><span class="own">${c.owner === null ? 'contesa' : pname(s, c.owner)}</span></li>`).join('')}</ul>` : ''}`;
 }
