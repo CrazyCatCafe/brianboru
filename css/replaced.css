@@ -545,3 +545,10 @@ tr:nth-child(2n) .logo { animation-delay: -3s; }
 .rp .field select { font: 400 16px var(--font); color: var(--rp-ink); background: rgba(255, 255, 255, .06); border: 1px solid var(--rp-line); padding: 8px 10px; width: 100%; border-radius: 0; }
 .rp .field select option { background: #1b1f24; }
 @media (min-width: 1100px) { #lobby .lobby-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* copertina: sagoma del rivoluzionario davanti all'illustrazione */
+.cover { position: relative; }
+.cover img { filter: brightness(.85) contrast(1.05); }
+.cover .rebel { position: absolute; left: 50%; bottom: -2%; height: 96%; width: auto; translate: -50% 0; filter: drop-shadow(0 0 10px rgba(255, 122, 26, .25)); }
+.cover .rebel .flame { transform-origin: 156px 44px; animation: flick .18s steps(2) infinite alternate; }
+@keyframes flick { to { transform: scale(1.08, .92); } }
+@media (prefers-reduced-motion: reduce) { .cover .rebel .flame { animation: none; } }
