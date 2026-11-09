@@ -354,7 +354,7 @@ function steps(e) {
       const lost = new Set(e.losses.map(l => l.victim));
       const out = [{ t: 'Guerrilla', b: guerBoard(e, order, e.raiders, { grow: true }) + `<p>Chi ha neutralizzato meno unità rischia la retata.</p>` }];
       out.push(e.area > 0
-        ? { t: 'Retata!', b: guerBoard(e, order, e.raiders, { lose: lost, raid: true }) + (e.losses.length ? `<ul class="plain">${list(e.losses.map(l => `<li>${who(s, l.victim)} perde un quartiere${l.chooser !== l.victim ? ` · lo sceglie ${who(s, l.chooser)}` : ''}</li>`))}</ul>` : '<p>Nessuno ha quartieri da perdere.</p>') }
+        ? { t: 'Retata!', b: guerBoard(e, order, e.raiders, { lose: lost, raid: true }) + `<p>${e.area} ${e.area === 1 ? 'poliziotto attacca' : 'poliziotti attaccano'}: ${e.raiders.every(r => r === 0) ? 'tutti sono a 0 in Guerrilla, tutti perdono un quartiere.' : 'chi ha la Guerrilla più bassa perde un quartiere.'}</p>` + (e.losses.length ? `<ul class="plain">${list(e.losses.map(l => `<li>${who(s, l.victim)} perde un quartiere${l.chooser !== l.victim ? ` · lo sceglie ${who(s, l.chooser)}` : ''}</li>`))}</ul>` : '<p>Nessuno ha quartieri da perdere.</p>') }
         : { t: 'Polizia respinta', b: guerBoard(e, order, e.raiders, { gone: true }) + '<p>Non ci sono più poliziotti: non succede nulla!</p>' });
       out.push(e.first !== null
         ? { t: `${esc(s.players[e.first].name)} guida la guerriglia`, b: guerBoard(e, order, e.raiders, { hi: e.first }) + `<p>${who(s, e.first)}: +1 street cred (ora ${e.renown[e.first] + 1}) e <b class="ptsup">+${e.gain} punti</b>, uno per ogni street cred · punti ${e.before[e.first]} → ${e.before[e.first] + e.gain}. Rimette tutte le sue unità.</p>` }

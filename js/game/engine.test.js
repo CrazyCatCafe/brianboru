@@ -110,4 +110,14 @@ for (let g = 0; g < 60; g++) {
       assert.ok(b.players[e.winner].points >= e.before[e.winner] + e.card.points, 'punti della carta Hype non assegnati');
   }
 }
+// retata: con polizia in allerta e tutti a 0 in Guerrilla, tutti quelli con un quartiere ne perdono uno
+for (let g = 0; g < 300; g++) {
+  let b = newGame(['A', 'B', 'C'], 700 + g), checked = false;
+  while (b.stage !== 'end' && !checked) {
+    const n0 = b.eventN || 0, [q, m] = botMove(b); b = move(b, q, m);
+    for (const e of b.events.filter(e => e.n > n0 && e.k === 'guerrilla' && e.area > 0 && e.raiders.every(r => r === 0))) {
+      assert.equal(e.losses.length, 3, 'tutti a 0: tutti perdono un quartiere'); checked = true;
+    }
+  }
+}
 console.log('ok: 600 partite simulate, 60 partite tra bot');
