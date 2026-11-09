@@ -355,10 +355,12 @@ function steps(e) {
       const out = [{ t: 'Guerrilla', b: guerBoard(e, order, e.raiders, { grow: true }) + `<p>Chi ha neutralizzato meno unità rischia la retata.</p>` }];
       out.push(e.area > 0
         ? { t: 'Retata!', b: guerBoard(e, order, e.raiders, { lose: lost, raid: true }) + (e.losses.length ? `<ul class="plain">${list(e.losses.map(l => `<li>${who(s, l.victim)} perde un quartiere${l.chooser !== l.victim ? ` · lo sceglie ${who(s, l.chooser)}` : ''}</li>`))}</ul>` : '<p>Nessuno ha quartieri da perdere.</p>') }
-        : { t: 'Polizia respinta', b: guerBoard(e, order, e.raiders, { gone: true }) + '<p>Nessuna unità in allerta: nessuna retata.</p>' });
+        : { t: 'Polizia respinta', b: guerBoard(e, order, e.raiders, { gone: true }) + '<p>Non ci sono più poliziotti: non succede nulla!</p>' });
       out.push(e.first !== null
         ? { t: `${esc(s.players[e.first].name)} guida la guerriglia`, b: guerBoard(e, order, e.raiders, { hi: e.first }) + `<p>${who(s, e.first)}: +1 street cred (ora ${e.renown[e.first] + 1}) e <b class="ptsup">+${e.gain} punti</b>, uno per ogni street cred · punti ${e.before[e.first]} → ${e.before[e.first] + e.gain}. Rimette tutte le sue unità.</p>` }
-        : { t: 'Nessun capo', b: guerBoard(e, order, e.raiders, {}) + '<p>Pareggio o nessuna unità: niente premio principale.</p>' });
+        : Math.max(...e.raiders) === 0
+          ? { t: 'Nessun capo', b: guerBoard(e, order, e.raiders, {}) + '<p>Nessuno ha neutralizzato poliziotti: non succede nulla!</p>' }
+          : { t: 'Pareggio', b: guerBoard(e, order, e.raiders, {}) + '<p>Quando più giocatori pareggiano per la Guerrilla più alta, chi ha il valore di Guerrilla più basso sceglie il proprio quartiere con retata.</p>' });
       if (e.ties.length) out.push({ t: '+1 punto', b: guerBoard(e, order, e.raiders, { hi: e.ties }) + `<p>${e.ties.map(i => who(s, i)).join(', ')}: più unità rimaste, +1 punto e ne rimette una.</p>` });
       out.push({ t: 'La polizia si ritira', b: guerBoard(e, order, after, { from: e.raiders }) + '<p>Le unità rimaste restano per il prossimo round.</p>' });
       return out;
