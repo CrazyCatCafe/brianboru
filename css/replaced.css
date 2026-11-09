@@ -600,3 +600,4 @@ tr:nth-child(2n) .logo { animation-delay: -3s; }
   font: 400 11px var(--pix); text-transform: uppercase; writing-mode: vertical-rl; transform: rotate(180deg); letter-spacing: .08em; } /* attaccata al cartello: "HYPE" in verticale */
 /* cronaca */
 .log b.lc { text-shadow: 0 0 2px #000; }
+.rp .rlabel .frac { display: inline-flex; gap: 1px; } /* 4/7 con la barra equidistante */

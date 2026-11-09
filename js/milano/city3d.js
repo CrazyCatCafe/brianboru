@@ -406,7 +406,7 @@ export async function createCity(container, overlay, view = {}) {
   };
   for (const [k, r] of Object.entries(map.regions)) {
     const [lx, ly] = r.label.tx ? [r.label.tx, r.label.ty] : [r.label.x, r.label.y];
-    regions[k].title = addLabel(`<b style="--rc:${T.region[k]}" title="${r.name}"><i class="tri" aria-hidden="true"><i></i><i></i><i></i><i></i></i><span class="nm">${r.name}</span></b><i title="Quartieri occupati su quelli che servono per l'Uprising"><span class="cnt">0</span>/${r.threshold}${logo('uprising', 13)}</i><i title="Punti per chi controlla la zona">${r.points}${logo('punti', 13)}</i>`, 'rlabel', lx, ly, 0.02, k);
+    regions[k].title = addLabel(`<b style="--rc:${T.region[k]}" title="${r.name}"><i class="tri" aria-hidden="true"><i></i><i></i><i></i><i></i></i><span class="nm">${r.name}</span></b><i title="Quartieri occupati su quelli che servono per l'Uprising"><span class="frac"><span class="cnt">0</span>/${r.threshold}</span>${logo('uprising', 13)}</i><i title="Punti per chi controlla la zona">${r.points}${logo('punti', 13)}</i>`, 'rlabel', lx, ly, 0.02, k);
     regions[k].title.dataset.region = k;
   }
   const firstTown = labels.length;
