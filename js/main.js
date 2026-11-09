@@ -506,6 +506,7 @@ function render() {
   if (city.weather() !== wk) city.setWeather(wk);
   const picks = clickable(s, pd);
   city.setClickable(picks, onTown);
+  city.setFireworks(pd?.type === 'action' && pd.p === seat && !showing && (ui.pick === 'expand' || (!ui.pick && actionSyms(s, pd).includes('E'))) ? picks.filter(id => expandTargets(s, seat).includes(id)) : []); // dove ci si può espandere: fuochi d'artificio
   // scelta sulla mappa: pannello a striscia e camera sugli spot validi (una volta per scelta)
   mapPicking = picks.length > 0 && (pd.type !== 'action' || !!ui.pick);
   document.body.classList.toggle('map-pick', mapPicking);
@@ -844,5 +845,6 @@ addEventListener('keydown', e => {
 window.__clickable = () => (state ? clickable(state, current(state)) : []);
 window.__pick = town => onTown(town);
 window.__ui = () => ui;
+window.__fw = ids => city.setFireworks(ids); // solo per le prove
 // solo per le prove: gioca da solo con i bot fino alla fine della partita (in locale)
 window.__autoplay = () => { while (local && state.stage !== 'end') { const r = botMove(state); state = applyMove(state, r[0], r[1]); } ingestEvents(state); render(); };

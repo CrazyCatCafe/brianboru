@@ -301,6 +301,32 @@ export async function createCity(container, overlay, view = {}) {
   scene.add(dashMesh);
 
   // segnalino del quartiere attivo (anello pulsante)
+  // fuochi d'artificio sui quartieri dove ci si può espandere: un razzo sale, esplode in scintille colorate che ricadono
+  let fwTowns = [];
+  const FW_MAX = 16, FW_N = 28, fwPos = new Float32Array(FW_MAX * (FW_N + 1) * 3), fwCol = new Float32Array(FW_MAX * (FW_N + 1) * 3);
+  const fwGeo = new THREE.BufferGeometry(); fwGeo.setAttribute('position', new THREE.BufferAttribute(fwPos, 3)); fwGeo.setAttribute('color', new THREE.BufferAttribute(fwCol, 3));
+  const fw = new THREE.Points(fwGeo, new THREE.PointsMaterial({ size: 9, sizeAttenuation: false, vertexColors: true, depthTest: false }));
+  fw.renderOrder = 9; fw.frustumCulled = false; scene.add(fw);
+  const FW_COLORS = ['#ffd400', '#ff2d87', '#00e5ff', '#7cff4f', '#ffffff'].map(c => new THREE.Color(c));
+  const fwDirs = Array.from({ length: FW_N }, (_, k) => { const a = k / FW_N * Math.PI * 2, e = 0.4 + (k % 3) * 0.3; return [Math.cos(a) * Math.cos(e), Math.sin(e), Math.sin(a) * Math.cos(e)]; });
+  function tickFireworks(t) {
+    const list = fwTowns.slice(0, FW_MAX);
+    fwGeo.setDrawRange(0, list.length * (FW_N + 1));
+    list.forEach((id, j) => {
+      const sp = spots[id], base = j * (FW_N + 1), ph = (j * 0.37) % 1, cyc = 1.8, u = ((t / cyc + ph) % 1) * cyc;
+      const x = sp.g.position.x, z = sp.g.position.z, y0 = OV + regions[sp.region].g.position.y, top = 0.55, col = FW_COLORS[j % FW_COLORS.length];
+      const set = (k, px, py, pz, c, a) => { fwPos.set([px, py, pz], (base + k) * 3); fwCol.set([c.r, c.g, c.b], (base + k) * 3); if (a <= 0.05) fwPos[(base + k) * 3 + 1] = -10; };
+      if (u < 0.5) { // razzo che sale
+        set(0, x, y0 + top * (u / 0.5), z, FW_COLORS[4], 1);
+        for (let k = 1; k <= FW_N; k++) set(k, x, -10, z, col, 0);
+      } else { // esplosione
+        const b = u - 0.5, a = Math.max(0, 1 - b / 1.3), r = 0.26 * (1 - Math.exp(-b * 4));
+        set(0, x, -10, z, col, 0);
+        fwDirs.forEach((d, k) => set(k + 1, x + d[0] * r, y0 + top + d[1] * r - 0.12 * b * b, z + d[2] * r, k % 4 ? col : FW_COLORS[4], a));
+      }
+    });
+    fwGeo.attributes.position.needsUpdate = fwGeo.attributes.color.needsUpdate = true;
+  }
   const halo = disc(0.15, 0.18, T.accent, OV, 7);
   scene.add(halo);
   // sul quartiere in palio: fari da prima cinematografica che si muovono e sparano un raggio di luce nel cielo
@@ -540,7 +566,7 @@ export async function createCity(container, overlay, view = {}) {
       sp.option.visible = clickable.has(i) && !on;
       if (sp.option.visible) sp.option.material.opacity = 0.55 + (still ? 0.3 : Math.sin(t * 5) * 0.35);
     });
-    halo.visible = beams.visible = active !== null;
+    halo.visible = false; beams.visible = active !== null; // quartiere in palio: bastano i fari nel cielo, niente cerchio rosso
     if (active !== null) {
       const sp = spots[active];
       halo.position.set(sp.g.position.x, OV + regions[sp.region].g.position.y, sp.g.position.z);
@@ -555,6 +581,7 @@ export async function createCity(container, overlay, view = {}) {
       spinners.forEach(s => (s.rotation.y = t * 1.6)); glows.forEach(g => g.scale.setScalar(1 + Math.sin(t * 2.5) * 0.12));
       const beat = Math.max(0, Math.sin(t * Math.PI * 4)) ** 3; // cassa dritta a 120 bpm
       cones.forEach(c => c.scale.setScalar(1 + beat * 0.4));
+      tickFireworks(t);
       dancers.forEach(d => { const ph = d.userData.ph; d.position.y = Math.abs(Math.sin(t * Math.PI * 2 + ph)) * 0.012; d.rotation.y = Math.sin(t * 1.7 + ph) * 0.8; });
     }
     // meteo
@@ -580,7 +607,7 @@ export async function createCity(container, overlay, view = {}) {
     // etichette
     const { clientWidth: w, clientHeight: h } = container, dist = camera.position.distanceTo(controls.target);
     labels.forEach(({ el, p, region }, i) => {
-      v.copy(p); v.y += regions[region]?.g.position.y || 0; v.project(camera);
+      v.copy(p); if (i >= firstTown) v.y += regions[region]?.g.position.y || 0; v.project(camera); // i cartelli dei municipi restano fermi, anche se la zona si alza
       const ti = i - firstTown, isTown = ti >= 0;
       const show = v.z < 1 && (!isTown || dist < 7 || ti === hover || ti === active || ti === selected);
       el.style.display = show ? '' : 'none';
@@ -618,6 +645,7 @@ export async function createCity(container, overlay, view = {}) {
       homing = 1;
     },
     setClickable: (ids, cb) => { clickable = new Set(ids); onPick = cb || (() => {}); },
+    setFireworks: ids => { fwTowns = ids || []; },
     setWeather, weather: () => weatherKey,
     // pixel art accesa/spenta: solo la mappa, l'interfaccia resta nitida
     setPixel: px => { view.pixel = px || 0; renderer.domElement.style.imageRendering = px ? 'pixelated' : ''; resize(); },
