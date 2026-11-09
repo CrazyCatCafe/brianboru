@@ -204,10 +204,11 @@ export async function createCity(container, overlay, view = {}) {
   const camera = new THREE.PerspectiveCamera(36, 1, 0.05, 80);
   camera.position.set(...(view.camera || [0.3, 8.4, 9.2]));
   const controls = new OrbitControls(camera, renderer.domElement);
-  // sinistro: sposta · destro: ruota · rotella: zoom (su touch: un dito sposta, due dita zoom e rotazione)
+  // sinistro e destro: spostano · rotella: zoom (su touch: un dito sposta, due dita zoom)
   Object.assign(controls, { enableDamping: true, minDistance: 2.2, maxDistance: 18, maxPolarAngle: 1.25, screenSpacePanning: false,
-    mouseButtons: { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.ROTATE },
-    touches: { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_ROTATE } });
+    enableRotate: false, // la mappa non si ruota: il nord resta sempre in alto
+    mouseButtons: { LEFT: THREE.MOUSE.PAN, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN },
+    touches: { ONE: THREE.TOUCH.PAN, TWO: THREE.TOUCH.DOLLY_PAN } });
   const HOME = { camera: new THREE.Vector3(...(view.camera || [0.3, 8.4, 9.2])), target: new THREE.Vector3(...(view.target || [0.2, 0, 0.9])) };
   controls.target.copy(HOME.target);
   let homing = 0; // >0 mentre la vista torna a quella iniziale (bussola)
@@ -513,7 +514,6 @@ export async function createCity(container, overlay, view = {}) {
       if (!homing) { camera.position.copy(goal.camera); controls.target.copy(goal.target); }
     }
     controls.update();
-    if (view.compass) view.compass.style.setProperty('--az', `${controls.getAzimuthalAngle()}rad`);
     // municipio del quartiere selezionato: si alza e si colora
     const selRegion = selected !== null ? spots[selected].region : null, actRegion = active !== null ? spots[active].region : null; // anche la zona del quartiere in palio, per tutti
     for (const [k, r] of Object.entries(regions)) {

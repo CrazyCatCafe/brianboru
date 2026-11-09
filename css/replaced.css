@@ -363,3 +363,13 @@ body:not(.board-big) #b-uprising h3 em { display: none; }
 .rp .rlabel b.owned .tri i { clip-path: none; }
 @keyframes spin3d { from { transform: perspective(80px) rotateY(0); } to { transform: perspective(80px) rotateY(360deg); } }
 @media (prefers-reduced-motion: reduce) { .rp .rlabel .tri { animation: none; transform: perspective(80px) rotateY(-25deg); } }
+/* Hype: con 4-5 bande la colonna si allarga quanto serve, glifo del bonus sopra e quadratini sotto */
+.vhype { width: max(34px, calc(var(--np, 3) * 9px + 6px)); }
+#b-players.big .vhype { width: max(44px, calc(var(--np, 3) * 10px + 8px)); }
+.vhype .vc { flex-wrap: wrap; align-content: center; row-gap: 1px; }
+.vhype .vc .g:empty { display: none; }
+.vhype .vc .g + .pd { margin-left: 1px; }
+/* scelta dell'azione: lampeggia quello che cambia (righe della plancia, colonna Hype) */
+.vgrid tr.flash, .vhype.flash { animation: flashrow 1s ease-in-out infinite; }
+@keyframes flashrow { 50% { background: rgba(255, 210, 60, .28); box-shadow: inset 2px 0 0 #ffd23c; } }
+@media (prefers-reduced-motion: reduce) { .vgrid tr.flash, .vhype.flash { animation: none; background: rgba(255, 210, 60, .22); } }

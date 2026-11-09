@@ -173,13 +173,12 @@ async function enterGame(s) {
   if (!city) {
     $('loading').hidden = false;
     let quality = 'auto'; try { quality = localStorage.getItem('bb-quality') || 'auto'; } catch {}
-    city = await createCity($('city'), $('labels'), { compass: $('compass'), quality, theme: THEME_REPLACED, pixel: pixelOn() ? pixelScale() : 0 });
+    city = await createCity($('city'), $('labels'), { quality, theme: THEME_REPLACED, pixel: pixelOn() ? pixelScale() : 0 });
     renderQuality(); renderPixel();
     $('loading').hidden = true;
   }
   state = s; ingestEvents(s); render();
 }
-$('compass').onclick = () => city?.resetView();
 $('help').onclick = () => {
   $('glossary-list').innerHTML = Object.entries(SYMBOLS).map(([k, t]) => `<li>${icon(k, 22, 'currentColor', HOLE)}<span>${t}</span></li>`).join('');
   $('glossary').showModal();
@@ -225,14 +224,26 @@ function clickable(s, pd) {
     case 'placeTown': return emptyTowns(s, pd.region);
     case 'loseTown': return ownTowns(s, pd.victim);
     case 'monastery': return ownTowns(s, seat).filter(id => !s.towns[id].monastery);
-    case 'action': return ui.pick === 'expand' ? expandTargets(s, seat) : ui.pick === 'viking' ? vikingTowns(s) : [];
+    case 'action': { // con l'opzione scelta lampeggiano subito gli spot dove espandersi o i presidi da togliere
+      if (ui.pick) return ui.pick === 'expand' ? expandTargets(s, seat) : vikingTowns(s);
+      const sy = actionSyms(s, pd);
+      return [...(sy.includes('E') && s.players[seat].coins + sy.filter(x => x === 'C').length >= 5 ? expandTargets(s, seat) : []), ...(sy.includes('V') ? vikingTowns(s) : [])];
+    }
   }
   return [];
 }
 // clic su uno spot: è solo una scelta provvisoria, si cambia cliccando altrove e si conferma col pulsante (o giocando la carta)
+// simboli dell'azione che si sta scegliendo (per far lampeggiare righe della plancia e spot della mappa)
+function actionSyms(s, pd) {
+  if (pd?.type !== 'action' || pd.p !== seat || showing || ui.opt == null) return [];
+  const card = CARDS[pd.card];
+  return (ui.opt === 'p' ? card.primary : card.secondary[ui.opt]) || [];
+}
+const SHORT_SYM = { T: 'quartiere', C: '+1 crediti', P: '−1 crediti', M: '+1 hype', A: '+1 guerrilla', X: '+1 community', V: 'via un presidio', R: '+1 street cred' };
+const FLASH_ROW = { C: 'crediti', P: 'crediti', E: 'crediti', A: 'guerrilla', X: 'community', R: 'punti' };
 function onTown(town) {
   const pd = current(state);
-  if (pd?.type === 'action') { ui[ui.pick] = town; ui.pick = null; } else ui.town = town;
+  if (pd?.type === 'action') { const k = ui.pick || (expandTargets(state, seat).includes(town) && actionSyms(state, pd).includes('E') ? 'expand' : 'viking'); ui[k] = town; ui.pick = null; } else ui.town = town;
   render();
 }
 
@@ -385,7 +396,8 @@ function renderBoard(s, pd) {
   // Il tastino ingrandisce: compaiono i nomi (al massimo 7 caratteri, poi il punto) e i nomi dei loghi.
   $('b-players').classList.toggle('big', bigBoard); document.body.classList.toggle('board-big', bigBoard);
   const lab = kind => `${logo(kind, 16)}${bigBoard ? `<span class="lname">${LOGO_NAMES[kind]}</span>` : ''}`;
-  const row = (kind, key, k) => `<tr${phaseNow === k ? ' class="on"' : ''}><th scope="row">${lab(kind)}</th>${s.players.map(p => `<td${key === 'points' ? ' class="pts"' : ''}>${p[key]}</td>`).join('')}</tr>`;
+  const fl = new Set(actionSyms(s, pd).map(x => FLASH_ROW[x]));
+  const row = (kind, key, k) => `<tr class="${phaseNow === k ? 'on' : ''}${fl.has(kind) ? ' flash' : ''}"><th scope="row">${lab(kind)}</th>${s.players.map(p => `<td${key === 'points' ? ' class="pts"' : ''}>${p[key]}</td>`).join('')}</tr>`;
   const tip = (p, i) => [p.name, isBot(i) ? 'bot' : i === seat && !local ? 'tu' : '', room.players[i]?.gang, `street cred ${p.renown}`, `${p.hand.length} carte in mano`,
     p.claims.length ? 'zone: ' + p.claims.map(r => REGIONS[r].name).join(', ') : '', p.marriages.length ? 'personaggi: ' + p.marriages.map(characterName).join(', ') : '',
     p.princess ? 'Estrid alleata' : '', i === s.active ? 'ha il segnalino del quartiere attivo' : ''].filter(Boolean).join(' · ');
@@ -395,7 +407,7 @@ function renderBoard(s, pd) {
     <tbody>${row('punti', 'points')}${row('crediti', 'coins')}${row('guerrilla', 'raiders', 'guerrilla')}${row('community', 'church', 'community')}</tbody>
     <tfoot><tr${phaseNow === 'guerrilla' ? ' class="on"' : ''}><th scope="row">${lab('polizia')}</th><td colspan="${s.players.length}">${s.area}</td></tr></tfoot>
     </table>
-    <div class="vhype${phaseNow === 'party' ? ' on' : ''}" role="img" aria-label="Hype: ${s.players.map(p => `${esc(p.name)} casella ${p.mar + 1}`).join(', ')}">${MARRIAGE_TRACK.map((b, c) => [b, c]).reverse().map(([b, c]) =>
+    <div class="vhype${phaseNow === 'party' ? ' on' : ''}${actionSyms(s, pd).includes('M') ? ' flash' : ''}" style="--np:${s.players.length}" role="img" aria-label="Hype: ${s.players.map(p => `${esc(p.name)} casella ${p.mar + 1}`).join(', ')}">${MARRIAGE_TRACK.map((b, c) => [b, c]).reverse().map(([b, c]) =>
       `<span class="vc${b ? ' bonus' : ''}" title="Hype ${c + 1}: ${b ? BONUS_TIP[b] : 'nessun bonus'}"><span class="g">${b ? icon(b === 'CC' ? 'C' : b, 10, 'currentColor', HOLE) + (b === 'CC' ? '<sup>2</sup>' : '') : ''}</span>${s.players.map((p, i) => (p.mar === c ? pdot(i) : '')).join('')}</span>`).join('')}</div></div>
     ${s.marriage ? `<p class="sub hypeline">Hype: <b>${esc(characterName(s.marriage))}</b><button class="peek" type="button" aria-label="Vedi il personaggio: ${esc(characterName(s.marriage))}">${characterSVG(characterIndex(s.marriage))}</button></p>` : ''}`;
   $('b-players').querySelector('.zoom').onclick = () => { bigBoard = !bigBoard; try { localStorage.setItem('bb-board', bigBoard ? 'big' : 'small'); } catch {} render(); };
@@ -556,8 +568,8 @@ function renderStage(s = state, pd = current(state)) {
   // azione dopo la presa
   const card = CARDS[pd.card], pl = s.players[seat];
   const opts = pd.won ? [['p', card.primary]] : card.secondary.map((x, i) => [i, x]);
-  ui.opt ??= opts[0][0];
-  const syms = opts.find(o => o[0] === ui.opt)[1];
+  if (opts.length === 1) ui.opt ??= opts[0][0]; // con più opzioni nessuna è scelta finché non la tocchi
+  const syms = ui.opt == null ? [] : opts.find(o => o[0] === ui.opt)[1];
   const buy = syms.find(x => 'MAX'.includes(x)), maxExtra = Math.floor(pl.coins / 2);
   ui.extra = Math.min(ui.extra || 0, maxExtra);
   const count = k => syms.filter(x => x === k).length;
@@ -577,7 +589,8 @@ function renderStage(s = state, pd = current(state)) {
     ${syms.includes('E') ? `<p><button class="btn ghost small" id="pick-e">${ui.expand != null ? 'Espansione: ' + esc(TOWNS[ui.expand].name) + ' (cambia)' : 'Scegli dove espanderti (facoltativo, 5 crediti)'}</button>${ui.expand != null ? ' <button class="link" id="no-e">annulla</button>' : ''}</p>` : ''}
     ${syms.includes('V') && vikingTowns(s).length ? `<p><button class="btn ghost small" id="pick-v">${ui.viking != null ? 'Presidio: ' + esc(TOWNS[ui.viking].name) + ' (cambia)' : 'Scegli il presidio da rimuovere'}</button></p>` : ''}
     <p class="balance">Crediti: <b>${pl.coins}</b> → <b class="${after < 0 ? 'neg' : ''}">${Math.max(0, after)}</b>${after < 0 ? ' · non bastano' : ''}</p>
-    <button id="ok" class="btn wide" aria-keyshortcuts="Enter" ${after < 0 ? 'disabled' : ''}>Conferma</button>`);
+    ${ui.opt == null ? '<p class="note">Scegli una delle opzioni: sulla plancia e sulla mappa lampeggia quello che cambia.</p>' : ''}
+    <button id="ok" class="btn wide" aria-keyshortcuts="Enter" ${after < 0 || ui.opt == null ? 'disabled' : ''}>${ui.opt == null ? 'Scegli un\'opzione' : `Conferma: ${[...new Set(syms)].filter(x => x !== 'E' || ui.expand != null).map(x => (x === 'E' ? 'espansione a ' + esc(TOWNS[ui.expand].name) : SHORT_SYM[x].replace('1', count(x)))).join(' · ')}`}</button>`);
   el.querySelectorAll('[data-o]').forEach(b => (b.onclick = () => { ui = { opt: b.dataset.o === 'p' ? 'p' : +b.dataset.o }; render(); }));
   el.querySelectorAll('[data-x]').forEach(b => (b.onclick = () => { ui.extra = Math.max(0, Math.min(maxExtra, ui.extra + +b.dataset.x)); render(); }));
   $('pick-e') && ($('pick-e').onclick = () => { ui.pick = 'expand'; render(); });
