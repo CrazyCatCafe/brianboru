@@ -552,3 +552,18 @@ tr:nth-child(2n) .logo { animation-delay: -3s; }
 .cover .rebel .flame { transform-origin: 156px 44px; animation: flick .18s steps(2) infinite alternate; }
 @keyframes flick { to { transform: scale(1.08, .92); } }
 @media (prefers-reduced-motion: reduce) { .cover .rebel .flame { animation: none; } }
+/* niente scroll: contenuto dei pannelli ridotto con --fit (calcolato in JS), mano senza barra di scorrimento */
+#game .rp-stage, #game .rp-left { overflow: hidden !important; }
+#game .rp-stage > *, #game .rp-left > * { zoom: var(--fit, 1); }
+#game .hand { overflow: visible !important; }
+#game .hand .card { flex: none; position: relative; transition: translate .12s; }
+#game .hand .card:hover, #game .hand .card:focus-visible, #game .hand .card[aria-pressed="true"] { z-index: 2; }
+@media (max-width: 899px) { #game .hand { justify-content: center; } }
+/* telefono: il pannello può usare tutta l'altezza sopra la mano, così il contenuto non va rimpicciolito troppo */
+@media (max-width: 899px) { #game .rp-stage { max-height: calc(100vh - var(--card-w) * 1.45 - 72px) !important; } }
+/* telefono: menu principale a schede, una sezione alla volta */
+@media (max-width: 899px) {
+  #lobby .lobby-grid > .panel:not(.tab-on) { display: none; }
+  .offline #lobby #p-solo { display: block; }
+  .dash-nav a[aria-current="true"] { background: var(--rp-red); color: #fff; border-color: var(--rp-red); }
+}

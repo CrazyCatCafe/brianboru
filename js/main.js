@@ -68,6 +68,14 @@ $('nick-form').onsubmit = guard(async e => {
 $('logout').onclick = $('nick-out').onclick = guard(() => net.signOut());
 
 // ---------- lobby ----------
+// telefono: una sezione alla volta, scelta dal menu (niente pagina lunga da scorrere)
+const TABS = ['p-create', 'p-mine', 'p-solo', 'p-profile', 'p-friends'];
+function showTab(id) {
+  TABS.forEach(t => $(t)?.classList.toggle('tab-on', t === id));
+  document.querySelectorAll('.dash-nav a').forEach(a => a.setAttribute('aria-current', String(a.getAttribute('href') === '#' + id)));
+}
+document.querySelectorAll('.dash-nav a').forEach(a => (a.onclick = e => { e.preventDefault(); showTab(a.getAttribute('href').slice(1)); }));
+showTab(net ? 'p-create' : 'p-solo');
 let lobbyReady = false, friends = [];
 function enterLobby() {
   show('lobby');
@@ -430,6 +438,27 @@ function steps(e) {
   return [];
 }
 
+// ---------- niente scroll: i pannelli rimpiccioliscono il contenuto finché ci sta, le carte in mano si sovrappongono ----------
+function fitZoom(el) {
+  if (!el || el.hidden || !el.offsetParent) return;
+  el.style.setProperty('--fit', 1);
+  for (let k = 0, z = 1; k < 4 && el.scrollHeight > el.clientHeight + 1; k++) {
+    z = Math.max(0.45, z * (el.clientHeight / el.scrollHeight) * 0.98); el.style.setProperty('--fit', z);
+  }
+}
+function fitHand() {
+  const el = $('hand'), cards = [...el.querySelectorAll(':scope > .card')];
+  cards.forEach(c => (c.style.marginLeft = ''));
+  if (cards.length < 2) return;
+  const gap = parseFloat(getComputedStyle(el).columnGap) || 0, kept = el.querySelector('.kept')?.offsetWidth || 0;
+  const free = el.clientWidth - parseFloat(getComputedStyle(el).paddingLeft) * 2 - kept, need = cards.reduce((a, c) => a + c.offsetWidth, 0) + gap * (cards.length - 1);
+  if (need <= free) return;
+  const over = (need - free) / (cards.length - 1);
+  cards.slice(1).forEach(c => (c.style.marginLeft = `${-over}px`)); // si sovrappongono: la carta sotto il dito sale (CSS)
+}
+const fitAll = () => { fitZoom($('stage')); fitZoom($('board')); fitHand(); };
+addEventListener('resize', () => state && !$('game').hidden && fitAll());
+
 // ---------- rendering ----------
 let handSort = localStorage.getItem('bb-sort') || 'num';
 document.querySelectorAll('[data-sort]').forEach(b => (b.onclick = () => { handSort = b.dataset.sort; localStorage.setItem('bb-sort', handSort); render(); }));
@@ -461,6 +490,7 @@ function render() {
   framedKey = pk;
   document.querySelectorAll('[data-sort]').forEach(b => b.setAttribute('aria-pressed', b.dataset.sort === handSort));
   renderPhases(s, pd); renderBoard(s, pd); renderTurn(s, pd, wk); renderStage(s, pd); renderHand(s, pd);
+  fitAll();
   if (fkey) document.querySelector(fkey)?.focus({ preventScroll: true }); // il focus non si perde quando il pannello si aggiorna
   const said = $('stage').querySelector('h2')?.textContent || '';
   if (said !== lastSaid) { $('announce').textContent = said; lastSaid = said; } // lo screen reader sente solo il titolo nuovo
