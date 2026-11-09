@@ -439,3 +439,11 @@ body.has-hype #game .rp-stage { left: calc(var(--board-w) + var(--hype-w) + 3 * 
 .ptable tr.on td { opacity: 1; }
 @media (prefers-reduced-motion: reduce) { .ptrack.zoom, .ptrack .pt[data-move] { animation: none; } }
 .ptable td:first-child { white-space: nowrap; }
+
+.rp .meta .goto { margin-left: 8px; padding: 3px 8px; font-size: 10.5px; vertical-align: 1px; }
+/* tutti i loghi: tasselli 3D che ruotano lentamente (fermi con "riduci movimento") */
+.logo { transform-style: preserve-3d; animation: spinlogo 6s linear infinite; box-shadow: 2px 0 0 rgba(0, 0, 0, .35); }
+.logo:nth-of-type(2n) { animation-delay: -1.5s; }
+tr:nth-child(2n) .logo { animation-delay: -3s; }
+@keyframes spinlogo { from { transform: perspective(70px) rotateY(0); } to { transform: perspective(70px) rotateY(360deg); } }
+@media (prefers-reduced-motion: reduce) { .logo { animation: none; transform: perspective(70px) rotateY(-20deg); } }

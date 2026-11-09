@@ -546,6 +546,7 @@ function endRecap(s) { // riepilogo di fine partita: come si è vinto
 
 function renderStage(s = state, pd = current(state)) {
   const el = $('stage');
+  el.onclick = e => { const g = e.target.closest('[data-goto]'); if (g) city.focusTown(+g.dataset.goto); }; // "Portami lì"
   // titolo prima, informazioni di contorno sotto (niente etichetta sopra il titolo)
   const head = (h, meta = '', body = '') => `<h2>${h}</h2>${meta ? `<p class="meta">${meta}</p>` : ''}${body}`;
   const mineTurn = pd && pd.p === seat && !showing && !(pd.type === 'draft' && s.draft.picks[seat]);
@@ -579,7 +580,7 @@ function renderStage(s = state, pd = current(state)) {
   if (pd.p !== seat) {
     const w = s.trick?.winner;
     el.innerHTML = trick + head(w != null && s.trick.plays.length === s.players.length ? `Presa a ${esc(s.players[w].name)}` : `Turno di ${esc(s.players[pd.p].name)}`,
-      town != null ? `Quartiere attivo: ${townChip(town)} · ${REGIONS[TOWNS[town].region].name}` : '');
+      town != null ? `Quartiere attivo: ${townChip(town)} · ${REGIONS[TOWNS[town].region].name} <button class="btn ghost small goto" data-goto="${town}">Portami lì</button>` : '');
     return;
   }
   const picks = clickable(s, pd);
@@ -602,7 +603,7 @@ function renderStage(s = state, pd = current(state)) {
       bindArmed(true); return;
     case 'play': {
       const word = SUIT_WORD[TOWNS[town].color];
-      el.innerHTML = trick + head('Gioca una carta', `${mine} · Quartiere attivo: ${townChip(town)}`,
+      el.innerHTML = trick + head('Gioca una carta', `${mine} · Quartiere attivo: ${townChip(town)} <button class="btn ghost small goto" data-goto="${town}">Portami lì</button>`,
         `${seat === s.trick.leader ? `<p>Apri tu: gioca ${word} o Briano Borro.</p>` : ''}
         ${ui.armed != null ? `<button id="playarmed" class="btn wide">Gioca la carta ${ui.armed}</button>` : ''}`);
       bindArmed(false); return;
@@ -632,7 +633,7 @@ function renderStage(s = state, pd = current(state)) {
     $('nopick').onclick = () => { ui.pick = null; render(); };
     return;
   }
-  el.innerHTML = trick + head(title, `${mine} · Carta ${pd.card}`,
+  el.innerHTML = trick + head(title, `${mine} · Carta ${pd.card}${s.trick?.town != null ? ` · ${townChip(s.trick.town)} <button class="btn ghost small goto" data-goto="${s.trick.town}">Portami lì</button>` : ''}`,
     `<div class="opts" role="radiogroup" aria-label="Azione">${opts.map(([k, sy]) => `<button class="opt" role="radio" data-o="${k}" aria-checked="${k === ui.opt}" aria-pressed="${k === ui.opt}">${k === 'p' ? '<small>Vinci</small>' : ''}${sy.map(x => `<span title="${SYMBOLS[x]}">${icon(x, 24, 'currentColor', HOLE)}</span>`).join('')}</button>`).join('')}</div>
     <ul class="explain">${[...new Set(syms)].map(x => `<li>${icon(x, 16, 'currentColor', HOLE)} ${exactText(x, count(x), pl)}</li>`).join('')}</ul>
     ${buy ? `<div class="stepper"><span>Passi extra, 2 crediti l'uno</span><button class="btn small" data-x="-1" aria-label="Un passo in meno">−</button><b>${ui.extra}</b><button class="btn small" data-x="1" aria-label="Un passo in più" ${ui.extra >= maxExtra ? 'disabled' : ''}>+</button></div>` : ''}

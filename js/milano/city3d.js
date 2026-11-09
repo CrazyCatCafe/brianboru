@@ -75,20 +75,6 @@ function sharedBorders(regionRings, width, height, y, color) {
   return g;
 }
 
-// sposta un anello (coordinate canvas) verso l'interno di d pixel: il contorno di un municipio non si sovrappone a quello del vicino
-function inset(ring, d) {
-  let area = 0; ring.forEach(([x, y], i) => { const [x2, y2] = ring[(i + 1) % ring.length]; area += x * y2 - x2 * y; });
-  const k = area > 0 ? 1 : -1, n = ring.length, closed = ring[0][0] === ring[n - 1][0] && ring[0][1] === ring[n - 1][1], m = closed ? n - 1 : n;
-  const out = ring.slice(0, m).map(([x, y], i) => {
-    const [px, py] = ring[(i - 1 + m) % m], [nx, ny] = ring[(i + 1) % m];
-    let ax = -(y - py), ay = x - px, bx = -(ny - y), by = nx - x; // normali a sinistra dei due lati
-    const la = Math.hypot(ax, ay) || 1, lb = Math.hypot(bx, by) || 1; ax /= la; ay /= la; bx /= lb; by /= lb;
-    let mx = ax + bx, my = ay + by; const lm = Math.hypot(mx, my) || 1; mx /= lm; my /= lm;
-    return [x + mx * d * k, y + my * d * k];
-  });
-  return closed ? [...out, out[0]] : out;
-}
-
 // in sovrimpressione: sempre visibili sopra gli edifici (vale anche per i figli di un gruppo)
 const over = (m, order) => {
   m.traverse(c => {
@@ -255,21 +241,18 @@ export async function createCity(container, overlay, view = {}) {
     }
     touched.forEach(a => (a.needsUpdate = true));
   };
-  scene.add(meshes[0]);
+  scene.add(meshes[0]); const outsideBld = meshes[0];
   const regions = {};
   env.regionKeys.forEach((k, i) => {
     const r = map.regions[k], g = new THREE.Group(), color = new THREE.Color(T.region[k]);
     const tint = flat(rings(r.svg_path), color, 0.002, { transparent: true, opacity: 0, depthWrite: false });
-    // contorno interno del municipio: colore della zona finché nessuno la controlla, poi colore della banda
-    const edgeMat = new THREE.MeshBasicMaterial({ color });
-    const edge = rings(r.svg_path).map(ring => over(new THREE.Mesh(ribbon(inset([...ring, ring[0]], 1.8), 0.006, OV), edgeMat), 1));
-    const glow = rings(r.svg_path).map(ring => over(new THREE.Mesh(ribbon([...ring, ring[0]], 0.06, OV - 0.002),
-      new THREE.MeshBasicMaterial({ color, opacity: 0, blending: THREE.AdditiveBlending })), 0));
+    // confini solo neri (il muro); l'ombra scurisce le zone lontane da quella su cui si sta giocando
+    const shade = flat(rings(r.svg_path), '#05070a', 0.0025, { transparent: true, opacity: 0, depthWrite: false });
     const bld = meshes[i + 1], pieces = new THREE.Group();
-    g.add(tint, ...glow, ...edge, pieces);
+    g.add(tint, shade, pieces);
     if (bld) g.add(bld);
     scene.add(g);
-    regions[k] = { g, tint, glow, bld, pieces, color, edgeMat, owner: null, lift: 0 };
+    regions[k] = { g, tint, shade, bld, pieces, color, owner: null, lift: 0, dim: 0 };
   });
 
   // quartieri: cerchi del colore del seme
@@ -384,8 +367,7 @@ export async function createCity(container, overlay, view = {}) {
     for (const [k, r] of Object.entries(regions)) { // municipio controllato (zona assegnata): diventa del colore della banda
       const o = s.claims?.[k]?.owner ?? null;
       r.owner = o === null ? null : new THREE.Color(T.players[o]);
-      r.edgeMat.color.copy(r.owner || r.color); r.tint.material.color.copy(r.owner || r.color);
-      r.glow.forEach(g => g.material.color.copy(r.owner || r.color));
+      r.tint.material.color.copy(r.owner || r.color);
       // cartello: zona controllata → quadratino e nome della banda al posto di triangolino e nome della zona
       const b = r.title?.querySelector('b'), who = o === null ? null : (s.names?.[o] || `Banda ${o + 1}`);
       if (b && b.dataset.who !== String(who)) {
@@ -520,12 +502,15 @@ export async function createCity(container, overlay, view = {}) {
     // municipio del quartiere selezionato: si alza e si colora
     const selRegion = selected !== null ? spots[selected].region : null, actRegion = active !== null ? spots[active].region : null; // anche la zona del quartiere in palio, per tutti
     for (const [k, r] of Object.entries(regions)) {
-      r.lift += ((k === selRegion || k === actRegion || k === lit ? 1 : 0) - r.lift) * Math.min(1, dt * 6);
+      const on = k === selRegion || k === actRegion || k === lit, focus = selRegion !== null || actRegion !== null || lit !== null;
+      r.lift += ((on ? 1 : 0) - r.lift) * Math.min(1, dt * 6);
+      r.dim += ((focus && !on ? 1 : 0) - r.dim) * Math.min(1, dt * 4); // le altre zone si spengono, quella in gioco risalta
       r.g.position.y = r.lift * LIFT;
-      r.tint.material.opacity = (r.owner ? 0.4 : 0) + r.lift * 0.2;
-      r.glow.forEach(g => (g.material.opacity = r.lift * (0.45 + (still ? 0 : Math.sin(t * 3) * 0.15))));
-      if (r.bld) r.bld.material.color.copy(white).lerp(r.owner || r.color, (r.owner ? 0.4 : 0) + r.lift * 0.3); // controllato: anche i palazzi prendono il colore della banda
+      r.tint.material.opacity = (r.owner ? 0.4 : 0) + r.lift * 0.35;
+      r.shade.material.opacity = r.dim * 0.4;
+      if (r.bld) r.bld.material.color.copy(white).lerp(r.owner || r.color, (r.owner ? 0.4 : 0) + r.lift * 0.35).multiplyScalar(1 - r.dim * 0.45); // controllato: palazzi del colore della banda
     }
+    if (outsideBld) { const d = Object.values(regions).reduce((m, r) => Math.max(m, r.dim), 0); outsideBld.material.color.setScalar(1 - d * 0.45); }
     spots.forEach((sp, i) => {
       const on = i === selected;
       sp.g.scale.setScalar(on ? 1.7 : i === hover && clickable.has(i) ? 1.25 : 1);
@@ -588,6 +573,11 @@ export async function createCity(container, overlay, view = {}) {
     update,
     select: i => { selected = i ?? null; },
     highlight: k => { lit = k ?? null; },
+    // "portami lì": centra la mappa sul quartiere e avvicina del 30% (stesso angolo)
+    focusTown: i => {
+      const p = spots[i].g.position, off = new THREE.Vector3().subVectors(camera.position, controls.target).multiplyScalar(0.7);
+      goal.target.set(p.x, 0, p.z); goal.camera.copy(goal.target).add(off); homing = 1;
+    },
     resetView: () => { goal.camera.copy(HOME.camera); goal.target.copy(HOME.target); homing = 1; },
     // porta in vista gli spot indicati (es. dove ci si può espandere), senza cambiare l'angolo della telecamera
     frame: ids => {
