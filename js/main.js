@@ -591,7 +591,7 @@ function renderBoard(s, pd) {
   $('b-players').innerHTML = `<button class="zoom" type="button" aria-pressed="${bigBoard}" aria-label="${bigBoard ? 'Rimpicciolisci la plancia' : 'Ingrandisci la plancia'}">${bigBoard ? '−' : '+'}</button>
     <div class="vgrid"><table aria-label="Bande">
     <thead><tr><td></td>${s.players.map((p, i) => `<th scope="col"><span class="ini${waiting.includes(i) ? ' turn' : ''}" style="--pc:${THEME.players[i]}" title="${esc(tip(p, i))}">${esc(bigBoard ? shortName(p.name) : initial(s, i))}</span>${i === s.active ? `<i class="mk" title="Segnalino quartiere attivo">${icon('T', 11, 'currentColor', HOLE)}</i>` : ''}</th>`).join('')}</tr></thead>
-    <tbody>${row('punti', 'points')}${row('crediti', 'coins')}${row('cred', 'renown')}${row('guerrilla', 'raiders', 'guerrilla')}${row('community', 'church', 'community')}${row('uprising', p => p.claims.reduce((a, r) => a + REGIONS[r].points, 0), 'uprising')}</tbody>
+    <tbody>${row('punti', 'points')}${row('uprising', p => p.claims.reduce((a, r) => a + REGIONS[r].points, 0), 'uprising')}${row('crediti', 'coins')}${row('cred', 'renown')}${row('guerrilla', 'raiders', 'guerrilla')}${row('community', 'church', 'community')}</tbody>
     <tfoot><tr${phaseNow === 'guerrilla' ? ' class="on"' : ''}><th scope="row">${lab('polizia')}</th><td colspan="${s.players.length}">${s.area}</td></tr></tfoot>
     </table>
     <div class="vhype${phaseNow === 'party' ? ' on' : ''}${actionSyms(s, pd).includes('M') ? ' flash' : ''}" style="--np:${s.players.length}" role="img" aria-label="Hype: ${s.players.map(p => `${esc(p.name)} casella ${p.mar + 1}`).join(', ')}">${MARRIAGE_TRACK.map((b, c) => [b, c]).reverse().map(([b, c]) =>
