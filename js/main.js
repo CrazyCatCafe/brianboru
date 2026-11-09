@@ -717,7 +717,8 @@ function renderStage(s = state, pd = current(state)) {
   }
   if (!pd) { // fine partita
     const fe = s.events.find(x => x.k === 'final');
-    el.innerHTML = head(s.winner.length > 1 ? 'Pareggio' : `Vince ${esc(s.players[s.winner[0]].name)}`, 'Fine partita', fe ? finalTable(fe, FINAL_COLS(fe), 6) : endRecap(s));
+    el.innerHTML = head(s.winner.length > 1 ? 'Pareggio' : `Vince ${esc(s.players[s.winner[0]].name)}`, 'Fine partita', fe ? finalTable(fe, FINAL_COLS(fe), 6) : endRecap(s) + '<div class="row end"><button class="btn" id="endexit">Esci</button></div>');
+    $('endexit').onclick = () => { if (local) { local = false; state = null; clearTimeout(botTimer); } show(!net || me ? 'lobby' : 'auth'); }; // a partita finita si esce senza conferma
     return;
   }
   const trick = trickRow(s) + resultsList(s);
