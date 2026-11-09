@@ -350,4 +350,16 @@ body:not(.board-big) #b-uprising h3 em { display: none; }
 .rp .rlabel .logo { display: inline-grid; place-items: center; width: 16px; height: 16px; background: #eef1f3; }
 .rp .rlabel .logo svg { width: 12px; height: 12px; }
 @media (max-width: 899px) { .rp .rlabel { padding: 3px 6px; } }
-.rp .rlabel b.owned::before { border: 0; width: 9px; height: 9px; background: var(--rc); vertical-align: -1px; } /* zona controllata: quadratino della banda */
+/* simbolo 3D che ruota: triangolo capovolto (punta in basso) del colore della zona, fatto di strati per dargli spessore.
+   Zona conquistata: cubetto del colore della banda. */
+.rp .rlabel b::before { content: none; }
+.rp .rlabel b { display: flex; align-items: center; gap: 8px; }
+.rp .rlabel .tri { position: relative; display: inline-block; width: 13px; height: 12px; flex: none; transform-style: preserve-3d; animation: spin3d 3.2s linear infinite; }
+.rp .rlabel .tri i { position: absolute; inset: 0; background: var(--rc); clip-path: polygon(0 0, 100% 0, 50% 100%); }
+.rp .rlabel .tri i:nth-child(1) { transform: translateZ(3px); }
+.rp .rlabel .tri i:nth-child(2) { transform: translateZ(1px); filter: brightness(.55); }
+.rp .rlabel .tri i:nth-child(3) { transform: translateZ(-1px); filter: brightness(.55); }
+.rp .rlabel .tri i:nth-child(4) { transform: translateZ(-3px); filter: brightness(.8); }
+.rp .rlabel b.owned .tri i { clip-path: none; }
+@keyframes spin3d { from { transform: perspective(80px) rotateY(0); } to { transform: perspective(80px) rotateY(360deg); } }
+@media (prefers-reduced-motion: reduce) { .rp .rlabel .tri { animation: none; transform: perspective(80px) rotateY(-25deg); } }
