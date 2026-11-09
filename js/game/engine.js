@@ -379,5 +379,7 @@ const MOVES = {
   princess(s, p, { choice }) {
     if (!['military', 'trade', 'spurn'].includes(choice)) fail('Scelta non valida');
     if (choice === 'spurn') s.players[p].points += 4; else s.players[p].princess = choice;
+    event(s, { k: 'estrid', p, choice });
+    log(s, `${name(s, p)} sceglie per la Regina Estrid: ${{ military: 'Scudo', trade: 'Rete', spurn: 'la lascia libera (+4 punti)' }[choice]}.`);
   },
 };

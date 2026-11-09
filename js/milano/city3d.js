@@ -380,6 +380,10 @@ export async function createCity(container, overlay, view = {}) {
       }
     });
     active = s.activeTown ?? null;
+    for (const [k, r] of Object.entries(regions)) { // quartieri occupati verso la soglia (progetto urbano = 2, polizia compresa)
+      const n = towns.reduce((a, t, i) => a + (t.region === k && s.towns[i].owner !== null ? (s.towns[i].monastery ? 2 : 1) : 0), 0);
+      const c = r.title?.querySelector('.cnt'); if (c) { c.textContent = n; c.parentElement.classList.toggle('reached', n >= map.regions[k].threshold); }
+    }
     for (const [k, r] of Object.entries(regions)) { // municipio controllato (zona assegnata): diventa del colore della banda
       const o = s.claims?.[k]?.owner ?? null;
       r.owner = o === null ? null : new THREE.Color(T.players[o]);
@@ -402,7 +406,8 @@ export async function createCity(container, overlay, view = {}) {
   };
   for (const [k, r] of Object.entries(map.regions)) {
     const [lx, ly] = r.label.tx ? [r.label.tx, r.label.ty] : [r.label.x, r.label.y];
-    regions[k].title = addLabel(`<b style="--rc:${T.region[k]}" title="${r.name}"><i class="tri" aria-hidden="true"><i></i><i></i><i></i><i></i></i><span class="nm">${r.name}</span></b><i title="Quartieri per far scattare l'Uprising">${r.threshold}${logo('uprising', 13)}</i><i title="Punti per chi controlla la zona">${r.points}${logo('punti', 13)}</i>`, 'rlabel', lx, ly, 0.02, k);
+    regions[k].title = addLabel(`<b style="--rc:${T.region[k]}" title="${r.name}"><i class="tri" aria-hidden="true"><i></i><i></i><i></i><i></i></i><span class="nm">${r.name}</span></b><i title="Quartieri occupati su quelli che servono per l'Uprising"><span class="cnt">0</span>/${r.threshold}${logo('uprising', 13)}</i><i title="Punti per chi controlla la zona">${r.points}${logo('punti', 13)}</i>`, 'rlabel', lx, ly, 0.02, k);
+    regions[k].title.dataset.region = k;
   }
   const firstTown = labels.length;
   towns.forEach(t => addLabel(t.name, 'tlabel', t.x, t.y, OV + 0.16, t.region));

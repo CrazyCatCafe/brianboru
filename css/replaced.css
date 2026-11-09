@@ -589,3 +589,15 @@ tr:nth-child(2n) .logo { animation-delay: -3s; }
 .rc.mine::after { content: '★'; position: absolute; top: -6px; right: -5px; font: 700 9px var(--font); color: #111; background: #ffd400; border: 1.5px solid #111; width: 12px; height: 12px; display: grid; place-items: center; line-height: 1; }
 .rc.gone { background: none !important; border: 2px dashed #b9b2a3; color: transparent; } /* già giocata in questo round: tolta, resta solo il posto */
 .rc.gone::after { content: none; }
+
+/* ordina la mano: due tastini con simbolo */
+#game .handbar button { padding: 4px 8px; font: 700 11px var(--num); }
+.handbar .sw { display: inline-block; width: 18px; height: 10px; background: linear-gradient(90deg, #ffc20e 0 33%, #e62e2d 33% 66%, #1f8fff 66%); border: 1px solid #111; vertical-align: middle; }
+/* cartello del municipio: quartieri occupati verso la soglia, carta Hype accanto */
+.rp .rlabel { position: absolute; }
+.rp .rlabel i.reached { color: #ffd400; }
+.rp .rlabel .hymini { position: absolute; left: calc(100% + 4px); top: 0; bottom: 0; display: flex; align-items: center; gap: 4px; padding: 3px 5px; background: #f4f1ea; border: 2px solid #111; color: #111; }
+.rp .rlabel .hymini svg { height: 100%; width: auto; aspect-ratio: 184 / 104; border: 1px solid #111; }
+.rp .rlabel .hymini b { font: 800 13px var(--num); }
+/* cronaca */
+.log b.lc { text-shadow: 0 0 2px #000; }
