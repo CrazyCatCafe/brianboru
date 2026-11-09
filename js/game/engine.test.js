@@ -120,4 +120,12 @@ for (let g = 0; g < 300; g++) {
     }
   }
 }
+// punteggio finale: la somma delle voci registrate torna con i punti finali
+for (let g = 0; g < 40; g++) {
+  let b = newGame(['A', 'B', 'C', 'D'].slice(0, 3 + g % 2), 900 + g);
+  while (b.stage !== 'end') { const [q, m] = botMove(b); b = move(b, q, m); }
+  const f = b.events.find(e => e.k === 'final');
+  assert.ok(f, 'manca il racconto del punteggio finale');
+  b.players.forEach((p, i) => assert.equal(f.start[i] + f.coins[i] + f.active[i] + f.renown[i] + f.zonePts[i] + f.presence[i], p.points));
+}
 console.log('ok: 600 partite simulate, 60 partite tra bot');

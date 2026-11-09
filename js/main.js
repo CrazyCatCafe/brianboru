@@ -251,7 +251,7 @@ function exactText(x, n, pl) {
     default: return SYMBOLS[x];
   }
 }
-const FLASH_ROW = { C: 'crediti', P: 'crediti', E: 'crediti', A: 'guerrilla', X: 'community', R: 'punti' };
+const FLASH_ROW = { C: 'crediti', P: 'crediti', E: 'crediti', A: 'guerrilla', X: 'community', R: 'cred' };
 function onTown(town) {
   const pd = current(state);
   if (pd?.type === 'action') { const k = ui.pick || (expandTargets(state, seat).includes(town) && actionSyms(state, pd).includes('E') ? 'expand' : 'viking'); ui[k] = town; ui.pick = null; } else ui.town = town;
@@ -300,8 +300,8 @@ function waitingAcks() {
   if (!showing || !ACK_ALL.has(showing.k) || local || !room) return [];
   return room.players.map((p, i) => [p, i]).filter(([p]) => (room.acks?.[p.uid] ?? -1) < showing.n).map(([, i]) => i);
 }
-const ACK_ALL = new Set(['prep', 'party']);
-const SHOW_PHASE = { setup: 'prep' };
+const ACK_ALL = new Set(['prep', 'party', 'final']);
+const SHOW_PHASE = { setup: 'prep', final: 'uprising' };
 function checkAcks() { if (ACK_ALL.has(showing?.k) && acked === showing.n && !waitingAcks().length) { acked = null; nextEvent(); } }
 
 function hypeTrack(pos, { mark = null, note = '' } = {}) { // pos[i] = casella del giocatore i (0..9)
@@ -317,6 +317,26 @@ function guerBoard(e, order, vals, { grow = false, lose = new Set(), raid = fals
       <span class="bar"><i style="--pc:${THEME.players[i]};--w:${vals[i] / max * 100}%;${from ? `--fw:${from[i] / max * 100}%` : ''}" class="${grow ? 'grow' : ''}${from ? ' shrink' : ''}"></i></span><b>${vals[i]}</b></div>`).join('')}</div></div>`;
 }
 // track dell'hype in orizzontale con le pedine posizionate: si possono animare (zoom d'ingresso, pedina che torna indietro)
+// tabella del punteggio finale: colonne svelate fino a "upto", la colonna corrente accesa, totale che sale
+const FINAL_COLS = e => [
+  ['start', 'In partita', i => e.start[i]], ['coins', 'Crediti', i => e.coins[i]], ['active', 'Quartiere attivo', i => e.active[i]],
+  ['renown', 'Street cred', i => e.renown[i]], ['zones', 'Zone', i => e.zonePts[i]], ['presence', 'Presenza', i => e.presence[i]],
+];
+function finalTable(e, cols, upto, zoneK = null) {
+  const s = state, zonePart = i => (zoneK === null ? e.zonePts[i] : e.zones.slice(0, zoneK + 1).reduce((a, x) => a + (x.owner === i ? x.pts : x.half.includes(i) ? Math.floor(x.pts / 2) : 0), 0));
+  const val = (c, i) => (c[0] === 'zones' ? zonePart(i) : c[2](i));
+  const tot = i => cols.slice(0, Math.min(upto, 5) + 1).reduce((a, c) => a + val(c, i), 0);
+  const order = s.players.map((p, i) => i).sort((a, b) => (upto >= 6 ? e.rank.indexOf(a) - e.rank.indexOf(b) : 0));
+  return `<table class="ftable"><thead><tr><th></th>${cols.map((c, k) => `<th class="${k === upto ? 'cur' : ''}">${c[1]}</th>`).join('')}<th>Totale</th></tr></thead>
+    <tbody>${order.map(i => `<tr class="${upto >= 6 && e.winner.includes(i) ? 'champ' : ''}"><td>${who(s, i)}${upto >= 6 && e.winner.includes(i) ? ' 🏆' : ''}</td>${cols.map((c, k) => {
+      const v = k > upto ? '' : val(c, i);
+      return `<td class="${k === upto ? 'cur' : ''}${k === upto && v > 0 && k ? ' got' : ''}">${v === '' ? '' : k ? (v ? '+' + v : '·') : v}${k === 5 && k <= upto ? `<small> (${e.regions[i]} zone)</small>` : ''}</td>`;
+    }).join('')}<td class="tot">${tot(i)}</td></tr>`).join('')}</tbody></table>`;
+}
+function tieNote(e) {
+  const t = e.total, w = e.winner[0], second = e.rank[1];
+  return t[second] === t[w] ? `<p>Pari punti con ${who(state, second)}: vince chi controlla più zone, poi chi ha più carte Hype.</p>` : `<p>${who(state, w)} vince con <b>${t[w]} punti</b>.</p>`;
+}
 function partyTrack(pos, { zoom = false, hi = null, from = {}, bonus = null } = {}) {
   const cells = MARRIAGE_TRACK.map((b, c) => `<div class="pc${b ? ' bonus' : ''}${bonus !== null && pos[bonus] === c ? ' got' : ''}"><span class="n">${c + 1}</span><span class="b">${b === 'CC' ? icon('C', 12) + icon('C', 12) : b ? icon(b, 13) : ''}</span></div>`).join('');
   const stack = {};
@@ -327,6 +347,21 @@ const BONUS = { C: '+1 credito', CC: '+2 crediti', R: '+1 street cred', T: 'pren
 function steps(e) {
   const s = state, list = arr => arr.join('');
   switch (e.k) {
+    case 'final': { // punteggio finale, una voce alla volta, con la tabella che si riempie
+      const z = e.zones, cols = FINAL_COLS(e);
+      const out = [{ t: 'Fine partita', b: finalTable(e, cols, 0) + '<p>Si contano i punti finali, una voce alla volta. Ognuno parte dai punti fatti in partita.</p>' }];
+      out.push({ t: 'Crediti', b: finalTable(e, cols, 1) + (e.coinsTie ? '<p>Più bande pareggiano per i crediti: nessuno prende il punto.</p>' : `<p>${who(s, e.coins.indexOf(1))} ha più crediti: <b class="ptsup">+1 punto</b>.</p>`) });
+      out.push({ t: 'Quartiere attivo', b: finalTable(e, cols, 2) + `<p>${who(s, e.active.indexOf(1))} ha il segnalino del quartiere attivo: <b class="ptsup">+1 punto</b>.</p>` });
+      out.push({ t: 'Street cred', b: finalTable(e, cols, 3) + '<p>Ogni street cred vale <b>1 punto</b>.</p>' });
+      if (!z.length) out.push({ t: 'Zone in palio', b: finalTable(e, cols, 4) + '<p>Nessuna zona è in palio: nessun punto.</p>' });
+      z.forEach((x, k) => out.push({ zone: x.r, t: `Zona ${REGIONS[x.r].name}`, b: finalTable(e, cols, 4, k) + (x.owner !== null
+        ? `<p>${who(s, x.owner)} controlla ${REGIONS[x.r].name}: <b class="ptsup">+${x.pts} punti</b>.</p>`
+        : x.half.length ? `<p>Nessuno la controlla: ${x.half.map(i => who(s, i)).join(', ')} ${x.half.length > 1 ? 'pareggiano' : 'ha'} per più quartieri e ${x.half.length > 1 ? 'prendono' : 'prende'} metà dei punti: <b class="ptsup">+${Math.floor(x.pts / 2)}</b>.</p>`
+        : '<p>La controlla la polizia: nessun punto.</p>') }));
+      out.push({ t: 'Presenza nelle zone', b: finalTable(e, cols, 5) + `<p>Punti per il numero di zone in cui hai almeno un quartiere:</p><table class="ptable regscore"><tr><td>Zone</td>${['1–2', '3–4', '5', '6', '7', '8'].map(x => `<td>${x}</td>`).join('')}</tr><tr><td>Punti</td>${[0, 1, 3, 5, 7, 10].map(x => `<td>${x}</td>`).join('')}</tr></table>` });
+      out.push({ t: e.winner.length > 1 ? 'Pareggio!' : `Vince ${esc(s.players[e.winner[0]].name)}!`, b: finalTable(e, cols, 6) + (e.winner.length > 1 ? '<p>Pari punti, zone controllate e carte Hype: vittoria condivisa.</p>' : tieNote(e)) });
+      return out;
+    }
     case 'setup': return [{ t: `${esc(s.players[e.p].name)} parte da ${esc(TOWNS[e.town].name)}`, b: `<p>${who(s, e.p)} sceglie ${townChip(e.town)} in <b>${REGIONS[TOWNS[e.town].region].name}</b>. <button class="btn ghost small goto" data-goto="${e.town}">Portami lì</button></p>` }];
     case 'prep': return [{ t: `Round ${e.round}${e.final ? ' · ultimo' : ''}`, b: `<div class="prep"><div class="pol">${logo('polizia', 34)}<b>+${e.police}</b><span class="cap">polizia in arrivo · in allerta ${e.area}</span></div>
       <div class="hy"><span class="cap">In Hype</span>${hypeCardHTML(e.character, s)}</div></div>` }];
@@ -482,7 +517,7 @@ function renderBoard(s, pd) {
   $('b-players').innerHTML = `<button class="zoom" type="button" aria-pressed="${bigBoard}" aria-label="${bigBoard ? 'Rimpicciolisci la plancia' : 'Ingrandisci la plancia'}">${bigBoard ? '−' : '+'}</button>
     <div class="vgrid"><table aria-label="Bande">
     <thead><tr><td></td>${s.players.map((p, i) => `<th scope="col"><span class="ini${waiting.includes(i) ? ' turn' : ''}" style="--pc:${THEME.players[i]}" title="${esc(tip(p, i))}">${esc(bigBoard ? shortName(p.name) : initial(s, i))}</span>${i === s.active ? `<i class="mk" title="Segnalino quartiere attivo">${icon('T', 11, 'currentColor', HOLE)}</i>` : ''}</th>`).join('')}</tr></thead>
-    <tbody>${row('punti', 'points')}${row('crediti', 'coins')}${row('guerrilla', 'raiders', 'guerrilla')}${row('community', 'church', 'community')}</tbody>
+    <tbody>${row('punti', 'points')}${row('crediti', 'coins')}${row('cred', 'renown')}${row('guerrilla', 'raiders', 'guerrilla')}${row('community', 'church', 'community')}</tbody>
     <tfoot><tr${phaseNow === 'guerrilla' ? ' class="on"' : ''}><th scope="row">${lab('polizia')}</th><td colspan="${s.players.length}">${s.area}</td></tr></tfoot>
     </table>
     <div class="vhype${phaseNow === 'party' ? ' on' : ''}${actionSyms(s, pd).includes('M') ? ' flash' : ''}" style="--np:${s.players.length}" role="img" aria-label="Hype: ${s.players.map(p => `${esc(p.name)} casella ${p.mar + 1}`).join(', ')}">${MARRIAGE_TRACK.map((b, c) => [b, c]).reverse().map(([b, c]) =>
@@ -590,6 +625,7 @@ function endRecap(s) { // riepilogo di fine partita: come si è vinto
 
 function renderStage(s = state, pd = current(state)) {
   const el = $('stage');
+  if (showing?.k === 'final') city.highlight(steps(showing)[Math.min(step, steps(showing).length - 1)].zone ?? null); // la zona che si sta contando si alza
   el.onclick = e => { const g = e.target.closest('[data-goto]'); if (g) city.focusTown(+g.dataset.goto); }; // "Portami lì"
   // titolo prima, informazioni di contorno sotto (niente etichetta sopra il titolo)
   const head = (h, meta = '', body = '') => `<h2>${h}</h2>${meta ? `<p class="meta">${meta}</p>` : ''}${body}`;
@@ -598,14 +634,15 @@ function renderStage(s = state, pd = current(state)) {
   el.classList.toggle('compact', !!mapPicking);
   if (showing) {
     const st = steps(showing), cur = st[Math.min(step, st.length - 1)];
-    el.innerHTML = head(cur.t, `${PHASES.find(p => p[0] === (SHOW_PHASE[showing.k] || showing.k))?.[1] || ''} · passo ${step + 1} di ${st.length}`, cur.b) +
+    el.innerHTML = head(cur.t, `${showing.k === 'final' ? 'Punteggio finale' : PHASES.find(p => p[0] === (SHOW_PHASE[showing.k] || showing.k))?.[1] || ''} · passo ${step + 1} di ${st.length}`, cur.b) +
       (waitingAcks().length && acked === showing.n ? `<p class="waitack">In attesa che clicchino Avanti: ${waitingAcks().map(i => `<span class="blink">${who(s, i)}</span>`).join(' ')}</p>`
         : `<div class="row end"><button class="btn small" id="next" aria-keyshortcuts="Space">Avanti</button></div>`);
     $('next') && ($('next').onclick = advance);
     return;
   }
   if (!pd) { // fine partita
-    el.innerHTML = head(s.winner.length > 1 ? 'Pareggio' : `Vince ${esc(s.players[s.winner[0]].name)}`, 'Fine partita', endRecap(s));
+    const fe = s.events.find(x => x.k === 'final');
+    el.innerHTML = head(s.winner.length > 1 ? 'Pareggio' : `Vince ${esc(s.players[s.winner[0]].name)}`, 'Fine partita', fe ? finalTable(fe, FINAL_COLS(fe), 6) : endRecap(s));
     return;
   }
   const trick = trickRow(s) + resultsList(s);
@@ -723,3 +760,5 @@ addEventListener('keydown', e => {
 window.__clickable = () => (state ? clickable(state, current(state)) : []);
 window.__pick = town => onTown(town);
 window.__ui = () => ui;
+// solo per le prove: gioca da solo con i bot fino alla fine della partita (in locale)
+window.__autoplay = () => { while (local && state.stage !== 'end') { const r = botMove(state); state = applyMove(state, r[0], r[1]); } ingestEvents(state); render(); };

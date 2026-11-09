@@ -515,3 +515,15 @@ tr:nth-child(2n) .logo { animation-delay: -3s; }
 .vhype .vc.top .logo svg { width: 13px; height: 13px; }
 .vhype.on .vc.top .logo, .vhype.flash .vc.top .logo { animation: spinlogo 2.4s linear infinite; }
 @media (prefers-reduced-motion: reduce) { .vhype.on .vc.top .logo, .vhype.flash .vc.top .logo { animation: none; } }
+
+/* punteggio finale */
+.ftable { border-collapse: collapse; width: 100%; font-size: 13px; margin: 4px 0 10px; }
+.ftable th { font: 400 10px var(--pix); text-transform: uppercase; color: var(--rp-muted); padding: 4px 6px; text-align: right; white-space: nowrap; }
+.ftable th:first-child, .ftable td:first-child { text-align: left; white-space: nowrap; }
+.ftable td { padding: 6px; text-align: right; border-top: 1px solid var(--rp-line); font: 600 15px var(--num); }
+.ftable td small { font: 400 10px var(--font); color: var(--rp-muted); }
+.ftable .cur { background: rgba(255, 212, 0, .12); color: #fff; }
+.ftable td.got { color: #ffd400; animation: newres 1.2s ease-out; }
+.ftable td.tot { font-size: 19px; color: #fff; }
+.ftable tr.champ td { background: rgba(255, 212, 0, .2); }
+.regscore td { text-align: center; padding: 3px 8px; }

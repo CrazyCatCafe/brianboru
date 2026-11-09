@@ -222,28 +222,36 @@ function regionCounts(s, region, mode) {
 }
 
 function score(s) {
-  const pls = s.players, coinsMax = Math.max(...pls.map(pl => pl.coins));
-  if (pls.filter(pl => pl.coins === coinsMax).length === 1) pls.find(pl => pl.coins === coinsMax).points++;
-  pls[s.active].points++;
-  pls.forEach(pl => (pl.points += pl.renown));
+  // ogni voce del punteggio finale viene registrata per raccontarla passo per passo
+  const pls = s.players, coinsMax = Math.max(...pls.map(pl => pl.coins)), zero = () => pls.map(() => 0);
+  const ev = { k: 'final', start: pls.map(pl => pl.points), coins: zero(), active: zero(), renown: zero(), zones: [], zonePts: zero(), presence: zero(), regions: zero() };
+  const richest = pls.filter(pl => pl.coins === coinsMax);
+  if (richest.length === 1) ev.coins[pls.indexOf(richest[0])] = 1;
+  ev.coinsTie = richest.length > 1;
+  ev.active[s.active] = 1;
+  pls.forEach((pl, i) => (ev.renown[i] = pl.renown));
   for (const [r, c] of Object.entries(REGIONS)) {
     const cl = s.claims[r];
     if (!cl.up) continue;
-    if (cl.owner !== null) { pls[cl.owner].points += c.points; continue; }
-    const counts = regionCounts(s, r, 'military'), max = Math.max(0, ...Object.values(counts));
-    if (max > 0) pls.forEach((pl, i) => { if (counts[i] === max) pl.points += Math.floor(c.points / 2); });
+    if (cl.owner !== null) { ev.zonePts[cl.owner] += c.points; ev.zones.push({ r, owner: cl.owner, pts: c.points, half: [] }); continue; }
+    const counts = regionCounts(s, r, 'military'), max = Math.max(0, ...Object.values(counts)), half = [];
+    if (max > 0) pls.forEach((pl, i) => { if (counts[i] === max) { ev.zonePts[i] += Math.floor(c.points / 2); half.push(i); } });
+    ev.zones.push({ r, owner: null, pts: c.points, half });
   }
   pls.forEach((pl, i) => {
     const regs = new Set(TOWNS.filter(t => {
       const st = s.towns[t.id];
       return st.owner !== null && (st.viking ? pl.princess === 'trade' : st.owner === i);
     }).map(t => t.region));
-    pl.points += REGION_SCORE[regs.size];
+    ev.regions[i] = regs.size; ev.presence[i] = REGION_SCORE[regs.size];
   });
+  pls.forEach((pl, i) => (pl.points += ev.coins[i] + ev.active[i] + ev.renown[i] + ev.zonePts[i] + ev.presence[i]));
   const rank = pls.map((pl, i) => i).sort((a, b) =>
     pls[b].points - pls[a].points || pls[b].claims.length - pls[a].claims.length || pls[b].marriages.length - pls[a].marriages.length);
   const best = pls[rank[0]];
   s.winner = rank.filter(i => pls[i].points === best.points && pls[i].claims.length === best.claims.length && pls[i].marriages.length === best.marriages.length);
+  ev.total = pls.map(pl => pl.points); ev.winner = s.winner; ev.rank = rank;
+  event(s, ev);
   log(s, `Fine partita! Vince ${s.winner.map(i => name(s, i)).join(' e ')}.`);
 }
 

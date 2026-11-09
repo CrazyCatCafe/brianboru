@@ -94,8 +94,8 @@ const FIST = c => `<rect x="10" y="7" width="5.5" height="12" rx="2.75" fill="${
 const CUP = c => `<path d="M11 5h18v9a9 9 0 0 1-18 0Z" fill="${c}"/><path d="M11 8H5c0 6 3 9 7 9M29 8h6c0 6-3 9-7 9" fill="none" stroke="${c}" stroke-width="3"/>
   <path d="M18 22h4v7h-4Z" fill="${c}"/><path d="M12 30h16v5H12Z" fill="${c}"/>`;
 const HELMET = c => `<path d="M6 25a14 14 0 0 1 28 0v3H6Z" fill="${c}"/><path d="M9 21h22v6H9Z" fill="${H}"/><path d="M11 23h8M21 23h8" stroke="${c}" stroke-width="2"/><path d="M20 6v6" stroke="${H}" stroke-width="2.5"/>`;
-export const LOGO_COLORS = { hype: '#7d868e', guerrilla: '#e62e2d', community: '#14a04b', uprising: '#111111', punti: '#111111', crediti: '#d9a400', polizia: '#1f4e79' };
-const LOGOS = { hype: c => SOLID.M(c), guerrilla: c => SOLID.A(c), community: c => SOLID.X(c), uprising: FIST, punti: CUP, crediti: c => SOLID.C(c), polizia: HELMET };
-export const LOGO_NAMES = { hype: 'Hype', guerrilla: 'Guerrilla', community: 'Community', uprising: 'Uprising', punti: 'Punti', crediti: 'Crediti', polizia: 'Polizia' };
+export const LOGO_COLORS = { cred: '#b8860b', hype: '#7d868e', guerrilla: '#e62e2d', community: '#14a04b', uprising: '#111111', punti: '#111111', crediti: '#d9a400', polizia: '#1f4e79' };
+const LOGOS = { cred: c => SOLID.R(c), hype: c => SOLID.M(c), guerrilla: c => SOLID.A(c), community: c => SOLID.X(c), uprising: FIST, punti: CUP, crediti: c => SOLID.C(c), polizia: HELMET };
+export const LOGO_NAMES = { cred: 'Street cred', hype: 'Hype', guerrilla: 'Guerrilla', community: 'Community', uprising: 'Uprising', punti: 'Punti', crediti: 'Crediti', polizia: 'Polizia' };
 export const logo = (kind, size = 20) =>
   `<span class="logo" style="--hole:#eef1f3" title="${LOGO_NAMES[kind]}"><svg viewBox="0 0 40 40" width="${size}" height="${size}" aria-hidden="true">${LOGOS[kind](LOGO_COLORS[kind])}</svg></span>`;
