@@ -3,6 +3,7 @@
 import * as THREE from 'three';
 import { OrbitControls } from '../../vendor/three/OrbitControls.js';
 import { THEME } from './theme.js';
+import { logo } from './icons.js';
 
 let T = THEME; // tema attivo: quello del gioco, o una variante passata in createCity(view.theme)
 const merge = (a, b) => Object.fromEntries([...new Set([...Object.keys(a), ...Object.keys(b || {})])].map(k =>
@@ -380,7 +381,7 @@ export async function createCity(container, overlay, view = {}) {
   };
   for (const [k, r] of Object.entries(map.regions)) {
     const [lx, ly] = r.label.tx ? [r.label.tx, r.label.ty] : [r.label.x, r.label.y];
-    addLabel(`<b style="--rc:${T.region[k]}">${r.name}</b><span>${r.municipio}</span><i>${r.threshold}<em>soglia</em></i><i>${r.points}<em>punti</em></i>`, 'rlabel', lx, ly, 0.02, k);
+    addLabel(`<b style="--rc:${T.region[k]}">${r.name}</b><span>${r.municipio}</span><i title="Quartieri per far scattare l'Uprising">${r.threshold}${logo('uprising', 13)}</i><i title="Punti per chi controlla la zona">${r.points}${logo('punti', 13)}</i>`, 'rlabel', lx, ly, 0.02, k);
   }
   const firstTown = labels.length;
   towns.forEach(t => addLabel(t.name, 'tlabel', t.x, t.y, OV + 0.16, t.region));

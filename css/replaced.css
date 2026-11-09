@@ -341,3 +341,12 @@ body:not(.board-big) #b-uprising h3 em { display: none; }
 #b-players .hypeline { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
 #b-players .hypeline .peek { margin-left: auto; width: 22px; padding: 0; border: 1px solid var(--rp-line); background: none; cursor: zoom-in; }
 #b-players .hypeline .peek svg { display: block; width: 100%; height: auto; }
+/* cartello del municipio: tutto nero, triangolino del colore della zona, soglia (pugno) e punti (coppa) */
+.rp .rlabel { grid-template-columns: auto auto auto; gap: 1px 8px; align-items: center; background: rgba(10, 13, 16, .9); padding: 5px 9px 6px; }
+.rp .rlabel b { grid-column: 1 / -1; background: none; padding: 0; font-size: 12px; color: #fff; }
+.rp .rlabel b::before { width: 0; height: 0; background: none; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 9px solid var(--rc); margin-right: 6px; vertical-align: 0; }
+.rp .rlabel span { grid-column: auto; padding: 0; font-size: 11px; color: #c8d0d6; text-shadow: none; }
+.rp .rlabel i { padding: 0; display: inline-flex; align-items: center; gap: 4px; font: 600 13px var(--num); color: #fff; text-shadow: none; }
+.rp .rlabel .logo { display: inline-grid; place-items: center; width: 16px; height: 16px; background: #eef1f3; }
+.rp .rlabel .logo svg { width: 12px; height: 12px; }
+@media (max-width: 899px) { .rp .rlabel { padding: 3px 6px; } }
