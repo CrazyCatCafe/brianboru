@@ -802,3 +802,42 @@ label > .flogo { width: 24px; height: 24px; margin: 0 6px 0 4px; }
 .pmark .flogo { width: auto; height: auto; background: none; margin: 0; }
 .pmark svg { width: .85em; height: .85em; min-width: 10px; min-height: 10px; display: block; }
 .who::before, .rp .who::before, .trick figcaption::before, .rp .trickrow figcaption::before { content: none !important; }
+/* prepartita: fazioni in campo stile VS, a tutto schermo sopra la mappa */
+#game .rp-stage.vs { position: fixed !important; inset: 0 !important; width: auto !important; max-width: none !important; height: auto !important; max-height: none !important; z-index: 40; margin: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 24px; background: rgba(10, 12, 15, .9); overflow: hidden; transform: none !important; }
+#game .rp-stage.vs h2 { font-size: clamp(22px, 3vw, 38px); margin: 0; }
+.vsrow { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
+.vsx { font: 800 26px var(--num); color: var(--rp-red); font-style: italic; animation: vsx .5s calc(var(--d, 0s) + .4s) both; }
+.vscard { position: relative; width: clamp(150px, 15vw, 210px); padding: 18px 14px 14px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--pc) 28%, #1b1f24), #1b1f24 70%); border: 2px solid var(--pc); box-shadow: 0 0 24px color-mix(in srgb, var(--pc) 40%, transparent);
+  animation: vsin .6s var(--d) cubic-bezier(.2, .8, .2, 1) both; }
+.vscard .first { position: absolute; top: -12px; left: 50%; translate: -50% 0; white-space: nowrap; background: #ffd400; color: #111; font: 700 11px var(--pix); text-transform: uppercase; letter-spacing: .06em; padding: 3px 8px; font-style: normal; }
+.vslogo .flogo { width: 104px; height: 104px; box-shadow: 0 0 0 3px var(--pc); }
+.vsname { font: 800 22px var(--num); color: #fff; margin-top: 6px; }
+.vsfac { font: 400 11px var(--pix); text-transform: uppercase; letter-spacing: .06em; color: var(--rp-muted); }
+.vscard q { font: italic 600 13px var(--num); color: #dfe4e8; min-height: 3.2em; }
+.vsready { font: 700 11px var(--pix); text-transform: uppercase; letter-spacing: .08em; padding: 4px 10px; border: 1px solid var(--rp-line); color: var(--rp-muted); }
+.vsready.ok { border-color: #2bd46b; color: #2bd46b; }
+.vsdraft { margin: 0; font: 600 14px var(--num); color: var(--rp-muted); } .vsdraft b { color: var(--rp-red); font-size: 18px; }
+.vsstrip { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 22px; max-width: 1100px; padding: 12px 18px; border-top: 2px solid var(--rp-red); border-bottom: 1px solid var(--rp-line); background: rgba(255, 255, 255, .03); }
+.vsi { display: inline-flex; align-items: center; gap: 7px; font: 600 14px var(--num); color: #dfe4e8; } .vsi b { color: #fff; font-weight: 800; }
+.vsi .logo { width: 22px; height: 22px; display: inline-grid; place-items: center; background: #eef1f3; }
+.vszones { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; width: 100%; }
+.vszone { font: 600 12px var(--num); color: var(--rp-muted); padding: 3px 8px; border: 1px solid var(--rp-line); } .vszone b { color: #fff; font: 700 11px var(--pix); text-transform: uppercase; margin-right: 4px; }
+#game .rp-stage.vs #next { min-width: 220px; font-size: 16px; padding: 14px 30px; }
+@keyframes vsin { from { opacity: 0; transform: translateY(40px) scale(.9); } }
+@keyframes vsx { from { opacity: 0; transform: scale(2.4); } }
+@media (prefers-reduced-motion: reduce) { .vscard, .vsx { animation: none; } }
+.flogo, .rp .flogo { transform: none !important; animation: none !important; box-shadow: none; } /* i loghi delle fazioni restano dritti */
+.vslogo .flogo { box-shadow: 0 0 0 3px var(--pc) !important; }
+.vscard .first { z-index: 2; }
+#game .rp-stage.vs #next { color: #fff; background: var(--rp-red); }
+@media (max-width: 700px) {
+  #game .rp-stage.vs { gap: 10px; padding: 14px 10px; }
+  .vsrow { gap: 14px 6px; margin-top: 8px; } .vsx, .vszones, .vsi.vsz { display: none; }
+  .vscard { width: 28vw; padding: 14px 6px 8px; gap: 4px; } .vscard q { display: none; }
+  .vslogo .flogo { width: 56px; height: 56px; } .vslogo .flogo svg { width: 46px; height: 46px; }
+  .vsname { font-size: 16px; } .vsfac { font-size: 11px; } .vsready { font-size: 11px; padding: 3px 6px; }
+  .vscard .first { font-size: 11px; padding: 2px 5px; }
+  .vsstrip { gap: 6px 12px; padding: 10px 8px; } .vsi { font-size: 13px; } .vszone { font-size: 12px; }
+}

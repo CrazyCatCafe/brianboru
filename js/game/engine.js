@@ -54,6 +54,7 @@ export function newGame(names, seed = Date.now()) {
   s.active = Math.floor(rand(s) * n);
   s.start = s.active;
   log(s, `Inizia ${name(s, s.active)}.`);
+  event(s, { k: 'pregame', start: s.start, rounds: s.marriageDeck.length, police: [...s.vikingDeck] }); // schermata prepartita: le fazioni in campo, si parte quando tutti sono pronti
   advance(s);
   return s;
 }

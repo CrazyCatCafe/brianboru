@@ -69,3 +69,12 @@ export const SYMBOLS = {
   V: 'Rimuovi un presidio di polizia',
   R: '+1 street cred',
 };
+
+// motti delle cinque fazioni (schermata prepartita)
+export const FACTION_MOTTO = {
+  Technoborghesi: 'Il futuro è nostro: l\'abbiamo comprato.',
+  Punk: 'Niente padroni, niente futuro, niente paura.',
+  'Partite Iva': 'Fattura alla mano, barricata in spalla.',
+  Startuppers: 'Disrupt the block.',
+  'Le Sciure': 'Il quartiere lo conosciamo da sessant\'anni.',
+};

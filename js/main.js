@@ -5,7 +5,7 @@ import { CARDS, MARRIAGES, TOWNS, REGIONS, MARRIAGE_TRACK } from './game/data.js
 import { THEME, THEME_REPLACED, PIXEL_SCALE } from './milano/theme.js';
 import { cardSVG, characterSVG, characterArt, cardLabel } from './milano/card.js';
 import { icon, setIconSet, logo, LOGO_NAMES, factionLogo, FACTION_COLORS } from './milano/icons.js';
-import { ESTRID, SYMBOLS } from './milano/lore.js';
+import { ESTRID, SYMBOLS, FACTION_MOTTO } from './milano/lore.js';
 import { createCity, WEATHER_TYPES, QUALITY } from './milano/city3d.js';
 import { connect, BOT_NAMES } from './milano/online.js';
 import { pixelSwap } from './milano/pixelfx.js';
@@ -408,8 +408,8 @@ function waitingAcks() {
   if (!showing || !ACK_ALL.has(showing.k) || local || !room) return [];
   return room.players.map((p, i) => [p, i]).filter(([p]) => !p.bot && (room.acks?.[p.uid] ?? -1) < showing.n).map(([, i]) => i);
 }
-const ACK_ALL = new Set(['prep', 'party', 'final']);
-const SHOW_PHASE = { discard: 'trick', setup: 'setup', final: 'uprising', estrid: 'party' };
+const ACK_ALL = new Set(['pregame', 'prep', 'party', 'final']);
+const SHOW_PHASE = { pregame: 'setup', discard: 'trick', setup: 'setup', final: 'uprising', estrid: 'party' };
 function checkAcks() { if (ACK_ALL.has(showing?.k) && acked === showing.n && !waitingAcks().length) { acked = null; nextEvent(); } }
 
 function hypeTrack(pos, { mark = null, note = '' } = {}) { // pos[i] = casella del giocatore i (0..9)
@@ -475,6 +475,7 @@ function steps(e) {
       trade: 'Rete: a fine partita i quartieri presidiati dalla polizia contano come suoi per il numero di zone in cui è presente.',
       spurn: 'La lascia libera e prende subito <b class="ptsup">+4 punti</b>.' }[e.choice]}</p>` }];
     case 'discard': return [{ t: 'Fine delle azioni', b: `<p>Ognuno scarta la carta che gli è rimasta in mano.</p><div class="trickrow discards">${e.cards.map((cs, i) => cs.map(v => `<figure style="--pc:${THEME.players[i]}">${miniCard(v)}<figcaption>${pmark(i)}${esc(s.players[i].name)}</figcaption></figure>`).join('')).join('')}</div>` }];
+    case 'pregame': return [{ vs: true, t: 'Si scende in strada', b: '' }];
     case 'setup': return [{ t: `${esc(s.players[e.p].name)} parte da ${esc(TOWNS[e.town].name)}`, b: `<p>${who(s, e.p)} sceglie ${townChip(e.town)} in <b>${REGIONS[TOWNS[e.town].region].name}</b>. <button class="btn ghost small goto" data-goto="${e.town}">Portami lì</button></p>` }];
     case 'prep': return [{ strip: true, card: e.character, t: `Round ${e.round}${e.final ? ' · ultimo' : ''}`, // una riga sola; la carta Hype sotto il riquadro
       b: `<span class="pp" title="Polizia in arrivo (in allerta ${e.area})">${logo('polizia', 18)}<b>${e.police}</b></span><span class="pp"><b class="tag">Hype</b>${hypeSummary(s, e.character)}</span><span class="pp"><b class="tag">Draft</b>${dirText(s, e.dir ?? draftDir(e.round))}</span>` }];
@@ -872,9 +873,31 @@ function renderStage(s = state, pd = current(state)) {
   if (nowMine && !wasMine) { sound('turn'); el.classList.remove('turnin'); void el.offsetWidth; el.classList.add('turnin'); } // tocca a te: il riquadro fa un piccolo salto
   wasMine = nowMine;
   el.classList.toggle('compact', !!mapPicking);
-  el.classList.remove('strip');
+  el.classList.remove('strip', 'vs');
   if (showing) {
     const st = steps(showing), cur = st[Math.min(step, st.length - 1)];
+    if (cur.vs) { // prepartita: le fazioni in campo stile VS, la striscia con la partita, Pronto
+      el.classList.add('vs');
+      const isReady = i => isBot(i) || (local ? acked === showing.n : (room.acks?.[room.players[i]?.uid] ?? -1) >= showing.n);
+      const n = s.players.length, dir = draftDir(1);
+      const cards = s.players.map((p, i) => `${i ? '<b class="vsx">VS</b>' : ''}<div class="vscard" style="--pc:${THEME.players[i] === '#1b1b1b' ? '#cfd6dc' : THEME.players[i]};--d:${i * 0.18}s">
+        ${i === showing.start ? '<em class="first">Parte per primo</em>' : ''}
+        <span class="vslogo">${factionLogo(gangOf(i), 84)}</span><b class="vsname">${esc(p.name)}</b>
+        <span class="vsfac">${esc(gangOf(i))}${isBot(i) ? ' · bot' : i === seat ? ' · tu' : ''}</span>
+        <q>${esc(FACTION_MOTTO[gangOf(i)] || '')}</q>
+        <span class="vsready${isReady(i) ? ' ok' : ''}">${isReady(i) ? 'Pronto' : 'Si prepara…'}</span></div>`).join('');
+      const pol = showing.police || [], rounds = showing.rounds || 3;
+      const zones = Object.entries(REGIONS).map(([, r]) => `<span class="vszone"><b>${r.name}</b> ${r.threshold} quartieri · ${r.points} pt</span>`).join('');
+      el.innerHTML = `<h2>${cur.t}</h2><div class="vsrow">${cards}</div>
+        <p class="vsdraft">Draft del primo round: le carte passano ${dir > 0 ? 'al giocatore a destra <b>→</b>' : '<b>←</b> al giocatore a sinistra'}</p>
+        <div class="vsstrip"><span class="vsi"><b>${rounds}</b> round</span><span class="vsi">${logo('polizia', 18)}<b>${rounds}</b> retate da <b>${Math.min(...pol)}</b> a <b>${Math.max(...pol)}</b> unità</span>
+          <span class="vsi">${logo('hype', 18)}<b>${rounds}</b> personaggi da ingaggiare, nell'ultimo round la Regina Estrid</span>
+          <span class="vsi vsz">${logo('uprising', 18)}<span>Municipi: per metterli in palio servono i quartieri occupati; valgono punti a fine partita</span></span><div class="vszones">${zones}</div></div>
+        ${acked === showing.n && waitingAcks().length ? `<p class="waitack">Aspettiamo: ${waitingAcks().map(i => `<span class="blink">${who(s, i)}</span>`).join(' ')}</p>`
+          : `<button class="btn" id="next" aria-keyshortcuts="Space">Pronto</button>`}`;
+      $('next') && ($('next').onclick = advance);
+      return;
+    }
     if (cur.strip) { // finestra del round: una striscia bassa, con la carta Hype appena sotto
       el.classList.add('strip');
       el.innerHTML = `<h2>${cur.t}</h2>${cur.b}` + (waitingAcks().length && acked === showing.n ? `<p class="waitack">Aspettano: ${waitingAcks().map(i => `<span class="blink">${who(s, i)}</span>`).join(' ')}</p>`
