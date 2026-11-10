@@ -246,7 +246,7 @@ loadMeteo(); setInterval(loadMeteo, 15 * 60 * 1000); setInterval(renderMeteo, 30
 // ---------- bot (partita locale) ----------
 function botTurn(s, pd) {
   clearTimeout(botTimer);
-  if (!pd || showing || !isBot(actorOf(s, pd))) return;
+  if (!pd || showing || loading || !isBot(actorOf(s, pd))) return;
   // online i bot li muove il computer di chi ha creato la partita; se lui non c'è, dopo un po' li muove un altro giocatore
   const delay = pd.type === 'draft' ? 800 : 1100, backup = !local && room?.host !== net?.uid();
   botTimer = setTimeout(async () => {
@@ -267,7 +267,7 @@ async function enterGame(s) {
     renderQuality(); renderPixel();
     $('loading').hidden = true;
   }
-  state = s; startSong(); ingestEvents(s); render();
+  state = s; if (s.setupDone || s.round) startSong(); ingestEvents(s); render(); // partita già cominciata: la musica parte subito
 }
 // carta riassuntiva: i numeri da 1 a 25 col loro colore (giallo, rosso, blu in colonna; Briano Borro su tutta la riga).
 // In evidenza le carte che hai in mano, sbiadite quelle già giocate nel round.
@@ -444,7 +444,32 @@ function advance() {
     if (!showing) return; // l'ultimo Avanti può aver già chiuso il racconto (aggiornamento immediato dal database)
     if (waitingAcks().length) { render(); return; }
   }
-  if (++step >= steps(showing).length) nextEvent(); else { tick(); render(); }
+  if (++step >= steps(showing).length) endEvent(); else { tick(); render(); }
+}
+// fine di un racconto: dopo la Panoramica parte il caricamento con la canzone; la partita comincia allo stacco della musica
+function endEvent() { if (showing?.k === 'pregame') startLoading(); else nextEvent(); }
+const DROP = 23.5; // secondi: lo stacco della canzone dopo l'intro
+const LOAD_LINES = ['Analisi disparità di reddito e reclutamento forza lavoro sotto la soglia di povertà…', 'Mappatura quartieri, sincronizzazione droni di pattugliamento…',
+  'Attivazione protocolli di riconoscimento facciale biometrico…', 'Perdita di autorità della Prefettura…', 'Addestramento unità paramilitari di quartiere…',
+  'Rilevato evento catalizzatore ad alta tensione.', 'Prepararsi allo scontro.'];
+let loading = false;
+function startLoading() {
+  if (loading) return; loading = true;
+  startSong(); song.currentTime = 0; audioWake(); // la canzone parte da capo con il caricamento
+  const el = $('loadscreen'), line = el.querySelector('.lsline'), bar = el.querySelector('.lsbar'), fill = bar.querySelector('i'), pct = el.querySelector('.lspct');
+  el.hidden = false; render();
+  const t0 = performance.now(); let shown = -1, best = 0;
+  (function tickLoad() {
+    const wall = (performance.now() - t0) / 1000, t = song && !song.paused && song.currentTime > 0 ? song.currentTime : wall; // in pari con la musica (se suona)
+    const k = Math.floor((t - 2.5) / 3), i = Math.max(0, Math.min(LOAD_LINES.length - 1, k)); // una frase ogni 3 secondi, l'ultima fino allo stacco
+    if (t >= 2.5 && i !== shown) { shown = i; line.textContent = LOAD_LINES[i]; line.classList.remove('in'); void line.offsetWidth; line.classList.add('in'); if (i === LOAD_LINES.length - 1) el.classList.add('last'); }
+    const x = Math.min(1, t / DROP), fake = Math.min(99, Math.round(100 * (x + 0.04 * Math.sin(t * 2.3) * (1 - x)))); // finto caricamento: avanza a strappi
+    best = Math.max(best, fake); fill.style.width = best + '%'; pct.textContent = best + '%'; bar.setAttribute('aria-valuenow', best);
+    if (t < DROP) return requestAnimationFrame(tickLoad);
+    fill.style.width = '100%'; pct.textContent = '100%';
+    setTimeout(() => { el.hidden = true; el.classList.remove('last'); line.textContent = ''; loading = false; nextEvent();
+      const st = $('stage'); st.classList.remove('dropflash'); void st.offsetWidth; st.classList.add('dropflash'); }, 150); // allo stacco: Scegli il quartiere di partenza, con un lampo
+  })();
 }
 // chi deve ancora cliccare Avanti alla fine del party (in locale lo schermo è uno solo: basta un clic)
 let acked = null;
@@ -454,7 +479,7 @@ function waitingAcks() {
 }
 const ACK_ALL = new Set(['pregame', 'prep', 'party', 'final']);
 const SHOW_PHASE = { pregame: 'setup', discard: 'trick', setup: 'setup', final: 'uprising', estrid: 'party' };
-function checkAcks() { if (ACK_ALL.has(showing?.k) && acked === showing.n && !waitingAcks().length) { acked = null; nextEvent(); } }
+function checkAcks() { if (ACK_ALL.has(showing?.k) && acked === showing.n && !waitingAcks().length) { acked = null; endEvent(); } }
 
 function hypeTrack(pos, { mark = null, note = '', me = -1, from = 0 } = {}) { // pos[i] = casella del giocatore i (0..9); la 0 (partenza) non si mostra
   const cells = MARRIAGE_TRACK.map((b, c) => (c === 0 ? '' : `<div class="hcell${c === mark ? ' mark' : ''}${b ? ' bonus' : ''}" title="Casella ${c}">

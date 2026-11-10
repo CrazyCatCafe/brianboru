@@ -964,3 +964,16 @@ body.phasefly #stage h2 { visibility: visible; }
 }
 #lobby .lobby-grid.acc { align-items: stretch; } #lobby .lobby-grid > .accb { width: 100%; }
 @media (max-width: 700px) { #lobby .gang label { font-size: 12px; padding: 10px 4px; } }
+/* caricamento prima della partita: frasi sopra, barra rossa che sale; si parte allo stacco della canzone */
+.loadscreen { position: fixed; inset: 0; z-index: 200; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 24px; background: #07090b; }
+.loadscreen[hidden] { display: none; }
+.lsline { margin: 0; max-width: 900px; min-height: 2.6em; text-align: center; font: 600 clamp(18px, 2.4vw, 28px)/1.3 var(--num); color: #eef1f3; }
+.lsline.in { animation: lsin .5s ease-out both; }
+.loadscreen.last .lsline { font: 700 clamp(22px, 3.2vw, 40px) var(--pix); text-transform: uppercase; letter-spacing: .06em; color: #ff3d3d; }
+.lsbar { width: min(720px, 90vw); height: 14px; background: #1b1f24; border: 1px solid rgba(255, 255, 255, .15); }
+.lsbar i { display: block; height: 100%; width: 0; background: #d6232a; transition: width .25s linear; }
+.lspct { font: 800 18px var(--num); color: #ff3d3d; font-variant-numeric: tabular-nums; }
+@keyframes lsin { from { opacity: 0; transform: translateY(10px); } }
+#game .rp-stage.dropflash { animation: dropflash 1.4s ease-out; }
+@keyframes dropflash { 0% { box-shadow: 0 0 0 4px #fff, 0 0 80px 30px rgba(255, 240, 200, .9); filter: brightness(2); } 100% { box-shadow: none; filter: none; } }
+@media (prefers-reduced-motion: reduce) { .lsline.in, #game .rp-stage.dropflash { animation: none; } }
