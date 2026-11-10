@@ -977,3 +977,9 @@ body.phasefly #stage h2 { visibility: visible; }
 #game .rp-stage.dropflash { animation: dropflash 1.4s ease-out; }
 @keyframes dropflash { 0% { box-shadow: 0 0 0 4px #fff, 0 0 80px 30px rgba(255, 240, 200, .9); filter: brightness(2); } 100% { box-shadow: none; filter: none; } }
 @media (prefers-reduced-motion: reduce) { .lsline.in, #game .rp-stage.dropflash { animation: none; } }
+/* caricamento come fascia in fondo alla Panoramica: frase sopra, barra rossa sotto */
+.loadscreen { inset: auto 0 0 0 !important; z-index: 95 !important; gap: 10px !important; padding: 18px 24px 22px !important; background: linear-gradient(180deg, transparent, #07090b 35%) !important; }
+.loadscreen .lsline { min-height: 2.6em; font-size: clamp(16px, 1.9vw, 24px); }
+.loadscreen.last .lsline { font-size: clamp(20px, 2.6vw, 34px); }
+#game .rp-stage.vs { padding-bottom: 170px !important; }
+@media (max-width: 700px) { #game .rp-stage.vs { padding-bottom: 150px !important; } .loadscreen { padding: 10px 12px 14px !important; } }

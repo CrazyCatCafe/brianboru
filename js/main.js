@@ -215,7 +215,7 @@ function leaveGame() {
   unwatch?.(); unwatch = null; roomCode = room = null; history.replaceState(null, '', location.pathname); $('room').hidden = true;
   local = false; state = null; clearTimeout(botTimer);
   showing = null; queue = []; step = 0; acked = null; seenN = null; ui = {};
-  loading = false; loadId++; $('loadscreen').hidden = true; $('loadscreen').classList.remove('last');
+  loading = false; loadDone = allReady = false; loadId++; $('loadscreen').hidden = true; $('loadscreen').classList.remove('last');
   show(!net || me ? 'lobby' : 'auth');
 }
 
@@ -454,7 +454,17 @@ function advance() {
   if (++step >= steps(showing).length) endEvent(); else { tick(); render(); }
 }
 // fine di un racconto: dopo la Panoramica parte il caricamento con la canzone; la partita comincia allo stacco della musica
-function endEvent() { if (showing?.k === 'pregame') startLoading(); else nextEvent(); }
+// Panoramica: canzone e caricamento partono subito, intanto tutti cliccano Pronto; si entra in gioco al 100% se sono tutti pronti, altrimenti appena l'ultimo clicca
+let loadDone = false, allReady = false;
+function endEvent() {
+  if (showing?.k !== 'pregame') return nextEvent();
+  allReady = true; if (loadDone) startGame(); else render();
+}
+function startGame() {
+  const el = $('loadscreen'); el.hidden = true; el.classList.remove('last'); el.querySelector('.lsline').textContent = '';
+  loading = false; loadDone = allReady = false; nextEvent();
+  const st = $('stage'); st.classList.remove('dropflash'); void st.offsetWidth; st.classList.add('dropflash'); // Scegli il quartiere di partenza, con un lampo
+}
 const DROP = 23.5; // secondi: lo stacco della canzone dopo l'intro
 const LOAD_LINES = ['Analisi disparità di reddito e reclutamento forza lavoro sotto la soglia di povertà…', 'Mappatura quartieri, sincronizzazione droni di pattugliamento…',
   'Attivazione protocolli di riconoscimento facciale biometrico…', 'Perdita di autorità della Prefettura…', 'Addestramento unità paramilitari di quartiere…',
@@ -464,19 +474,18 @@ function startLoading() {
   if (loading) return; loading = true; const id = ++loadId; // uscendo dalla partita il caricamento si ferma
   startSong(); song.currentTime = 0; audioWake(); // la canzone parte da capo con il caricamento
   const el = $('loadscreen'), line = el.querySelector('.lsline'), bar = el.querySelector('.lsbar'), fill = bar.querySelector('i'), pct = el.querySelector('.lspct');
-  el.hidden = false; render();
+  el.hidden = false;
   const t0 = performance.now(); let shown = -1, best = 0;
   (function tickLoad() {
     if (id !== loadId) return;
-    const wall = (performance.now() - t0) / 1000, t = song && !song.paused && song.currentTime > 0 ? song.currentTime : wall; // in pari con la musica (se suona)
+    const wall = (performance.now() - t0) / 1000, t = song && !song.paused && song.currentTime > 0 ? Math.max(wall - 1.5, Math.min(wall + 1.5, song.currentTime)) : wall; // in pari con la musica (se suona), senza salti
     const k = Math.floor((t - 2.5) / 3), i = Math.max(0, Math.min(LOAD_LINES.length - 1, k)); // una frase ogni 3 secondi, l'ultima fino allo stacco
     if (t >= 2.5 && i !== shown) { shown = i; line.textContent = LOAD_LINES[i]; line.classList.remove('in'); void line.offsetWidth; line.classList.add('in'); if (i === LOAD_LINES.length - 1) el.classList.add('last'); }
     const x = Math.min(1, t / DROP), fake = Math.min(99, Math.round(100 * (x + 0.04 * Math.sin(t * 2.3) * (1 - x)))); // finto caricamento: avanza a strappi
     best = Math.max(best, fake); fill.style.width = best + '%'; pct.textContent = best + '%'; bar.setAttribute('aria-valuenow', best);
     if (t < DROP) return requestAnimationFrame(tickLoad);
-    fill.style.width = '100%'; pct.textContent = '100%';
-    setTimeout(() => { if (id !== loadId) return; el.hidden = true; el.classList.remove('last'); line.textContent = ''; loading = false; nextEvent();
-      const st = $('stage'); st.classList.remove('dropflash'); void st.offsetWidth; st.classList.add('dropflash'); }, 150); // allo stacco: Scegli il quartiere di partenza, con un lampo
+    fill.style.width = '100%'; pct.textContent = '100%'; bar.setAttribute('aria-valuenow', 100);
+    loadDone = true; if (allReady) setTimeout(() => id === loadId && startGame(), 150); else render(); // chi non ha cliccato Pronto fa aspettare tutti
   })();
 }
 // chi deve ancora cliccare Avanti alla fine del party (in locale lo schermo è uno solo: basta un clic)
@@ -980,8 +989,9 @@ function renderStage(s = state, pd = current(state)) {
       const info = `<div class="vsinfo" style="--d0:${n * 0.18 + 0.45}s">${lines}</div>`; // prima entrano i giocatori, poi le informazioni
       el.innerHTML = `<h2>${round ? `Round ${showing.round} di ${total}${showing.final ? ' · ultimo' : ''}` : 'Panoramica di gioco'}</h2><div class="vsrow">${cards}</div>${info}
         <div class="vsgo" style="--d0:${n * 0.18 + 0.9}s">${acked === showing.n && waitingAcks().length ? `<p class="waitack">Aspettiamo: ${waitingAcks().map(i => `<span class="blink">${who(s, i)}</span>`).join(' ')}</p>`
+          : !round && acked === showing.n ? '<p class="waitack">Tutti pronti: si parte al 100%</p>'
           : `<button class="btn" id="next" aria-keyshortcuts="Space">Pronto</button>`}</div>`;
-      if (!round) { renderQuality(); renderAudio(); }
+      if (!round) { renderQuality(); renderAudio(); startLoading(); }
       if (round) { const k = showing.character && !showing.character.princess ? showing.character.region : null; city.highlight(k); hypeMini(s, showing.character); }
       $('next') && ($('next').onclick = advance);
       return;
