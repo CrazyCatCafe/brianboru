@@ -853,7 +853,8 @@ label > .flogo { width: 24px; height: 24px; margin: 0 6px 0 4px; }
 .vsinfo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; width: min(1000px, 100%); animation: vsinfo .6s var(--d0) cubic-bezier(.2, .8, .2, 1) both; }
 .vsgo { animation: vsinfo .5s var(--d0) ease-out both; }
 @keyframes vsinfo { from { opacity: 0; transform: translateY(24px); } }
-.vtile { display: flex; flex-direction: column; gap: 6px; padding: 12px 16px; background: #1b1f24; border: 1px solid var(--rp-line); border-left: 4px solid var(--rp-red); text-align: left; }
+.vtile { display: flex; flex-direction: column; gap: 6px; padding: 12px 16px; background: #1b1f24; border: 1px solid var(--rp-line); text-align: left; }
+.vlab::before { content: ''; display: inline-block; width: 7px; height: 7px; background: var(--rp-red); margin-right: 7px; vertical-align: 1px; }
 .vtile.wide { grid-column: 1 / -1; }
 .vlab { font: 400 11px var(--pix); text-transform: uppercase; letter-spacing: .1em; color: var(--rp-muted); }
 .vsub { font: 600 12px var(--num); color: var(--rp-muted); }
@@ -870,6 +871,7 @@ label > .flogo { width: 24px; height: 24px; margin: 0 6px 0 4px; }
 #lobby .lobby-grid { display: flex; flex-direction: column; gap: 16px; }
 #lobby .lobby-grid > .panel { width: 100%; max-width: none; margin: 0; box-sizing: border-box; }
 .vthype { font: 600 16px var(--num); color: #dfe4e8; } .vthype b { font: 800 22px var(--num); color: #fff; }
-.vthype .rzn { font: 700 14px var(--pix); text-transform: uppercase; color: #fff; border-left: 6px solid var(--rc); padding-left: 6px; }
+.vthype .rzn { font: 700 14px var(--pix); text-transform: uppercase; color: #fff; }
+.vthype .rzn::before { content: ''; display: inline-block; width: 10px; height: 10px; background: var(--rc); margin-right: 6px; vertical-align: 0; }
 #lobby .gang { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
 #lobby .gang label { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
