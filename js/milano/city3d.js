@@ -351,6 +351,7 @@ export async function createCity(container, overlay, view = {}) {
   const led = new THREE.Mesh(new THREE.SphereGeometry(0.006, 8, 6), new THREE.MeshBasicMaterial({ color: T.accent }));
   led.position.y = -0.008; droneProto.add(led);
   const spinners = [], glows = [], dancers = [], cones = [];
+  const barGeo = { block: new THREE.BoxGeometry(0.075, 0.035, 0.02), foot: new THREE.BoxGeometry(0.075, 0.008, 0.035) }; // barricate dei presidi: geometrie condivise, non si ricreano a ogni aggiornamento
   const raveGeo = { box: new THREE.BoxGeometry(0.05, 0.04, 0.04), cone: new THREE.CircleGeometry(0.013, 10), body: new THREE.BoxGeometry(0.016, 0.03, 0.012), head: new THREE.BoxGeometry(0.013, 0.013, 0.013) };
   const raveMat = { cone: new THREE.MeshBasicMaterial({ color: '#ff2d87' }) };
   const RAVE_COLORS = ['#ff2d87', '#00e5ff', '#ffd400', '#7cff4f', '#a34dff'];
@@ -396,8 +397,8 @@ export async function createCity(container, overlay, view = {}) {
       if (st.viking) { // presidio di polizia: barricata, droni che girano, stemma
         for (let k = 0; k < 6; k++) {
           const a = k / 6 * Math.PI * 2, b = new THREE.Group();
-          const block = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.035, 0.02), mat(k % 2 ? '#ffffff' : T.accent));
-          const foot = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.008, 0.035), mat('#2b3a4f')); foot.position.y = -0.02;
+          const block = new THREE.Mesh(barGeo.block, mat(k % 2 ? '#ffffff' : T.accent));
+          const foot = new THREE.Mesh(barGeo.foot, mat('#2b3a4f')); foot.position.y = -0.02;
           b.add(block, foot); b.position.set(Math.cos(a) * 0.17, 0.03, Math.sin(a) * 0.17); b.rotation.y = -a + Math.PI / 2;
           put(b, OV, 6);
         }

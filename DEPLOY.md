@@ -34,8 +34,6 @@ Ogni push su `main` aggiorna il sito da solo.
 3. **Crea partita** (scegli Technoborghesi o Punk), poi **Invita** gli amici dalla sala d'attesa o manda il link.
 4. Con 3–5 bande, chi ha creato la partita sceglie **Inizia**.
 
-Pagine di servizio: `preview-milano.html` (mockup) e `catalogo-milano.html` (tutte le carte e i set di icone).
-
 ## Rigenerare i dati di Milano
 - Grafo di gioco da `assets/milano/mappa.json`: `node tools/build-board.mjs`
 - Edifici, acqua, parchi da OpenStreetMap: `tools/extract-pmtiles.py` e `tools/build-milano.py` (servono `pmtiles`, `mapbox-vector-tile`, `shapely`).

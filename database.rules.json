@@ -14,13 +14,13 @@
     "friends": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
-        "$other": { ".write": "auth != null && (auth.uid === $uid || auth.uid === $other)" }
+        "$other": { ".write": "auth != null && (auth.uid === $uid || (auth.uid === $other && (!newData.exists() || newData.val() === 'in' || (newData.val() === 'ok' && data.val() === 'out'))))" }
       }
     },
     "invites": {
       "$uid": {
         ".read": "auth != null && auth.uid === $uid",
-        "$code": { ".write": "auth != null" }
+        "$code": { ".write": "auth != null && (auth.uid === $uid || (newData.exists() && $code.matches(/^[A-Z]{5}$/)))" }
       }
     },
     "games": {

@@ -1,11 +1,11 @@
 // Brian Boru · Milano 2077: accesso, lobby, amici e partita (online o locale).
 import { botMove } from './game/bot.js';
-import { estridPreview, move as applyMove, current, emptyTowns, leadTowns, ownTowns, expandTargets, vikingTowns, newGame } from './game/engine.js';
+import { estridPreview, zoneControl, move as applyMove, current, emptyTowns, leadTowns, ownTowns, expandTargets, vikingTowns, newGame } from './game/engine.js';
 import { CARDS, MARRIAGES, TOWNS, REGIONS, MARRIAGE_TRACK } from './game/data.js';
 import { THEME, THEME_REPLACED, PIXEL_SCALE } from './milano/theme.js';
 import { cardSVG, characterSVG, characterArt, cardLabel } from './milano/card.js';
 import { icon, setIconSet, logo, LOGO_NAMES } from './milano/icons.js';
-import { ESTRID, SYMBOLS, CHARACTERS } from './milano/lore.js';
+import { ESTRID, SYMBOLS } from './milano/lore.js';
 import { createCity, WEATHER_TYPES, QUALITY } from './milano/city3d.js';
 import { connect } from './milano/online.js';
 
@@ -141,8 +141,8 @@ function renderMyGames(list) {
   })));
 }
 function renderInvites(list) {
-  $('invites').innerHTML = list.length ? list.map(i => `<li><span><b>${esc(i.from)}</b> ti invita (${i.code})</span>
-    <span><button class="btn small" data-go="${i.code}">Entra</button> <button class="btn ghost small" data-no="${i.code}">Ignora</button></span></li>`).join('') : '<li class="empty">Nessun invito.</li>';
+  $('invites').innerHTML = list.length ? list.map(i => `<li><span><b>${esc(i.from)}</b> ti invita (${esc(i.code)})</span>
+    <span><button class="btn small" data-go="${esc(i.code)}">Entra</button> <button class="btn ghost small" data-no="${esc(i.code)}">Ignora</button></span></li>`).join('') : '<li class="empty">Nessun invito.</li>';
   $('invites').querySelectorAll('[data-go]').forEach(b => (b.onclick = guard(async () => { await openRoom(b.dataset.go); net.dismissInvite(b.dataset.go); })));
   $('invites').querySelectorAll('[data-no]').forEach(b => (b.onclick = guard(() => net.dismissInvite(b.dataset.no))));
 }
@@ -211,13 +211,14 @@ loadMeteo(); setInterval(loadMeteo, 15 * 60 * 1000); setInterval(renderMeteo, 30
 function botTurn(s, pd) {
   clearTimeout(botTimer);
   if (!pd || showing || !isBot(actorOf(s, pd))) return;
-  if (!local && room?.host !== net?.uid()) return; // online i bot li muove solo il computer di chi ha creato la partita
+  // online i bot li muove il computer di chi ha creato la partita; se lui non c'è, dopo un po' li muove un altro giocatore
+  const delay = pd.type === 'draft' ? 300 : 1100, backup = !local && room?.host !== net?.uid();
   botTimer = setTimeout(async () => {
     const r = botMove(state); if (!r) return;
-    if (!local) { try { await net.act(roomCode, r[1], r[0]); } catch (e) { console.error('bot', e); } return; }
+    if (!local) { try { await net.act(roomCode, r[1], r[0], state.moveN || 0); } catch (e) { if (e.message !== 'stale') console.error('bot', e); } return; }
     try { state = applyMove(state, r[0], r[1]); } catch (e) { console.error('bot', e); return; }
     ingestEvents(state); render();
-  }, pd.type === 'draft' ? 300 : 1100);
+  }, backup ? delay + 8000 + 2000 * Math.max(0, seat) : delay);
 }
 
 // ---------- partita ----------
@@ -499,10 +500,9 @@ function steps(e) {
     }
     case 'uprising': return [
       { t: 'Uprising', b: e.flips.length ? `<p>Ora in palio: ${e.flips.map(r => `<b>${REGIONS[r].name}</b>`).join(', ')}.</p>` : '<p>Nessuna nuova zona in palio.</p>' },
-      ...(e.values && Object.keys(e.values).length ? [{ t: 'Valore nelle zone in palio', b: `<ul class="plain">${list(Object.entries(e.values).map(([r, v]) => {
-        const max = Math.max(0, ...Object.values(v)), top = Object.keys(v).filter(k => v[k] === max), own = s.claims[r].owner;
-        const res = max === 0 ? 'nessuna fazione' : top.length > 1 ? (own !== null ? `resta a ${who(s, own)}` : 'contesa') : `controlla ${who(s, Number(top[0]))}`;
-        return `<li><b>${REGIONS[r].name}</b>: ${Object.entries(v).sort(([, a], [, b]) => b - a).map(([i, x]) => `${pname(s, Number(i))} ${x}`).join(' · ') || '—'} → ${res}</li>`;
+      ...(e.values && Object.keys(e.values).length ? [{ t: 'Valore nelle zone in palio', b: `<ul class="plain">${list(Object.entries(e.values).map(([r, z]) => {
+        const res = z.max === 0 ? 'nessuna fazione' : z.tie ? (z.owner !== null ? `resta a ${who(s, z.owner)}` : 'contesa') : `controlla ${who(s, z.owner)}`;
+        return `<li><b>${REGIONS[r].name}</b>: ${Object.entries(z.values).sort(([, a], [, b]) => b - a).map(([i, x]) => `${pname(s, Number(i))} ${x}`).join(' · ') || '—'} → ${res}</li>`;
       }))}</ul><p class="note">Quartiere libero 1, con community project 2, presidiato dalla polizia 0.</p>` }] : []),
       { t: 'Controllo delle zone', b: e.changes.length ? `<ul class="plain">${list(e.changes.map(c => `<li><b>${REGIONS[c.r].name}</b>: ${c.owner === null ? 'nessuno la controlla' : `${who(s, c.owner)}${c.from != null ? ` (la toglie a ${who(s, c.from)})` : ''} · vale <b class="ptsup">${REGIONS[c.r].points} punti</b>`}</li>`))}</ul><p class="note">I punti dei municipi sono provvisori: si vedono nella riga col pugno e si contano a fine partita, a chi li controlla in quel momento.</p>` : '<p>Nessun cambio di controllo.</p>' },
     ];
@@ -682,15 +682,8 @@ function renderBoard(s, pd) {
     `<li><i class="rz" style="--rc:${c.owner === null ? THEME.region[r] : THEME.players[c.owner]}"></i><b>${REGIONS[r].name}</b><span class="own">${c.owner === null ? noOwner(s, r) : pname(s, c.owner)}</span></li>`).join('')}</ul>` : ''}`;
 }
 
-// zona in palio senza padrone: valore = quartieri liberi 1, con community 2, presidiati 0. "contesa" solo se in testa c'è parità
-function zoneValues(s, r) {
-  const n = {}; TOWNS.filter(t => t.region === r && s.towns[t.id].owner !== null && !s.towns[t.id].viking).forEach(t => (n[s.towns[t.id].owner] = (n[s.towns[t.id].owner] || 0) + (s.towns[t.id].monastery ? 2 : 1)));
-  return n;
-}
-function noOwner(s, r) {
-  const v = Object.values(zoneValues(s, r)), max = Math.max(0, ...v);
-  return max === 0 ? 'polizia' : v.filter(x => x === max).length > 1 ? `contesa ${max}–${max}` : 'nessuno';
-}
+// zona in palio senza padrone: "contesa" solo se in testa c'è parità, "polizia" se ci sono solo presidi
+function noOwner(s, r) { const z = zoneControl(s, r); return z.max === 0 ? 'polizia' : z.tie ? `contesa ${z.max}–${z.max}` : 'nessuno'; }
 function renderTurn(s, pd, wk) {
   const total = s.players.length === 3 ? 3 : 4;
   const turn = !pd ? 'Partita finita' : pd.type === 'draft' ? `<span>Draft</span> ${s.draft.picks.flatMap((x, i) => (x ? [] : [pdot(i)])).join('')}` : `<span>Turno di</span> ${pname(s, pd.p)}${pd.p === seat && !local ? ' <small>tu</small>' : ''}`;

@@ -1,7 +1,7 @@
 // node js/game/engine.test.js — gioca partite complete con mosse casuali legali e controlla invarianti.
 import assert from 'node:assert/strict';
-import { newGame, move, current, emptyTowns, leadTowns, ownTowns, expandTargets, vikingTowns } from './engine.js';
-import { TOWNS, CARDS, REGIONS } from './data.js';
+import { newGame, move, current, emptyTowns, leadTowns, ownTowns, expandTargets, vikingTowns, zoneControl } from './engine.js';
+import { TOWNS, CARDS, REGIONS, ROADS } from './data.js';
 import { botMove as smartBot } from './bot.js';
 
 let leadFit = 0, leadMiss = 0;
@@ -153,5 +153,24 @@ for (const [setup, want] of [
   b.pending = []; b.stage = 'claim';
   b = move({ ...b, pending: [{ type: 'princess', p: 0 }] }, 0, { choice: 'spurn' });
   assert.equal(b.claims.MUN.owner, want, JSON.stringify(setup));
+}
+// ci si espande nei quartieri vicini liberi, ma non in quello della presa (va a chi la vince)
+{
+  const b = newGame(['A', 'B', 'C'], 3), [x, y] = ROADS[0];
+  Object.values(b.towns).forEach(t => (t.owner = null));
+  b.towns[x].owner = 0; b.trick = { town: y };
+  assert.ok(!expandTargets(b, 0).includes(y), 'il quartiere della presa non è un bersaglio di espansione');
+  b.trick = null;
+  assert.ok(expandTargets(b, 0).includes(y));
+}
+// Scudo di Estrid: a fine partita i presidi contano per chi ce l'ha
+{
+  const b = newGame(['A', 'B', 'C'], 5), ids = TOWNS.filter(t => t.region === 'MUN').map(t => t.id);
+  Object.values(b.towns).forEach(t => Object.assign(t, { owner: null, viking: false, monastery: false }));
+  [[0], [0], [1], [2, 'V'], [2, 'V']].forEach(([o, f], k) => Object.assign(b.towns[ids[k]], { owner: o, viking: f === 'V' }));
+  b.claims.MUN = { up: true, owner: 0 };
+  assert.equal(zoneControl(b, 'MUN').owner, 0);
+  assert.equal(zoneControl(b, 'MUN', 1).owner, 1, 'con lo Scudo i 2 presidi danno a B 3 contro 2');
+  assert.equal(zoneControl(b, 'MUN', 2).owner, 0, 'parità 2-2: resta al padrone di prima');
 }
 console.log('ok: 600 partite simulate, 60 partite tra bot');

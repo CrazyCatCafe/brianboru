@@ -108,11 +108,16 @@ export async function connect(config) {
     watchMyGames(cb) {
       const games = {}, subs = {};
       let hidden = {};
-      const emit = () => cb(Object.values(games).filter(g => g && !hidden[g.code] && g.status !== 'chiusa' && g.uids?.[uid()]).sort((a, b) => (b.created || 0) - (a.created || 0)));
+      const emit = () => cb(Object.values(games).filter(g => g.status && !hidden[g.code] && g.status !== 'chiusa' && g.uids?.[uid()]).sort((a, b) => (b.created || 0) - (a.created || 0)));
       D.onValue(ref(`users/${uid()}/hidden`), s => { hidden = s.val() || {}; emit(); });
       return D.onValue(ref(`users/${uid()}/games`), s => { // segue una per una le partite del mio elenco
         const codes = Object.keys(s.val() || {});
-        for (const code of codes) if (!subs[code]) subs[code] = D.onValue(ref('games/' + code), g => { games[code] = g.exists() ? { code, ...g.val(), players: Object.values(g.val().players || {}) } : null; emit(); });
+        for (const code of codes) if (!subs[code]) { // solo i campi dell'elenco: lo stato della partita (mani comprese) non si scarica
+          subs[code] = true; games[code] = { code, players: [] };
+          for (const k of ['status', 'host', 'players', 'uids', 'created']) D.onValue(ref(`games/${code}/${k}`), v => {
+            games[code][k] = k === 'players' ? Object.values(v.val() || {}) : v.val(); emit();
+          });
+        }
         emit();
       });
     },
@@ -141,14 +146,16 @@ export async function connect(config) {
       if (players.length < 3) throw new Error('Servono almeno 3 fazioni');
       return { ...g, status: 'play', state: JSON.stringify(newGame(players.map(p => p.nick))) };
     }),
-    act: (code, m, seat = null) => gameTx(code, g => {
+    act: (code, m, seat = null, expect = null) => gameTx(code, g => {
       const players = Object.values(g.players);
       let me = players.findIndex(p => p.uid === uid());
-      if (seat !== null) { // mossa di un bot: la gioca il computer di chi ha creato la partita
-        if (g.host !== uid() || !players[seat]?.bot) throw new Error('Solo l\'host muove i bot');
+      if (seat !== null) { // mossa di un bot: la gioca il computer di uno degli umani della partita
+        if (me < 0 || !players[seat]?.bot) throw new Error('Solo chi gioca muove i bot');
         me = seat;
       }
-      const s = move(JSON.parse(g.state), me, m);
+      const cur = JSON.parse(g.state);
+      if (expect !== null && (cur.moveN || 0) !== expect) throw new Error('stale'); // un altro ha già mosso il bot
+      const s = move(cur, me, m);
       return { ...g, state: JSON.stringify(s), status: s.stage === 'end' ? 'end' : 'play' };
     }),
     ack: (code, n) => D.set(ref(`games/${code}/acks/${uid()}`), n), // "Avanti" alla fine del party

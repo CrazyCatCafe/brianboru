@@ -30,7 +30,7 @@ export function leadTowns(s, p) {
   return ok.length ? ok : free;
 }
 export const ownTowns = (s, p) => TOWNS.filter(t => s.towns[t.id].owner === p && !s.towns[t.id].viking).map(t => t.id);
-export const expandTargets = (s, p) => [...new Set(ownTowns(s, p).flatMap(neighbours))].filter(id => s.towns[id].owner === null);
+export const expandTargets = (s, p) => [...new Set(ownTowns(s, p).flatMap(neighbours))].filter(id => s.towns[id].owner === null && id !== s.trick?.town); // il quartiere della presa va a chi la vince
 export const vikingTowns = s => TOWNS.filter(t => s.towns[t.id].viking).map(t => t.id);
 export const current = s => s.pending[0] || null;
 
@@ -187,18 +187,14 @@ const STAGES = {
   claim(s) {
     const ev = { k: 'uprising', flips: [], changes: [], values: {} };
     for (const [r, c] of Object.entries(REGIONS)) {
-      const cl = s.claims[r], counts = regionCounts(s, r); // valore: libero 1, community 2, polizia 0 (lo Scudo di Estrid vale solo a fine partita)
-      const total = Object.values(regionCounts(s, r)).reduce((a, b) => a + b, 0);
+      const cl = s.claims[r], total = Object.values(regionCounts(s, r)).reduce((a, b) => a + b, 0); // la polizia conta per la soglia
       if (!cl.up && total >= c.threshold) { cl.up = true; ev.flips.push(r); log(s, `${c.name} è in palio.`); }
       if (!cl.up) continue;
-      ev.values[r] = Object.fromEntries(Object.entries(counts).filter(([k]) => k !== 'V'));
-      // la polizia conta solo per la soglia: il controllo si decide tra le bande (regola della casa)
-      const bands = Object.keys(counts).filter(k => k !== 'V'), max = Math.max(0, ...bands.map(k => counts[k])), top = bands.filter(k => counts[k] === max);
-      if (max === 0 || top.length !== 1) continue;
-      const owner = Number(top[0]);
-      if (owner !== cl.owner) { // i punti del municipio sono provvisori: si contano a fine partita
-        ev.changes.push({ r, owner, from: cl.owner, pts: c.points }); cl.owner = owner;
-        log(s, `${c.name}: ${owner === null ? 'nessuno la controlla' : 'la controlla ' + name(s, owner) + ` (vale ${c.points} punti a fine partita)`}.`);
+      const z = zoneControl(s, r); // lo Scudo di Estrid vale solo a fine partita
+      ev.values[r] = { values: z.values, max: z.max, tie: z.tie, owner: z.owner };
+      if (z.owner !== cl.owner) { // i punti del municipio sono provvisori: si contano a fine partita
+        ev.changes.push({ r, owner: z.owner, from: cl.owner, pts: c.points }); cl.owner = z.owner;
+        log(s, `${c.name}: la controlla ${name(s, z.owner)} (vale ${c.points} punti a fine partita).`);
       }
     }
     s.players.forEach((pl, i) => (pl.claims = Object.keys(REGIONS).filter(r => s.claims[r].owner === i)));
@@ -217,29 +213,35 @@ function spoils(s, key, first) {
   return res;
 }
 
-// Città per "giocatore" in una regione (monastero = 2); 'V' = vichinghi. mode: 'military'|'trade' accorpa i vichinghi alla Principessa.
+// Valore di ogni fazione in un municipio: quartiere libero 1, con community project 2, presidiato dalla polizia 0.
+// Controlla chi ha il valore più alto da solo; con la parità in testa (o tutti a 0) resta il padrone di prima.
+// scudo: chi ha lo Scudo di Estrid, a fine partita, conta come suoi anche i quartieri presidiati.
+export function zoneControl(s, r, scudo = -1) {
+  const values = {};
+  TOWNS.filter(t => t.region === r).forEach(t => {
+    const st = s.towns[t.id], k = st.owner === null ? null : st.viking ? (scudo >= 0 ? scudo : null) : st.owner;
+    if (k !== null) values[k] = (values[k] || 0) + (st.monastery ? 2 : 1);
+  });
+  const max = Math.max(0, ...Object.values(values)), top = Object.keys(values).filter(k => values[k] === max).map(Number);
+  const tie = max > 0 && top.length > 1, prev = s.claims[r]?.owner ?? null;
+  return { values, max, top, tie, owner: max > 0 && !tie ? top[0] : prev };
+}
 // Regina Estrid: cosa cambierebbe adesso con Scudo (zone in palio controllate) e con Rete (zone in cui si è presenti)
 export function estridPreview(s, p) {
-  const pls = s.players, zones = mode => Object.entries(REGIONS).filter(([r]) => s.claims[r]?.up).filter(([r]) => {
-    const counts = { ...regionCounts(s, r) };
-    if (mode === 'military' && counts.V) { counts[p] = (counts[p] || 0) + counts.V; }
-    delete counts.V;
-    const max = Math.max(0, ...Object.values(counts)), top = Object.keys(counts).filter(k => counts[k] === max);
-    return max > 0 && top.length === 1 && +top[0] === p;
-  }).map(([r, c]) => ({ r, pts: c.points }));
+  const zones = scudo => Object.entries(REGIONS).filter(([r]) => s.claims[r]?.up && zoneControl(s, r, scudo).owner === p).map(([r, c]) => ({ r, pts: c.points }));
   const present = trade => new Set(TOWNS.filter(t => { const st = s.towns[t.id]; return st.owner !== null && (st.viking ? trade : st.owner === p); }).map(t => t.region)).size;
-  const now = zones(null), mil = zones('military'), a = present(false), b = present(true);
+  const now = zones(-1), mil = zones(p), a = present(false), b = present(true);
   return { military: { now, after: mil, ptsNow: now.reduce((x, z) => x + z.pts, 0), ptsAfter: mil.reduce((x, z) => x + z.pts, 0) },
     trade: { now: a, after: b, ptsNow: REGION_SCORE[a], ptsAfter: REGION_SCORE[b] } };
 }
 
-function regionCounts(s, region, mode) {
-  const ally = mode ? s.players.findIndex(pl => pl.princess === mode) : -1;
+// Quartieri occupati in una regione (progetto urbano = 2), polizia compresa: serve per la soglia
+function regionCounts(s, region) {
   const counts = {};
   TOWNS.filter(t => t.region === region).forEach(t => {
     const st = s.towns[t.id];
     if (st.owner === null) return;
-    const k = st.viking ? (ally >= 0 ? ally : 'V') : st.owner;
+    const k = st.viking ? 'V' : st.owner;
     counts[k] = (counts[k] || 0) + (st.monastery ? 2 : 1);
   });
   return counts;
@@ -254,14 +256,18 @@ function score(s) {
   ev.coinsTie = richest.length > 1;
   ev.active[s.active] = 1;
   pls.forEach((pl, i) => (ev.renown[i] = pl.renown));
+  const scudo = pls.findIndex(pl => pl.princess === 'military');
   for (const [r, c] of Object.entries(REGIONS)) {
     const cl = s.claims[r];
     if (!cl.up) continue;
-    if (cl.owner !== null) { ev.zonePts[cl.owner] += c.points; ev.zones.push({ r, owner: cl.owner, pts: c.points, half: [] }); continue; }
-    const counts = regionCounts(s, r, 'military'), max = Math.max(0, ...Object.entries(counts).filter(([k]) => k !== 'V').map(([, v]) => v)), half = [];
-    if (max > 0) pls.forEach((pl, i) => { if (counts[i] === max) { ev.zonePts[i] += Math.floor(c.points / 2); half.push(i); } });
+    const z = zoneControl(s, r, scudo); // a fine partita lo Scudo di Estrid conta i presidi come suoi
+    cl.owner = z.owner;
+    if (z.owner !== null) { ev.zonePts[z.owner] += c.points; ev.zones.push({ r, owner: z.owner, pts: c.points, half: [] }); continue; }
+    const half = z.tie ? z.top : []; // nessun padrone e parità: metà punti a chi pareggia
+    half.forEach(i => (ev.zonePts[i] += Math.floor(c.points / 2)));
     ev.zones.push({ r, owner: null, pts: c.points, half });
   }
+  pls.forEach((pl, i) => (pl.claims = Object.keys(REGIONS).filter(r => s.claims[r].owner === i)));
   pls.forEach((pl, i) => {
     const regs = new Set(TOWNS.filter(t => {
       const st = s.towns[t.id];
@@ -289,6 +295,7 @@ export function move(state, p, m) {
     MOVES[pend.type](s, p, m, pend);
     s.pending.shift();
   }
+  s.moveN = (s.moveN || 0) + 1; // contatore delle mosse: online scarta le mosse calcolate su uno stato vecchio
   advance(s);
   return s;
 }
