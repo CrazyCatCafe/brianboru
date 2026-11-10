@@ -780,3 +780,20 @@ body.phasefly #stage h2 { visibility: hidden; }
 .vgrid tr.draftdir .dl { margin-right: 4px; }
 body.pxswap #stage h2 { visibility: hidden; }
 body.pxswap-turn #turn .big { visibility: hidden; }
+/* loghi delle fazioni in pixel art: nella scelta, accanto al nome, sulla track hype */
+.logo svg[shape-rendering="crispEdges"] { image-rendering: pixelated; }
+.flogo { display: inline-grid; place-items: center; background: #eef1f3; vertical-align: middle; }
+label > .flogo { width: 24px; height: 24px; margin: 0 6px 0 4px; }
+.vgrid .ini { gap: 4px; }
+.vgrid .ini .flogo { width: 15px; height: 15px; margin-left: -3px; }
+.htrack .hc .pw .ftok .flogo { width: 10px; height: 10px; box-shadow: 0 0 0 1px var(--pc); }
+.htrack .hc .pw .ftok .flogo svg { width: 8px; height: 8px; }
+.htrack .hc:first-child .pw { gap: 2px; }
+.ptrack .pt { display: grid; place-items: center; background: #eef1f3; box-shadow: inset 0 0 0 2px var(--pc); }
+.ptrack .pt .flogo svg { width: 9px; height: 9px; }
+.ptrack .pt { width: 16px; height: 16px; left: calc((var(--x) + .5) * 10% - 8px); bottom: calc(10px + var(--y) * 18px); }
+.ptrack .pt .flogo { width: 12px; height: 12px; background: none; } .ptrack .pt .flogo svg { width: 12px; height: 12px; }
+.vgrid .ini { display: inline-flex; align-items: center; }
+#b-players.big .htrack .hc { grid-template-rows: 15px minmax(12px, auto) !important; }
+.htrack .hc .pw .ftok .flogo { width: 9px; height: 9px; } .htrack .hc .pw .ftok .flogo svg { width: 7px; height: 7px; }
+.htrack .hc .pw { width: 100%; }

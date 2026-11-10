@@ -87,19 +87,25 @@ export const icon = (sym, size = 20, color = 'currentColor', hole = '#fff') =>
 export const iconAt = (sym, x, y, size, color, hole = '#fff') =>
   `<g transform="translate(${x} ${y}) scale(${size / 40})" style="--hole:${hole}">${body(sym, color, hole)}</g>`;
 
-// Loghi delle fasi di upkeep su un tassello chiaro: molotov rossa (Guerrilla), germoglio verde (Community Projects), pugno nero (Uprising)
-const FIST = c => `<rect x="10" y="7" width="5.5" height="12" rx="2.75" fill="${c}"/><rect x="15.5" y="5" width="5.5" height="14" rx="2.75" fill="${c}"/>
-  <rect x="21" y="6" width="5.5" height="13" rx="2.75" fill="${c}"/><rect x="26.5" y="8" width="5" height="11" rx="2.5" fill="${c}"/>
-  <path d="M10 16h21.5v9c0 6-4.5 10-10.75 10S10 31 10 25Z" fill="${c}"/><path d="M11 23h10" stroke="${H}" stroke-width="2.5" stroke-linecap="round"/>`;
-const CUP = c => `<path d="M11 5h18v9a9 9 0 0 1-18 0Z" fill="${c}"/><path d="M11 8H5c0 6 3 9 7 9M29 8h6c0 6-3 9-7 9" fill="none" stroke="${c}" stroke-width="3"/>
-  <path d="M18 22h4v7h-4Z" fill="${c}"/><path d="M12 30h16v5H12Z" fill="${c}"/>`;
-// scudo della polizia stilizzato, geometrico: scudo blu, bordo chiaro, stella al centro
-export const SHIELD_PATH = 'M20 3 34 8v11c0 9-6 15-14 19C12 34 6 28 6 19V8Z';
-const SHIELD = c => `<path d="${SHIELD_PATH}" fill="${c}"/><path d="M20 7 30 10.5v8.5c0 7-4.6 11.6-10 14.6-5.4-3-10-7.6-10-14.6v-8.5Z" fill="none" stroke="#9fd0ff" stroke-width="1.6"/>
-  <path d="M20 12l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.5-4.8 2.5.9-5.4-3.9-3.8 5.4-.8Z" fill="#fff"/>`;
-const HELMET = c => `<path d="M6 25a14 14 0 0 1 28 0v3H6Z" fill="${c}"/><path d="M9 21h22v6H9Z" fill="${H}"/><path d="M11 23h8M21 23h8" stroke="${c}" stroke-width="2"/><path d="M20 6v6" stroke="${H}" stroke-width="2.5"/>`;
+// Loghi delle fasi su un tassello chiaro: molotov rossa (Guerrilla), germoglio verde (Community Projects), pugno nero (Uprising)
+// Pixel art per i loghi: '#' = colore del logo, 'o' = bianco (dettagli ritagliati)
+const pix = rows => (c, o = '#fff') => rows.flatMap((r, y) => [...r].map((ch, x) => (ch === '#' || ch === 'o' ? `<rect x="${x * 4}" y="${y * 4}" width="4" height="4" fill="${ch === '#' ? c : o}"/>` : ''))).join('');
+const FIST_PX = pix(['.##.##.##.', '.########.', '.########.', '##########', '#oooo#####', '##########', '.########.', '..######..', '...####...', '...####...']);
+const CUP_PX = pix(['##########', '##########', '#.######.#', '#.######.#', '.#.####.#.', '...####...', '....##....', '....##....', '..######..', '..######..']);
+const SHIELD_PX = pix(['##########', '##########', '####oo####', '##oooooo##', '###oooo###', '###o##o###', '.########.', '.########.', '..######..', '....##....']);
+// Loghi delle fazioni (pixel art 10x10), ognuno col colore della sua fazione
+export const FACTION_COLORS = { Technoborghesi: '#6c3bff', Punk: '#ff2d87', 'Partite Iva': '#ff6a00', Startuppers: '#00a6a6', 'Le Sciure': '#1b1b1b' };
+const FACTION_PX = {
+  Technoborghesi: pix(['#...##...#', '#...##...#', '##..##..##', '###.##.###', '##########', '##########', '#.#.##.#.#', '##########', '..........', '##########']), // corona
+  Punk: pix(['..#.#.#...', '..######..', '...####...', '..######..', '.########.', '.#..##..#.', '.########.', '.##....##.', '..######..', '...####...']), // cresta
+  'Partite Iva': pix(['##########', '#..####.##', '#..###.###', '#####.####', '####.#####', '###.###..#', '##.####..#', '##########', '#.......##', '#.#.#.#.#.']), // scontrino col %
+  Startuppers: pix(['....##....', '...####...', '...#..#...', '...#..#...', '...####...', '..######..', '.##.##.##.', '##..##..##', '....##....', '...#..#...']), // razzo
+  'Le Sciure': pix(['...####...', '..#....#..', '..#....#..', '##########', '#.#.#.#.##', '##########', '#####..###', '##########', '.########.', '..........']), // borsetta con le perle
+};
+export const factionLogo = (name, size = 16) => FACTION_PX[name]
+  ? `<span class="logo flogo" title="${name}"><svg viewBox="0 0 40 40" width="${size}" height="${size}" shape-rendering="crispEdges" aria-hidden="true">${FACTION_PX[name](FACTION_COLORS[name])}</svg></span>` : '';
 export const LOGO_COLORS = { cred: '#b8860b', hype: '#7d868e', guerrilla: '#e62e2d', community: '#14a04b', uprising: '#111111', punti: '#111111', crediti: '#d9a400', polizia: '#1f5fbf' };
-const LOGOS = { cred: c => SOLID.R(c), hype: c => SOLID.M(c), guerrilla: c => SOLID.A(c), community: c => SOLID.X(c), uprising: FIST, punti: CUP, crediti: c => SOLID.C(c), polizia: SHIELD };
+const LOGOS = { cred: c => PIXEL.R(c), hype: c => PIXEL.M(c), guerrilla: c => PIXEL.A(c), community: c => PIXEL.X(c), uprising: FIST_PX, punti: CUP_PX, crediti: c => PIXEL.C(c), polizia: SHIELD_PX }; // tutto in pixel art
 export const LOGO_NAMES = { cred: 'Street cred', hype: 'Hype', guerrilla: 'Guerrilla', community: 'Community', uprising: 'Uprising', punti: 'Punti', crediti: 'Crediti', polizia: 'Polizia' };
 export const logo = (kind, size = 20) =>
-  `<span class="logo" style="--hole:#eef1f3" title="${LOGO_NAMES[kind]}"><svg viewBox="0 0 40 40" width="${size}" height="${size}" aria-hidden="true">${LOGOS[kind](LOGO_COLORS[kind])}</svg></span>`;
+  `<span class="logo" style="--hole:#eef1f3" title="${LOGO_NAMES[kind]}"><svg viewBox="0 0 40 40" width="${size}" height="${size}" shape-rendering="crispEdges" aria-hidden="true">${LOGOS[kind](LOGO_COLORS[kind])}</svg></span>`;

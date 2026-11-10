@@ -4,13 +4,13 @@ import { estridPreview, zoneControl, draftDir, move as applyMove, current, empty
 import { CARDS, MARRIAGES, TOWNS, REGIONS, MARRIAGE_TRACK } from './game/data.js';
 import { THEME, THEME_REPLACED, PIXEL_SCALE } from './milano/theme.js';
 import { cardSVG, characterSVG, characterArt, cardLabel } from './milano/card.js';
-import { icon, setIconSet, logo, LOGO_NAMES } from './milano/icons.js';
+import { icon, setIconSet, logo, LOGO_NAMES, factionLogo } from './milano/icons.js';
 import { ESTRID, SYMBOLS } from './milano/lore.js';
 import { createCity, WEATHER_TYPES, QUALITY } from './milano/city3d.js';
 import { connect, BOT_NAMES } from './milano/online.js';
 import { pixelSwap } from './milano/pixelfx.js';
 
-setIconSet('pieno');
+setIconSet('pixel'); // tutto in pixel art: simboli delle carte e loghi
 const $ = id => document.getElementById(id);
 const esc = t => String(t ?? '').replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
 const SCREENS = ['auth', 'nick', 'lobby', 'game'];
@@ -96,6 +96,7 @@ function enterLobby() {
 document.querySelectorAll('[name=gang]').forEach(r => (r.onchange = () => localStorage.setItem('bb-gang', gang())));
 
 const otherGangs = () => FACTION_NAMES.filter(g => g !== gang());
+document.querySelectorAll('[name=gang]').forEach(r => r.insertAdjacentHTML('afterend', factionLogo(r.value, 18))); // scelta della fazione col suo logo
 $('create').onclick = guard(async () => openRoom(await net.createGame(gang(), +$('create-bots').value, otherGangs())));
 async function openRoom(code, join = true) {
   if (join) await net.joinGame(code, gang());
@@ -427,7 +428,7 @@ function tieNote(e) {
 function partyTrack(pos, { zoom = false, hi = null, from = {}, bonus = null } = {}) {
   const cells = MARRIAGE_TRACK.map((b, c) => `<div class="pc${b ? ' bonus' : ''}${bonus !== null && pos[bonus] === c ? ' got' : ''}"><span class="n">${c + 1}</span><span class="b">${b === 'CC' ? icon('C', 12) + icon('C', 12) : b ? icon(b, 13) : ''}</span></div>`).join('');
   const stack = {};
-  const toks = pos.map((p, i) => { const k = stack[p] = (stack[p] ?? -1) + 1; return `<i class="pt${i === hi ? ' hi' : ''}" style="--pc:${THEME.players[i]};--x:${p};--y:${k};${from[i] != null ? `--fx:${from[i]};` : ''}"${from[i] != null ? ' data-move' : ''} title="${esc(state.players[i].name)}"></i>`; }).join('');
+  const toks = pos.map((p, i) => { const k = stack[p] = (stack[p] ?? -1) + 1; return `<i class="pt${i === hi ? ' hi' : ''}" style="--pc:${THEME.players[i]};--x:${p};--y:${k};${from[i] != null ? `--fx:${from[i]};` : ''}"${from[i] != null ? ' data-move' : ''} title="${esc(state.players[i].name)}">${factionLogo(gangOf(i), 10)}</i>`; }).join('');
   return `<div class="ptrack${zoom ? ' zoom' : ''}"><div class="cells">${cells}</div>${toks}</div>`;
 }
 const BONUS = { C: '+1 credito', CC: '+2 crediti', R: '+1 street cred', T: 'prende un quartiere libero a scelta' };
@@ -583,6 +584,8 @@ function render() {
 
 // ---------- plancia a sinistra (schizzo): bande, hype, guerrilla, comunità, uprising ----------
 const pdot = i => `<i class="pd" style="--pc:${THEME.players[i]}"></i>`;
+const gangOf = i => room?.players?.[i]?.gang || FACTION_NAMES[i % FACTION_NAMES.length];
+const ftok = i => `<span class="ftok" style="--pc:${THEME.players[i]}">${factionLogo(gangOf(i), 10)}</span>`; // segnalino: logo della fazione col bordo del colore del giocatore
 const pname = (s, i) => `${pdot(i)}<b>${esc(s.players[i].name)}</b>`;
 // carta del personaggio in hype: si apre di fianco alla plancia, senza coprire gli altri riquadri
 // carta del personaggio in Hype: sempre visibile accanto alla plancia, sotto la barra delle fasi.
@@ -669,13 +672,13 @@ function renderBoard(s, pd) {
     p.princess ? 'Estrid alleata' : '', i === s.active ? 'ha il segnalino del quartiere attivo' : ''].filter(Boolean).join(' · ');
   $('b-players').innerHTML = `<button class="zoom" type="button" aria-pressed="${bigBoard}" aria-label="${bigBoard ? 'Rimpicciolisci la plancia' : 'Ingrandisci la plancia'}">${bigBoard ? '−' : '+'}</button>
     <div class="vgrid"><table aria-label="Fazioni">
-    <thead><tr class="draftdir${['prep', 'draft'].includes(phaseNow) ? ' on' : ''}" title="${esc(dirTitle(s))}"><td></td><td colspan="${shown.length}"><span class="dl">Draft</span> ${dirArrow(s)}</td></tr><tr><td></td>${shown.map(i => [s.players[i], i]).map(([p, i]) => `<th scope="col"><span class="ini${waiting.includes(i) ? ' turn' : ''}${i === s.active ? ' act' : ''}" style="--pc:${THEME.players[i]}" title="${esc(tip(p, i))}">${esc(shortName(p.name))}</span></th>`).join('')}</tr></thead>
+    <thead><tr class="draftdir${['prep', 'draft'].includes(phaseNow) ? ' on' : ''}" title="${esc(dirTitle(s))}"><td></td><td colspan="${shown.length}"><span class="dl">Draft</span> ${dirArrow(s)}</td></tr><tr><td></td>${shown.map(i => [s.players[i], i]).map(([p, i]) => `<th scope="col"><span class="ini${waiting.includes(i) ? ' turn' : ''}${i === s.active ? ' act' : ''}" style="--pc:${THEME.players[i]}" title="${esc(tip(p, i))}">${factionLogo(gangOf(i), 12)}${esc(shortName(p.name))}</span></th>`).join('')}</tr></thead>
     <tbody>${row('punti', 'points')}${row('uprising', p => p.claims.reduce((a, r) => a + REGIONS[r].points, 0), 'uprising')}${row('crediti', 'coins')}${row('cred', 'renown')}${row('guerrilla', 'raiders', 'guerrilla')}${row('community', 'church', 'community')}</tbody>
     <tfoot><tr${phaseNow === 'guerrilla' ? ' class="on"' : ''}><th scope="row">${lab('polizia', 'guerrilla')}</th><td colspan="${shown.length}">${s.area}</td></tr></tfoot>
     </table>
     </div>
     <div class="htrack${phaseNow === 'party' ? ' on' : ''}${actionSyms(s, pd).includes('M') ? ' flash' : ''}" role="img" aria-label="Hype: ${s.players.map(p => `${esc(p.name)} casella ${p.mar + 1}`).join(', ')}">${MARRIAGE_TRACK.map((b, c) =>
-      `<span class="hc${b ? ' bonus' : ''}" title="Hype ${c + 1}: ${c ? (b ? BONUS_TIP[b] : 'nessun bonus') : 'partenza delle fazioni'}"><span class="g">${hypeBonus(b, c)}</span><span class="pw">${s.players.map((p, i) => (p.mar === c ? pdot(i) : '')).join('')}</span></span>`).join('')}</div>
+      `<span class="hc${b ? ' bonus' : ''}" title="Hype ${c + 1}: ${c ? (b ? BONUS_TIP[b] : 'nessun bonus') : 'partenza delle fazioni'}"><span class="g">${hypeBonus(b, c)}</span><span class="pw">${s.players.map((p, i) => (p.mar === c ? (bigBoard ? ftok(i) : pdot(i)) : '')).join('')}</span></span>`).join('')}</div>
     ${s.marriage ? `<div class="hstrip"><b class="tag">Hype</b>${hypeSummary(s, s.marriage)}<button class="peek btn ghost small" type="button">Vedi carta</button></div>` : ''}`;
   $('b-players').querySelector('.zoom').onclick = () => { // si allarga (o stringe) con un'animazione; allargando, le colonne degli altri entrano una alla volta
     const box = $('b-players'), w0 = box.offsetWidth;
