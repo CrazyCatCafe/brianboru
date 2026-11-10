@@ -666,9 +666,15 @@ function renderBoard(s, pd) {
   on('b-uprising', 'uprising');
   const up = Object.entries(s.claims).filter(([, c]) => c.up).sort(([, a], [, b]) => (a.owner ?? 99) - (b.owner ?? 99)); // zone raggruppate per banda, contese in fondo
   $('b-uprising').innerHTML = `<h3>${logo('uprising')}Uprising</h3>${up.length ? `<ul>${up.map(([r, c]) =>
-    `<li><i class="rz" style="--rc:${c.owner === null ? THEME.region[r] : THEME.players[c.owner]}"></i><b>${REGIONS[r].name}</b><span class="own">${c.owner === null ? 'contesa' : pname(s, c.owner)}</span></li>`).join('')}</ul>` : ''}`;
+    `<li><i class="rz" style="--rc:${c.owner === null ? THEME.region[r] : THEME.players[c.owner]}"></i><b>${REGIONS[r].name}</b><span class="own">${c.owner === null ? noOwner(s, r) : pname(s, c.owner)}</span></li>`).join('')}</ul>` : ''}`;
 }
 
+// zona in palio senza padrone: "contesa" solo se due fazioni pareggiano; se ci sono solo presidi è in mano alla polizia
+function noOwner(s, r) {
+  const n = {}; TOWNS.filter(t => t.region === r && s.towns[t.id].owner !== null && !s.towns[t.id].viking).forEach(t => (n[s.towns[t.id].owner] = (n[s.towns[t.id].owner] || 0) + (s.towns[t.id].monastery ? 2 : 1)));
+  const v = Object.values(n), max = Math.max(0, ...v);
+  return max === 0 ? 'polizia' : `contesa ${max}–${max}`;
+}
 function renderTurn(s, pd, wk) {
   const total = s.players.length === 3 ? 3 : 4;
   const turn = !pd ? 'Partita finita' : pd.type === 'draft' ? `<span>Draft</span> ${s.draft.picks.flatMap((x, i) => (x ? [] : [pdot(i)])).join('')}` : `<span>Turno di</span> ${pname(s, pd.p)}${pd.p === seat && !local ? ' <small>tu</small>' : ''}`;
