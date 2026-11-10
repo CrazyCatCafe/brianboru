@@ -4,7 +4,7 @@ import { estridPreview, zoneControl, draftDir, move as applyMove, current, empty
 import { CARDS, MARRIAGES, TOWNS, REGIONS, MARRIAGE_TRACK } from './game/data.js';
 import { THEME, THEME_REPLACED, PIXEL_SCALE } from './milano/theme.js';
 import { cardSVG, characterSVG, characterArt, cardLabel } from './milano/card.js';
-import { icon, setIconSet, logo, LOGO_NAMES, factionLogo } from './milano/icons.js';
+import { icon, setIconSet, logo, LOGO_NAMES, factionLogo, FACTION_COLORS } from './milano/icons.js';
 import { ESTRID, SYMBOLS } from './milano/lore.js';
 import { createCity, WEATHER_TYPES, QUALITY } from './milano/city3d.js';
 import { connect, BOT_NAMES } from './milano/online.js';
@@ -169,7 +169,8 @@ $('local').onclick = guard(() => {
   const humans = [$('solo-name').value.trim() || 'Tu'], bots = +$('local-bots').value;
   const names = [...humans, ...Array.from({ length: bots }, (_, i) => BOT_NAMES[i])];
   local = true; roomCode = null; human = 0;
-  room = { players: names.map((nick, i) => ({ nick, gang: FACTION_NAMES[i % FACTION_NAMES.length], bot: i >= humans.length })) };
+  const gangs = [gang(), ...otherGangs()]; // tu la fazione scelta, i bot le altre: ognuno il colore della sua
+  room = { players: names.map((nick, i) => ({ nick, gang: gangs[i], bot: i >= humans.length })) };
   seenN = null; enterGame(newGame(names));
 });
 $('to-lobby').onclick = () => {
@@ -550,6 +551,7 @@ let pendKey = null, mapPicking = false, framedKey = null, lastSaid = '';
 function render() {
   const f = document.activeElement, fkey = f && (f.id ? '#' + f.id : f.dataset?.c ? `[data-c="${f.dataset.c}"]` : f.dataset?.o ? `[data-o="${f.dataset.o}"]` : f.dataset?.x ? `[data-x="${f.dataset.x}"]` : null);
   const s = state, pd = current(s);
+  applyColors(s.players.length);
   const key = JSON.stringify(pd) + (pd?.type === 'draft' ? s.draft.packets.join('|') : '');
   if (key !== pendKey) { pendKey = key; if (!local || pd?.type !== 'draft') ui = {}; } // nuova decisione: via le scelte provvisorie
   if (local && !isBot(actorOf(s, pd)) && actorOf(s, pd) >= 0) human = actorOf(s, pd);
@@ -585,6 +587,12 @@ function render() {
 // ---------- plancia a sinistra (schizzo): bande, hype, guerrilla, comunità, uprising ----------
 const pdot = i => `<i class="pd" style="--pc:${THEME.players[i]}"></i>`;
 const gangOf = i => room?.players?.[i]?.gang || FACTION_NAMES[i % FACTION_NAMES.length];
+// il colore di ogni giocatore è quello della sua fazione (se due avessero la stessa fazione, si torna ai colori per posto)
+const SEAT_COLORS = [...THEME.players];
+function applyColors(n) {
+  const gs = Array.from({ length: n }, (_, i) => gangOf(i)), ok = new Set(gs).size === n && gs.every(g => FACTION_COLORS[g]);
+  gs.forEach((g, i) => (THEME.players[i] = ok ? FACTION_COLORS[g] : SEAT_COLORS[i]));
+}
 const ftok = i => `<span class="ftok" style="--pc:${THEME.players[i]}">${factionLogo(gangOf(i), 10)}</span>`; // segnalino: logo della fazione col bordo del colore del giocatore
 const pname = (s, i) => `${pdot(i)}<b>${esc(s.players[i].name)}</b>`;
 // carta del personaggio in hype: si apre di fianco alla plancia, senza coprire gli altri riquadri

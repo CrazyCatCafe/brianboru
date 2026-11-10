@@ -1,6 +1,8 @@
 // Firebase: account (Google, email), profilo con nickname unico, amici, presenza, inviti, lobby e partite.
 // Realtime Database: lo stato della partita è una stringa JSON (il database trasformerebbe gli array in oggetti).
 import { newGame, move } from '../game/engine.js';
+import { FACTION_COLORS } from './icons.js';
+const freeGang = (players, want) => (players.some(p => p.gang === want) || !FACTION_COLORS[want] ? Object.keys(FACTION_COLORS).find(f => !players.some(p => p.gang === f)) : want); // una fazione per giocatore
 
 const BASE = 'https://www.gstatic.com/firebasejs/10.12.2/';
 const MAX = 5;
@@ -99,7 +101,7 @@ export async function connect(config) {
       if (g.host !== uid() || g.status !== 'lobby') throw new Error('Solo chi ha creato la partita può aggiungere bot');
       if (players.length >= MAX) throw new Error('Partita piena');
       let n = 1; while (players.some(p => p.uid === `bot-${n}`)) n++;
-      return { ...g, players: [...players, { uid: `bot-${n}`, nick: BOT_NAMES[n - 1], gang, bot: true }] };
+      return { ...g, players: [...players, { uid: `bot-${n}`, nick: BOT_NAMES[n - 1], gang: freeGang(players, gang), bot: true }] };
     }),
     removeBot: (code, botUid) => gameTx(code, g => {
       if (g.host !== uid() || g.status !== 'lobby') return null;
@@ -131,7 +133,7 @@ export async function connect(config) {
         if (g.uids?.[uid()]) return null; // già dentro
         if (g.status !== 'lobby') throw new Error('Partita già iniziata');
         if (players.length >= MAX) throw new Error('Partita piena');
-        return { ...g, uids: { ...g.uids, [uid()]: true }, players: [...players, { uid: uid(), nick, gang }] };
+        return { ...g, uids: { ...g.uids, [uid()]: true }, players: [...players, { uid: uid(), nick, gang: freeGang(players, gang) }] };
       });
       await D.set(ref(`users/${uid()}/games/${code}`), true);
     },

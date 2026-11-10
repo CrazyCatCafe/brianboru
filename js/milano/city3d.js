@@ -366,7 +366,7 @@ export async function createCity(container, overlay, view = {}) {
       sp.sinkTo = c ? 0 : 1; // i palazzi del quartiere preso sprofondano, quelli dei quartieri liberi restano
       sp.thin.visible = !c; sp.thick.visible = sp.fill.visible = false; // preso: resta solo la pedina, niente piazza né bordino
       // pedina della fazione al centro del quartiere preso; quando arriva cade dall'alto e rimbalza
-      const fac = st.owner === null ? null : s.factions?.[st.owner], key = st.owner === null ? null : `${st.owner}:${fac}`;
+      const fac = st.owner === null ? null : s.factions?.[st.owner], key = st.owner === null ? null : `${st.owner}:${fac}:${T.players[st.owner]}`;
       if (sp.pawnKey !== key) {
         if (sp.pawn) sp.g.remove(sp.pawn);
         sp.pawn = key && makePawn(fac, T.players[st.owner]); sp.pawnKey = key;
