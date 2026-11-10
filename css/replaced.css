@@ -997,3 +997,15 @@ body.phasefly #stage h2 { visibility: visible; }
 #b-players .zoom { width: 26px !important; height: 26px !important; font-size: 16px !important; }
 .rp .btn.small.goto, #b-players .hstrip .peek { min-height: 28px; }
 @media (max-width: 899px) { .rp-toggle { min-height: 40px; } }
+/* osservazioni minori: tabella finale, box centrale, pulsanti, telefono */
+.ftable tr.me td { box-shadow: inset 0 -2px 0 #ffd400; } .ftable tr.me td:first-child { font-weight: 800; }
+.ftable td .logo { width: 20px; height: 20px; display: inline-grid; place-items: center; background: #eef1f3; vertical-align: middle; }
+@media (min-width: 900px) { #game .rp-stage:not(.vs) { max-width: 900px; margin: 0 auto; } } /* stessa larghezza in tutte le fasi */
+/* pulsanti: rosso = azione principale, contorno = secondaria, tratteggio = non ancora possibile */
+.rp .btn:not(.ghost):not(:disabled) { background: var(--rp-red); border-color: var(--rp-red); color: #fff; }
+.rp .btn:not(.ghost):not(:disabled):hover { background: #b81d22; border-color: #b81d22; }
+.rp .btn.ghost { background: transparent; color: var(--rp-ink); border: 1px solid var(--rp-line); }
+.rp .btn.ghost:hover:not(:disabled) { background: rgba(255, 255, 255, .08); border-color: var(--rp-ink); color: #fff; }
+.handbar[hidden] { display: none !important; }
+#gang-local { margin-top: 4px; }
+@media (max-width: 700px) { #lobby { padding-left: 10px; padding-right: 10px; } .accb.open .mhead::before { inset: -4px; padding: 2px; } }

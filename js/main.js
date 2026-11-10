@@ -120,7 +120,14 @@ function enterLobby() {
   const code = location.hash.slice(1).toUpperCase();
   if (/^[A-Z]{5}$/.test(code)) openRoom(code, true).catch(e => toast(friendly(e)));
 }
-document.querySelectorAll('[name=gang]').forEach(r => (r.onchange = () => { localStorage.setItem('bb-gang', gang()); renderMenuIcons(); }));
+document.querySelectorAll('#p-create [name=gang]').forEach(r => { // la stessa scelta anche nel cassetto Partita locale (offline c'è solo quello)
+  const lab = r.parentElement.cloneNode(true), c = lab.querySelector('input'); c.name = 'gang-l'; c.id = '';
+  $('gang-local').appendChild(lab);
+  c.onchange = () => { r.checked = true; r.onchange(); };
+});
+const syncGang = () => document.querySelectorAll('[name=gang-l]').forEach(c => (c.checked = c.value === gang()));
+document.querySelectorAll('[name=gang]').forEach(r => (r.onchange = () => { localStorage.setItem('bb-gang', gang()); renderMenuIcons(); syncGang(); }));
+syncGang();
 
 const otherGangs = () => FACTION_NAMES.filter(g => g !== gang());
 document.querySelectorAll('[name=gang]').forEach(r => { r.insertAdjacentHTML('afterend', factionLogo(r.value, 42)); const c = FACTION_COLORS[r.value]; r.parentElement.style.setProperty('--fc', c === '#1b1b1b' ? '#cfd6dc' : c); }); // fazioni come box col loro logo e colore
@@ -246,7 +253,7 @@ function renderMeteo() {
   const ora = new Intl.DateTimeFormat('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' }).format(new Date()).replace(':', '.');
   $('b-meteo').innerHTML = `<b class="tit">Meteo</b><b class="where">Milano ${ora}</b>${meteo ? `<span class="row">
     <span class="mv" title="Umidità">${mi('goccia', meteo.h + '%')}</span><span class="mv" title="Vento">${mi('vento', meteo.v + ' km/h')}</span>
-    <span class="mv sky" title="${meteo.w[1]}">${mi(meteo.w[3])}</span><b class="temp" title="Temperatura">${meteo.t}°</b></span>` : '<span class="cond">meteo non disponibile</span>'}`;
+    <span class="mv sky" title="${meteo.w[1]}">${mi(meteo.w[3])}</span><b class="temp" title="Temperatura">${meteo.t}°</b></span>` : ''}`; // meteo non arrivato: restano luogo e ora, niente scritta d'errore
 }
 loadMeteo(); setInterval(loadMeteo, 15 * 60 * 1000); setInterval(renderMeteo, 30 * 1000);
 
@@ -428,7 +435,8 @@ function phaseBanner(k) {
 }
 function renderPhases(s, pd) {
   const cur = showing ? SHOW_PHASE[showing.k] || showing.k : pd ? PEND_PHASE[pd.type] : 'uprising';
-  if (cur !== phaseNow && phaseNow !== null) { phaseBanner(cur); hypeLit = false; city?.highlight(null); $('peekcard').hidden = true; } // cambio di fase: cartello grande, e si spegne l'illuminazione della fase prima
+  if (cur !== phaseNow && phaseNow !== null) { if (!['prep', 'pregame'].includes(showing?.k)) phaseBanner(cur); // sulle schermate a tutto schermo niente banner
+    hypeLit = false; city?.highlight(null); $('peekcard').hidden = true; } // cambio di fase: cartello grande, e si spegne l'illuminazione della fase prima
   phaseNow = cur;
   const SHORT = { party: 'Party', guerrilla: 'Guerrilla', community: 'Community', uprising: 'Uprising' }; // nomi brevi quando lo schermo è stretto
   const list = cur === 'setup' ? [['setup', 'Setup'], ...PHASES] : PHASES; // il setup si vede solo a inizio partita
@@ -532,7 +540,7 @@ function guerBoard(e, order, vals, { grow = false, lose = new Set(), raid = fals
 // track dell'hype in orizzontale con le pedine posizionate: si possono animare (zoom d'ingresso, pedina che torna indietro)
 // tabella del punteggio finale: colonne svelate fino a "upto", la colonna corrente accesa, totale che sale
 const FINAL_COLS = e => [
-  ['start', 'In partita', i => e.start[i]], ['coins', 'Crediti', i => e.coins[i]], ['active', 'F. att.', i => e.active[i]],
+  ['start', 'Punti in partita', i => e.start[i]], ['coins', 'Crediti', i => e.coins[i]], ['active', 'Fazione Attiva', i => e.active[i]],
   ['renown', 'Street cred', i => e.renown[i]], ['zones', 'Municipi', i => e.zonePts[i]], ['presence', 'Presenza', i => e.presence[i]],
 ];
 function finalTable(e, cols, upto, zoneK = null) {
@@ -541,7 +549,7 @@ function finalTable(e, cols, upto, zoneK = null) {
   const tot = i => cols.slice(0, Math.min(upto, 5) + 1).reduce((a, c) => a + val(c, i), 0);
   const order = s.players.map((p, i) => i).sort((a, b) => (upto >= 6 ? e.rank.indexOf(a) - e.rank.indexOf(b) : 0));
   return `<table class="ftable"><thead><tr><th></th>${cols.map((c, k) => `<th class="${k === upto ? 'cur' : ''}"${c[0] === 'active' ? ' title="Fazione Attiva"' : ''}>${c[1]}</th>`).join('')}<th>Totale</th></tr></thead>
-    <tbody>${order.map(i => `<tr class="${upto >= 6 && e.winner.includes(i) ? 'champ' : ''}"><td>${who(s, i)}${upto >= 6 && e.winner.includes(i) ? ' 🏆' : ''}</td>${cols.map((c, k) => {
+    <tbody>${order.map(i => `<tr class="${upto >= 6 && e.winner.includes(i) ? 'champ' : ''}${i === seat ? ' me' : ''}"><td>${who(s, i)}${upto >= 6 && e.winner.includes(i) ? ' ' + logo('punti', 16) : ''}</td>${cols.map((c, k) => {
       const v = k > upto ? '' : val(c, i);
       return `<td class="${k === upto ? 'cur' : ''}${k === upto && v > 0 && k ? ' got' : ''}">${v === '' ? '' : k ? (v ? '+' + v : '·') : v}${k === 5 && k <= upto ? `<small> (${e.regions[i]} zone)</small>` : ''}</td>`;
     }).join('')}<td class="tot">${tot(i)}</td></tr>`).join('')}</tbody></table>`;
@@ -868,6 +876,7 @@ const dirArrow = s => `<span class="dar">senso <b>${roundDir(s) > 0 ? '→' : '�
 const dirText = (s, d) => { const n = s.players.length; return `${d > 0 ? '→' : '←'} da ${esc(s.players[0].name)} a ${esc(s.players[(n + d) % n].name)}`; };
 function renderHand(s, pd) {
   const el = $('hand');
+  document.querySelector('.handbar').hidden = !s.players[seat]?.hand.length && !s.draft; // niente "1·2" accanto a una mano vuota
   if (seat < 0) { el.innerHTML = ''; return; }
   const card = (v, attrs = '', cls = '') => `<button class="card${cls}" data-c="${v}" ${attrs}>${cardSVG(v)}</button>`;
   const keptBox = cards => { // carte tenute: quelle appena scelte arrivano da destra e si rimpiccioliscono
@@ -906,7 +915,7 @@ function renderHand(s, pd) {
   const ok = v => (playing || (choosingTown && ui.town != null)) && (!leading || fits(v) || !hand.some(fits));
   const dim = v => !ok(v) && (playing || (choosingTown && ui.town != null)); // senza quartiere scelto le carte restano a colori
   const lastHand = mine && s.trick?.last && hand.length === 2 && (playing || choosingTown); // ultima presa: la carta che non giochi si scarta
-  el.innerHTML = hand.map((v, i) => card(v, `${ok(v) ? '' : 'aria-disabled="true"'} aria-pressed="${ui.armed === v}" aria-keyshortcuts="${i + 1}"`, (dim(v) ? ' off' : '') + (lastHand ? (ui.armed != null && ui.armed !== v ? ' discard' : ' lastcard') : ''))).join('');
+  el.innerHTML = hand.map((v, i) => card(v, `${ok(v) ? '' : 'aria-disabled="true"'} aria-pressed="${ui.armed === v}" aria-keyshortcuts="${i + 1}"`, (dim(v) ? ' off' : '') + (lastHand && ui.armed != null && ui.armed !== v ? ' discard' : ''))).join('');
   el.querySelectorAll('[data-c]').forEach(b => (b.onclick = () => playCard(+b.dataset.c, ok, choosingTown)));
 }
 function playCard(v, ok, choosingTown) {
@@ -985,6 +994,7 @@ function renderStage(s = state, pd = current(state)) {
   // titolo prima, informazioni di contorno sotto (niente etichetta sopra il titolo)
   const chip = () => { const k = phaseNow, nm = [['setup', 'Setup'], ...PHASES].find(p => p[0] === k)?.[1]; return nm ? `<span class="phchip">${PHASE_LOGO[k] ? logo(PHASE_LOGO[k], 18) : ''}${nm}</span>` : ''; }; // la fase, col suo logo, accanto al titolo
   const head = (h, meta = '', body = '') => { // la fase è già nel titolo: sotto non si ripete
+    h = { 'Underground Party': 'Chi è più avanti?', Guerrilla: 'Unità neutralizzate', 'Community Projects': 'Punti community', Uprising: 'Zone in palio' }[h] || h; // il titolo non ripete il nome della fase
     const nm = [['setup', 'Setup'], ...PHASES].find(p => p[0] === phaseNow)?.[1]; if (nm && meta.startsWith(nm + ' · ')) meta = meta.slice(nm.length + 3); else if (meta === nm) meta = '';
     return `<h2>${chip()}<span class="ttl">${h}</span></h2>${meta ? `<p class="meta">${meta}</p>` : ''}${body}`;
   };
@@ -1005,7 +1015,7 @@ function renderStage(s = state, pd = current(state)) {
         ${i === first ? '<em class="first">Fazione Attiva</em>' : ''}
         <span class="vslogo">${factionLogo(gangOf(i), 84)}</span><b class="vsname">${esc(p.name)}</b><span class="vsfac">${esc(gangOf(i))}</span>
         ${round ? `<span class="vspts"><b>${p.points}</b> punti${p.claims.length ? ` <small>+${p.claims.reduce((a, r) => a + REGIONS[r].points, 0)} municipi</small>` : ''}</span>` : ''}
-        <span class="vsready${isReady(i) ? ' ok' : ''}">${isReady(i) ? 'Pronto' : 'Non pronto'}</span></div>`).join('');
+        <span class="vsready${isReady(i) ? ' ok' : ''}">${isReady(i) ? 'Pronto' : 'In attesa'}</span></div>`).join('');
       const total = s.players.length === 3 ? 3 : 4, n = s.players.length, dir = draftDir(round ? showing.round : 1);
       // senso del draft: i giocatori nell'ordine dei posti, con la freccia grande verso chi riceve le carte
       const chain = s.players.map((p, i) => `${i ? `<b class="dch">${dir > 0 ? '→' : '←'}</b>` : ''}<span class="dnm">${pmark(i)}${esc(p.name)}</span>`).join('');

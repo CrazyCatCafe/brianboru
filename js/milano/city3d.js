@@ -413,7 +413,7 @@ export async function createCity(container, overlay, view = {}) {
     active = s.activeTown ?? null;
     for (const [k, r] of Object.entries(regions)) { // quartieri occupati verso la soglia (progetto urbano = 2, polizia compresa)
       const n = towns.reduce((a, t, i) => a + (t.region === k && s.towns[i].owner !== null ? (s.towns[i].monastery ? 2 : 1) : 0), 0);
-      const c = r.title?.querySelector('.cnt'); if (c) { c.textContent = n; c.parentElement.classList.toggle('reached', n >= map.regions[k].threshold); }
+      const c = r.title?.querySelector('.cnt'); if (c) { c.textContent = Math.min(n, map.regions[k].threshold); c.parentElement.classList.toggle('reached', n >= map.regions[k].threshold); /* oltre la soglia resta pieno: niente "10/7" */ }
     }
     for (const [k, r] of Object.entries(regions)) { // municipio controllato (zona assegnata): diventa del colore della banda
       const o = s.claims?.[k]?.owner ?? null;
@@ -515,7 +515,9 @@ export async function createCity(container, overlay, view = {}) {
     const { clientWidth: w, clientHeight: h } = container;
     const want = view.pixel ? Math.min(view.pixel, q.pr) : Math.min(devicePixelRatio, q.pr);
     renderer.setPixelRatio(Math.max(0.25, Math.min(want, Math.sqrt(q.pixels / Math.max(1, w * h)))));
-    renderer.setSize(w, h); camera.aspect = w / h; camera.fov = w < h ? 64 : 36; camera.updateProjectionMatrix();
+    renderer.setSize(w, h); camera.aspect = w / h; camera.fov = w < h ? 64 : 36;
+    camera.clearViewOffset(); if (w >= 900) camera.setViewOffset(w, h, 0, -Math.round(h * 0.09), w, h); // su schermo largo la città scende un po': in alto c'è il box centrale
+    camera.updateProjectionMatrix();
     const pr = renderer.getPixelRatio(), fw = Math.round(w * pr), fh = Math.round(h * pr);
     half.set(Math.max(1, fw >> 1), Math.max(1, fh >> 1));
     rtScene.setSize(fw, fh); [rtA, rtB, rtMask, rtM2].forEach(t => t.setSize(half.x, half.y));
