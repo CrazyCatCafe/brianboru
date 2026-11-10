@@ -538,7 +538,7 @@ function steps(e) {
       ...(e.values && Object.keys(e.values).length ? [{ t: 'Valore nelle zone in palio', b: `<ul class="plain">${list(Object.entries(e.values).map(([r, z]) => {
         const res = z.max === 0 ? 'nessuna fazione' : z.tie ? (z.owner !== null ? `resta a ${who(s, z.owner)}` : 'contesa') : `controlla ${who(s, z.owner)}`;
         return `<li><b>${REGIONS[r].name}</b>: ${Object.entries(z.values).sort(([, a], [, b]) => b - a).map(([i, x]) => `${pname(s, Number(i))} ${x}`).join(' · ') || '—'} → ${res}</li>`;
-      }))}</ul><p class="note">Quartiere libero 1, con community project 2, presidiato dalla polizia 0.</p>` }] : []),
+      }))}</ul>` }] : []),
       { t: 'Controllo delle zone', b: e.changes.length ? `<ul class="plain">${list(e.changes.map(c => `<li><b>${REGIONS[c.r].name}</b>: ${c.owner === null ? 'nessuno la controlla' : `${who(s, c.owner)}${c.from != null ? ` (la toglie a ${who(s, c.from)})` : ''} · vale <b class="ptsup">${REGIONS[c.r].points} punti</b>`}</li>`))}</ul><p class="note">I punti dei municipi sono provvisori: si vedono nella riga col pugno e si contano a fine partita, a chi li controlla in quel momento.</p>` : '<p>Nessun cambio di controllo.</p>' },
     ];
   }
