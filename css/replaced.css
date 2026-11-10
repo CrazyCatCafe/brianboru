@@ -246,6 +246,8 @@ body.app.rp { background: radial-gradient(ellipse at 50% 30%, #aab3b9, #6f787f 7
 .rp .rp-stage.compact h2 { font-size: 18px; }
 .rp .rp-stage.compact .meta { margin-bottom: 4px; }
 .rp .rp-stage.compact > p:not(.meta):not(.pickline) { display: none; }
+/* scegliendo sulla mappa resta la prima frase: la regola di quella scelta (al massimo 2 righe) */
+.rp .rp-stage.compact > p.meta + p:not(.pickline), .rp .rp-stage.compact > h2 + p:not(.meta):not(.pickline) { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; margin: 0 0 6px; font-size: 14px; }
 .rp .spotpick { display: flex; align-items: center; gap: 8px; margin: 6px 0; color: var(--rp-muted); }
 .rp .spotpick select { font: 400 14px var(--font); text-transform: none; letter-spacing: 0; color: var(--rp-ink); background: rgba(255, 255, 255, .06); border: 1px solid var(--rp-line); padding: 5px 8px; min-width: 0; flex: 1; }
 .rp .spotpick select:focus-visible { outline: 2px solid var(--rp-ink); outline-offset: 1px; }
@@ -985,3 +987,13 @@ body.phasefly #stage h2 { visibility: visible; }
 @media (max-width: 700px) { #game .rp-stage.vs { padding-bottom: 150px !important; } .loadscreen { padding: 10px 12px 14px !important; } }
 #game .rp-stage.vs.still .vscard, #game .rp-stage.vs.still .vsinfo, #game .rp-stage.vs.still .vsgo { animation: none; } /* ridisegnata: niente rientro */
 #game .rp-stage .btn.nextstep[disabled] { opacity: 1; background: none; color: #ffd400; border: 2px dashed #ffd400; cursor: default; }
+/* leggibilità: niente testo di gioco sotto gli 11 px; sotto i 12 px niente carattere pixel; bianco solo su fondi abbastanza scuri */
+.rc { height: 16px !important; font: 800 12px var(--num) !important; }
+.rc.red { background: #d42424; } .rc.blue { background: #1666d0; }
+.chev .tn { font: 700 11px var(--num); opacity: 1; letter-spacing: .02em; }
+.vgrid tr.draftdir td { font: 700 11px var(--num); letter-spacing: .06em; }
+.vgrid th .actlbl { font: 800 11px var(--num); }
+/* bersagli più grandi: + della box stat, Vedi carta, Portami lì; su telefono Plancia */
+#b-players .zoom { width: 26px !important; height: 26px !important; font-size: 16px !important; }
+.rp .btn.small.goto, #b-players .hstrip .peek { min-height: 28px; }
+@media (max-width: 899px) { .rp-toggle { min-height: 40px; } }

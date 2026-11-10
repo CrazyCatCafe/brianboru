@@ -17,7 +17,7 @@ function shuffle(s, a) {
 }
 const log = (s, msg) => { s.log.push(msg); if (s.log.length > 80) s.log.shift(); };
 // Eventi strutturati per raccontare le fasi nell'interfaccia: s.eventN cresce sempre, s.events tiene gli ultimi
-const event = (s, e) => { s.eventN = (s.eventN || 0) + 1; (s.events ??= []).push({ n: s.eventN, ...e }); if (s.events.length > 24) s.events.shift(); };
+const event = (s, e) => { s.eventN = (s.eventN || 0) + 1; (s.events ??= []).push({ n: s.eventN, round: s.round, ...e }); /* round: per raccontarlo nel round giusto */ if (s.events.length > 24) s.events.shift(); };
 const name = (s, p) => s.players[p].name;
 
 export const neighbours = id => ROADS.flatMap(([a, b]) => (a === id ? [b] : b === id ? [a] : []));

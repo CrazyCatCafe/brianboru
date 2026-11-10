@@ -403,7 +403,8 @@ const WKEYS = Object.keys(WEATHER_TYPES);
 const who = (s, p) => `<b class="who" style="--pc:${THEME.players[p]}">${pmark(p)}${esc(s.players[p].name)}</b>`;
 const characterIndex = c => (c?.princess ? 'estrid' : MARRIAGES.findIndex(m => JSON.stringify(m) === JSON.stringify(c)));
 const characterName = c => (!c ? 'il personaggio' : c.princess ? 'IA libera' : `+${c.points} punti${c.renown ? ' +1 street cred' : ''}${c.region ? ' · ' + REGIONS[c.region].name : ''}`); // le carte Hype non hanno nome: si descrivono con l'effetto
-const townChip = id => { const t = TOWNS[id], su = THEME.suit[t.color]; return `<b class="chip" style="--sc:${su.fill};--si:${su.ink}">${esc(t.name)}</b>`; };
+const CHIP_BG = { blue: '#1666d0', red: '#d42424' }; // fondo più scuro dove la scritta è bianca: si legge (contrasto ≥ 4,5)
+const townChip = id => { const t = TOWNS[id], su = THEME.suit[t.color]; return `<b class="chip" style="--sc:${CHIP_BG[t.color] || su.fill};--si:${su.ink}">${esc(t.name)}</b>`; };
 
 // ---------- fasi del round ----------
 const PHASES = [['prep', 'Preparazione'], ['draft', 'Draft'], ['trick', 'Azioni'], ['party', 'Underground Party'], ['guerrilla', 'Guerrilla'], ['community', 'Community Projects'], ['uprising', 'Uprising']];
@@ -608,23 +609,31 @@ function steps(e) {
       out.push(e.area > 0
         ? { t: 'Retata!', b: guerBoard(e, order, e.raiders, { lose: lost, raid: true }) + `<p>${e.area} ${e.area === 1 ? 'poliziotto attacca' : 'poliziotti attaccano'}: ${e.raiders.every(r => r === 0) ? 'tutti sono a 0 in Guerrilla, tutti perdono un quartiere.' : 'chi ha la Guerrilla più bassa perde un quartiere.'}</p>` + (e.losses.length ? `<ul class="plain">${list(e.losses.map(l => `<li>${who(s, l.victim)} perde un quartiere${l.chooser !== l.victim ? ` · lo sceglie ${who(s, l.chooser)}` : ''}</li>`))}</ul>` : '<p>Nessuno ha quartieri da perdere.</p>') }
         : { t: 'Polizia respinta', b: guerBoard(e, order, e.raiders, { gone: true }) + '<p>Non ci sono più poliziotti: non succede nulla!</p>' });
+      const quiet = Math.max(...e.raiders) === 0; // nessuno ha neutralizzato poliziotti
+      if (quiet) { // niente premi né ritirata: un passo solo (due se c'è la retata)
+        const last = out[out.length - 1]; last.b += '<p>Nessuno ha neutralizzato poliziotti: niente street cred e niente punti.</p>';
+        if (e.area === 0) return [{ t: 'Guerrilla', b: guerBoard(e, order, e.raiders, { gone: true }) + '<p>Nessuna retata e nessuno ha neutralizzato poliziotti: non succede niente.</p>' }];
+        return out;
+      }
       out.push(e.first !== null
         ? { t: `${esc(s.players[e.first].name)} guida la guerriglia`, b: guerBoard(e, order, e.raiders, { hi: e.first }) + `<p>${who(s, e.first)}: +1 street cred (ora ${e.renown[e.first] + 1}) e <b class="ptsup">+${e.gain} punti</b>, uno per ogni street cred · punti ${e.before[e.first]} → ${e.before[e.first] + e.gain}. Rimette tutte le sue unità.</p>` }
         : Math.max(...e.raiders) === 0
           ? { t: 'Nessun premio', b: guerBoard(e, order, e.raiders, {}) + '<p>Nessuno ha neutralizzato poliziotti: nessuno guida la guerriglia, niente street cred e niente punti.</p>' }
           : { t: 'Pareggio', b: guerBoard(e, order, e.raiders, {}) + '<p>Quando più giocatori pareggiano per la Guerrilla più alta, chi ha il valore di Guerrilla più basso sceglie il proprio quartiere con retata.</p>' });
       if (e.ties.length) out.push({ t: '+1 punto', b: guerBoard(e, order, e.raiders, { hi: e.ties }) + `<p>${e.ties.map(i => who(s, i)).join(', ')}: più unità rimaste, +1 punto e ne rimette una.</p>` });
-      out.push({ t: 'La polizia si ritira', b: guerBoard(e, order, after, { from: e.raiders }) + '<p>Le unità rimaste restano per il prossimo round.</p>' });
+      if (after.some((r, i) => r !== e.raiders[i])) out.push({ t: 'La polizia si ritira', b: guerBoard(e, order, after, { from: e.raiders }) + '<p>Le unità rimaste restano per il prossimo round.</p>' }); // solo se qualcosa cambia
       return out;
     }
     case 'community': {
+      if (e.church.every(c => c === 0)) return [{ t: 'Community Projects', b: '<p>Nessuno ha punti community: nessun progetto urbano in questo round.</p>' }];
       const out = [{ t: 'Community Projects', b: `<ul class="plain">${list(e.church.map((c, i) => `<li>${who(s, i)} ${c} di comunità</li>`))}</ul>` }];
-      out.push(e.first !== null ? { t: `${who(s, e.first)} guida la comunità`, b: '<p>Avvia un progetto urbano e diventa la Fazione Attiva.</p>' } : { t: 'Pareggio', b: '<p>Pareggio o nessuno: niente progetto principale.</p>' });
+      if (e.first !== null) out.push({ t: `${who(s, e.first)} guida la comunità`, b: '<p>Avvia un progetto urbano e diventa la Fazione Attiva.</p>' });
+      else out[0].b += '<p><b>Pareggio</b>: niente progetto principale.</p>'; // pareggio: nello stesso passo
       if (e.ties.length) out.push({ t: '+1 punto', b: `<p>${e.ties.map(i => who(s, i)).join(', ')}</p>` });
       if (e.fours.length) out.push({ t: 'Progetti con 4 o più', b: `<p>${e.fours.map(i => who(s, i)).join(', ')} avviano un progetto urbano.</p>` });
       return out;
     }
-    case 'uprising': return [
+    case 'uprising': return (() => { const st = [
       { t: 'Uprising', b: e.flips.length ? `<p>Ora in palio: ${e.flips.map(r => `<b>${REGIONS[r].name}</b>`).join(', ')}.</p>` : '<p>Nessuna nuova zona in palio.</p>' },
       ...(e.values && Object.keys(e.values).length ? [{ t: 'Valore nelle zone in palio', b: `<ul class="plain">${list(Object.entries(e.values).map(([r, z]) => {
         const res = z.max === 0 ? 'nessuna fazione' : z.tie ? (z.owner !== null ? `resta a ${who(s, z.owner)}` : 'contesa') : `controlla ${who(s, z.owner)}`;
@@ -632,6 +641,10 @@ function steps(e) {
       }))}</ul>` }] : []),
       { t: 'Controllo delle zone', b: e.changes.length ? `<ul class="plain">${list(e.changes.map(c => `<li><b>${REGIONS[c.r].name}</b>: ${c.owner === null ? 'nessuno la controlla' : `${who(s, c.owner)}${c.from != null ? ` (la toglie a ${who(s, c.from)})` : ''} · vale <b class="ptsup">${REGIONS[c.r].points} punti</b>`}</li>`))}</ul><p class="note">I punti dei municipi sono provvisori: si vedono nella riga col pugno e si contano a fine partita, a chi li controlla in quel momento.</p>` : '<p>Nessun cambio di controllo.</p>' },
     ];
+      const vals = e.values && Object.keys(e.values).length;
+      if (!vals) return [{ t: 'Uprising', b: st[0].b.replace('</p>', ' Nessun cambio di controllo.</p>') }]; // niente zone in palio: un passo solo
+      return st.filter((x, k) => !(k === 0 && !e.flips.length) && !(x.t === 'Controllo delle zone' && !e.changes.length)); // via i passi senza novità
+    })();
   }
   return [];
 }
@@ -674,6 +687,7 @@ let pendKey = null, mapPicking = false, framedKey = null, lastSaid = '';
 function render() {
   const f = document.activeElement, fkey = f && (f.id ? '#' + f.id : f.dataset?.c ? `[data-c="${f.dataset.c}"]` : f.dataset?.o ? `[data-o="${f.dataset.o}"]` : f.dataset?.x ? `[data-x="${f.dataset.x}"]` : null);
   const s = state, pd = current(s);
+  if (loading && !crashing && showing?.k !== 'pregame') { loading = false; loadDone = allReady = false; loadId++; $('loadscreen').hidden = true; } // la Panoramica è finita: il caricamento non resta a metà
   applyColors(s.players.length);
   const key = JSON.stringify(pd) + (pd?.type === 'draft' ? s.draft.packets.join('|') : '');
   if (key !== pendKey) { pendKey = key; if (!local || pd?.type !== 'draft') ui = {}; } // nuova decisione: via le scelte provvisorie
@@ -833,9 +847,10 @@ function renderBoard(s, pd) {
 function noOwner(s, r) { const z = zoneControl(s, r); return z.max === 0 ? 'polizia' : z.tie ? `contesa ${z.max}–${z.max}` : 'nessuno'; }
 function renderTurn(s, pd, wk) {
   const total = s.players.length === 3 ? 3 : 4;
-  const turn = !pd ? 'Partita finita' : pd.type === 'draft' ? `<span>Draft</span> ${s.draft.picks.flatMap((x, i) => (x ? [] : [pmark(i)])).join('')}` : `<span>Turno di</span> ${pname(s, pd.p)}${pd.p === seat && !local ? ' <small>tu</small>' : ''}`;
+  const told = showing ? [['setup', 'Setup'], ...PHASES].find(p => p[0] === (SHOW_PHASE[showing.k] || showing.k))?.[1] : null; // si sta raccontando: niente turni futuri
+  const turn = told ? `<span>Racconto</span> ${told}` : !pd ? 'Partita finita' : pd.type === 'draft' ? `<span>Draft</span> ${s.draft.picks.flatMap((x, i) => (x ? [] : [pmark(i)])).join('')}` : pd.p === seat ? `<span>Tocca a</span> ${pmark(seat)}<b>te</b>` : `<span>Turno di</span> ${pname(s, pd.p)}`;
   const turnWas = $('turn').querySelector('.big')?.textContent.trim() || '';
-  $('turn').innerHTML = `<p class="big">${turn}</p><p class="sub">${s.round ? `Round ${s.round} di ${total}` : 'Preparazione della partita'} · ${WEATHER_TYPES[wk]}</p>`;
+  $('turn').innerHTML = `<p class="big">${turn}</p><p class="sub">${(showing ? showing.round ?? s.round : s.round) ? `Round ${showing ? showing.round ?? s.round : s.round} di ${total}` : 'Preparazione della partita'} · ${WEATHER_TYPES[wk]}</p>`;
   pixelSwap($('turn').querySelector('.big'), turnWas, { hideCls: 'pxswap-turn' }); // chi gioca cambia: la scritta si sgretola e si ricompone
 }
 
@@ -895,7 +910,8 @@ function renderHand(s, pd) {
   el.querySelectorAll('[data-c]').forEach(b => (b.onclick = () => playCard(+b.dataset.c, ok, choosingTown)));
 }
 function playCard(v, ok, choosingTown) {
-  if (!ok(v)) return choosingTown && ui.town == null ? toast('Prima scegli il quartiere in gioco sulla mappa o dall\'elenco') : toast('Questa carta non si può giocare adesso');
+  if (!ok(v)) return choosingTown && ui.town == null ? toast('Prima scegli il quartiere in gioco sulla mappa o dall\'elenco')
+    : state.pending[0]?.p !== seat || showing ? toast('Non è il tuo turno di giocare una carta') : toast('Chi apre la presa deve giocare il colore del quartiere in gioco o una carta bianca di Briano Borro');
   if (ui.armed !== v) { ui.armed = v; render(); } // il clic seleziona; si gioca solo con il pulsante "Gioca la carta"
 }
 
@@ -998,7 +1014,7 @@ function renderStage(s = state, pd = current(state)) {
       const hypeLine = c ? `<div class="vline"><span class="vval"><b class="tag">Hype</b>${c.princess ? '<b>Regina Estrid</b>' : `<b>+${c.points}</b>${logo('punti', 22)}${c.renown ? `<b>+1</b>${logo('cred', 22)}` : ''}${c.region ? `<span class="rzn" style="--rc:${THEME.region[c.region]}">${REGIONS[c.region].name}</span>` : ''}`}</span></div>` : '';
       const lines = round
         ? `<div class="vline"><span class="vval">${logo('polizia', 30)}Polizia <b>${showing.police}</b></span></div>${hypeLine}${draftLine}`
-        : `<div class="vline"><span class="vval">Round <b>${total}</b></span></div>
+        : `<div class="vline"><span class="vval">Partita in <b>${total}</b> round</span></div>
            <div class="vline"><span class="vlab">Setup</span><span class="vval">Scegli un quartiere di partenza</span></div>${draftLine}
            <div class="vline"><div class="vsset"><span>Grafica <b class="seg" data-quality></b></span><span>Musica <b class="seg" data-aud="music"><button data-on="1">Sì</button><button data-on="0">No</button></b></span>
             <span>Effetti <b class="seg" data-aud="sfx"><button data-on="1">Sì</button><button data-on="0">No</button></b></span><label>Volume <input type="range" min="0" max="100" data-vol aria-label="Volume"></label></div></div>`;
@@ -1028,7 +1044,7 @@ function renderStage(s = state, pd = current(state)) {
     return;
   }
   const trick = (s.trick?.last && s.stage === 'trick' ? '<div class="lastbanner">Ultima presa del round: la carta che non giochi viene scartata.</div>' : '') + trickRow(s) + resultsList(s);
-  const mine = local ? `Tocca a ${esc(s.players[seat]?.name || '')}` : 'Tocca a te';
+  const mine = 'Tocca a te'; // in locale l'umano è uno solo: niente "Tocca a Tu"
   if (pd.type === 'draft') {
     if (seat >= 0 && !s.draft.picks[seat]) {
       const n = (ui.draft || []).length;
