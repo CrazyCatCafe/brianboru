@@ -201,16 +201,23 @@ $('friend-form').onsubmit = guard(async e => {
 $('local').onclick = guard(() => {
   const humans = [$('solo-name').value.trim() || 'Tu'], bots = +$('local-bots').value;
   const names = [...humans, ...Array.from({ length: bots }, (_, i) => BOT_NAMES[i])];
-  local = true; roomCode = null; human = 0;
+  unwatch?.(); unwatch = null; local = true; roomCode = null; human = 0; // una partita online lasciata aperta non deve più riportarti lì
   const gangs = [gang(), ...otherGangs()]; // tu la fazione scelta, i bot le altre: ognuno il colore della sua
   room = { players: names.map((nick, i) => ({ nick, gang: gangs[i], bot: i >= humans.length })) };
   seenN = null; enterGame(newGame(names));
 });
 $('to-lobby').onclick = () => {
   if (!confirm(local ? 'Uscire dalla partita? La partita locale andrà persa.' : 'Uscire dalla partita? Potrai rientrare dalla lobby.')) return;
-  if (local) { local = false; state = null; clearTimeout(botTimer); }
-  show(!net || me ? 'lobby' : 'auth');
+  leaveGame();
 };
+// uscita dalla partita: si smette di seguirla (online) e si azzera tutto, così la prossima partita parte pulita
+function leaveGame() {
+  unwatch?.(); unwatch = null; roomCode = room = null; history.replaceState(null, '', location.pathname); $('room').hidden = true;
+  local = false; state = null; clearTimeout(botTimer);
+  showing = null; queue = []; step = 0; acked = null; seenN = null; ui = {};
+  loading = false; loadId++; $('loadscreen').hidden = true; $('loadscreen').classList.remove('last');
+  show(!net || me ? 'lobby' : 'auth');
+}
 
 // ---------- meteo vero di Milano (Open-Meteo, senza chiave) ----------
 // codice WMO → testo, icona e meteo della mappa 3D (che segue quello vero)
@@ -452,14 +459,15 @@ const DROP = 23.5; // secondi: lo stacco della canzone dopo l'intro
 const LOAD_LINES = ['Analisi disparità di reddito e reclutamento forza lavoro sotto la soglia di povertà…', 'Mappatura quartieri, sincronizzazione droni di pattugliamento…',
   'Attivazione protocolli di riconoscimento facciale biometrico…', 'Perdita di autorità della Prefettura…', 'Addestramento unità paramilitari di quartiere…',
   'Rilevato evento catalizzatore ad alta tensione.', 'Prepararsi allo scontro.'];
-let loading = false;
+let loading = false, loadId = 0;
 function startLoading() {
-  if (loading) return; loading = true;
+  if (loading) return; loading = true; const id = ++loadId; // uscendo dalla partita il caricamento si ferma
   startSong(); song.currentTime = 0; audioWake(); // la canzone parte da capo con il caricamento
   const el = $('loadscreen'), line = el.querySelector('.lsline'), bar = el.querySelector('.lsbar'), fill = bar.querySelector('i'), pct = el.querySelector('.lspct');
   el.hidden = false; render();
   const t0 = performance.now(); let shown = -1, best = 0;
   (function tickLoad() {
+    if (id !== loadId) return;
     const wall = (performance.now() - t0) / 1000, t = song && !song.paused && song.currentTime > 0 ? song.currentTime : wall; // in pari con la musica (se suona)
     const k = Math.floor((t - 2.5) / 3), i = Math.max(0, Math.min(LOAD_LINES.length - 1, k)); // una frase ogni 3 secondi, l'ultima fino allo stacco
     if (t >= 2.5 && i !== shown) { shown = i; line.textContent = LOAD_LINES[i]; line.classList.remove('in'); void line.offsetWidth; line.classList.add('in'); if (i === LOAD_LINES.length - 1) el.classList.add('last'); }
@@ -467,7 +475,7 @@ function startLoading() {
     best = Math.max(best, fake); fill.style.width = best + '%'; pct.textContent = best + '%'; bar.setAttribute('aria-valuenow', best);
     if (t < DROP) return requestAnimationFrame(tickLoad);
     fill.style.width = '100%'; pct.textContent = '100%';
-    setTimeout(() => { el.hidden = true; el.classList.remove('last'); line.textContent = ''; loading = false; nextEvent();
+    setTimeout(() => { if (id !== loadId) return; el.hidden = true; el.classList.remove('last'); line.textContent = ''; loading = false; nextEvent();
       const st = $('stage'); st.classList.remove('dropflash'); void st.offsetWidth; st.classList.add('dropflash'); }, 150); // allo stacco: Scegli il quartiere di partenza, con un lampo
   })();
 }
@@ -927,7 +935,7 @@ function endRecap(s) { // riepilogo di fine partita: come si è vinto
 
 // coriandoli nei colori delle fazioni (vincitore)
 const confetti = () => `<div class="confetti" aria-hidden="true">${Array.from({ length: 36 }, (_, k) => `<i style="--x:${(k * 37) % 100}%;--d:${(k % 9) * 0.15}s;--c:${THEME.players[k % 5]};--r:${(k * 53) % 360}deg"></i>`).join('')}</div>`;
-const exitGame = () => { showing = null; queue = []; if (local) { local = false; state = null; clearTimeout(botTimer); } show(!net || me ? 'lobby' : 'auth'); }; // a partita finita si esce senza conferma
+const exitGame = () => leaveGame(); // a partita finita si esce senza conferma
 let wasMine = false;
 function renderStage(s = state, pd = current(state)) {
   const el = $('stage');
