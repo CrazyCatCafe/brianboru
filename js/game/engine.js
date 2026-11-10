@@ -87,6 +87,7 @@ const STAGES = {
       d.packets.forEach((pk, i) => s.players[i].hand.push(...pk));
       s.draft = null;
       s.stage = 'trick';
+      s.trickNo = 0; s.tricksTotal = Math.max(1, s.players[0].hand.length - 1); // prese del round: carte in mano meno una
       return;
     }
     s.pending.push({ type: 'draft' });
@@ -95,11 +96,13 @@ const STAGES = {
     const n = s.players.length;
     if (!s.trick) {
       if (s.players.every(pl => pl.hand.length <= 1) || !emptyTowns(s).length) {
+        event(s, { k: 'discard', cards: s.players.map(pl => [...pl.hand]) }); // le carte rimaste si scartano: lo si racconta
         s.players.forEach(pl => (pl.hand = []));
         s.stage = 'marriage';
         return;
       }
-      s.trick = { leader: s.active, town: null, plays: [], order: null, done: 0 };
+      s.trickNo = (s.trickNo || 0) + 1;
+      s.trick = { leader: s.active, town: null, plays: [], order: null, done: 0, last: s.players.every(pl => pl.hand.length <= 2) }; // ultima presa: poi resta una carta sola
       s.pending.push({ type: 'activeTown', p: s.active });
       return;
     }
@@ -217,6 +220,21 @@ function spoils(s, key, first) {
 }
 
 // Città per "giocatore" in una regione (monastero = 2); 'V' = vichinghi. mode: 'military'|'trade' accorpa i vichinghi alla Principessa.
+// Regina Estrid: cosa cambierebbe adesso con Scudo (zone in palio controllate) e con Rete (zone in cui si è presenti)
+export function estridPreview(s, p) {
+  const pls = s.players, zones = mode => Object.entries(REGIONS).filter(([r]) => s.claims[r]?.up).filter(([r]) => {
+    const counts = { ...regionCounts(s, r) };
+    if (mode === 'military' && counts.V) { counts[p] = (counts[p] || 0) + counts.V; }
+    delete counts.V;
+    const max = Math.max(0, ...Object.values(counts)), top = Object.keys(counts).filter(k => counts[k] === max);
+    return max > 0 && top.length === 1 && +top[0] === p;
+  }).map(([r, c]) => ({ r, pts: c.points }));
+  const present = trade => new Set(TOWNS.filter(t => { const st = s.towns[t.id]; return st.owner !== null && (st.viking ? trade : st.owner === p); }).map(t => t.region)).size;
+  const now = zones(null), mil = zones('military'), a = present(false), b = present(true);
+  return { military: { now, after: mil, ptsNow: now.reduce((x, z) => x + z.pts, 0), ptsAfter: mil.reduce((x, z) => x + z.pts, 0) },
+    trade: { now: a, after: b, ptsNow: REGION_SCORE[a], ptsAfter: REGION_SCORE[b] } };
+}
+
 function regionCounts(s, region, mode) {
   const ally = mode ? s.players.findIndex(pl => pl.princess === mode) : -1;
   const counts = {};

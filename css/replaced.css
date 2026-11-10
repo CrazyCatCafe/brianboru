@@ -668,3 +668,13 @@ tr:nth-child(2n) .logo { animation-delay: -3s; }
 #game .rp-stage:has(> .trickrow) .explain { margin: 4px 0; font-size: 12px; }
 #game .rp-stage:has(> .trickrow) .meta { margin-bottom: 6px; }
 #game .rp-stage:has(> .trickrow) p { margin: 4px 0; }
+/* ultima presa del round */
+.chev .tn { font: 400 10.5px var(--pix); opacity: .8; margin-right: 6px; }
+.chev .lasttag { font: 700 11px var(--pix); background: #ffd400; color: #111; padding: 1px 5px; margin-right: 6px; animation: actblink 1s steps(2, start) infinite; }
+.rp .lastbanner { background: #ffd400; color: #111; font-weight: 700; padding: 5px 10px; margin: 0 0 8px; }
+#game .hand .card.lastcard::after { content: "l'altra si scarta"; position: absolute; top: -18px; left: 0; right: 0; text-align: center; font: 400 11px var(--pix); color: #111; background: #ffd400; padding: 1px 0; }
+#game .hand .card.discard { opacity: .35; }
+#game .hand .card.discard::after { content: '✕ scartata'; position: absolute; inset: 40% 0 auto; text-align: center; font: 700 14px var(--pix); color: #fff; background: #d6232a; padding: 4px 0; }
+.rp .estrid { margin: 8px 0; padding-left: 18px; display: grid; gap: 4px; font-size: 13px; }
+.rp .trickrow.discards { display: flex; gap: 6px; flex-wrap: wrap; }
+@media (prefers-reduced-motion: reduce) { .chev .lasttag { animation: none; } }

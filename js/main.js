@@ -1,6 +1,6 @@
 // Brian Boru · Milano 2077: accesso, lobby, amici e partita (online o locale).
 import { botMove } from './game/bot.js';
-import { move as applyMove, current, emptyTowns, leadTowns, ownTowns, expandTargets, vikingTowns, newGame } from './game/engine.js';
+import { estridPreview, move as applyMove, current, emptyTowns, leadTowns, ownTowns, expandTargets, vikingTowns, newGame } from './game/engine.js';
 import { CARDS, MARRIAGES, TOWNS, REGIONS, MARRIAGE_TRACK } from './game/data.js';
 import { THEME, THEME_REPLACED, PIXEL_SCALE } from './milano/theme.js';
 import { cardSVG, characterSVG, characterArt, cardLabel } from './milano/card.js';
@@ -308,7 +308,7 @@ function renderPhases(s, pd) {
   phaseNow = cur;
   const SHORT = { party: 'Party', guerrilla: 'Guerrilla', community: 'Community', uprising: 'Uprising' }; // nomi brevi quando lo schermo è stretto
   const list = cur === 'setup' ? [['setup', 'Setup'], ...PHASES] : PHASES; // il setup si vede solo a inizio partita
-  $('phases').innerHTML = list.map(([k, l], i) => `<span class="chev${k === cur ? ' on' : ''}${i >= list.length - 4 ? ' up' : ''}" data-short="${SHORT[k] || l}"${k === cur ? ' aria-current="step"' : ''}>${l}<span class="pos"> · ${i + 1} di ${list.length}</span></span>`).join('');
+  $('phases').innerHTML = list.map(([k, l], i) => `<span class="chev${k === cur ? ' on' : ''}${i >= list.length - 4 ? ' up' : ''}" data-short="${SHORT[k] || l}"${k === cur ? ' aria-current="step"' : ''}>${k === 'trick' && s.trick && s.stage === 'trick' ? (s.trick.last ? '<b class="lasttag">Ultima presa</b>' : `<small class="tn">presa ${s.trickNo} di ${s.tricksTotal}</small>`) : ''}${l}<span class="pos"> · ${i + 1} di ${list.length}</span></span>`).join('');
   $('phases').querySelector('.on')?.scrollIntoView({ inline: 'center', block: 'nearest' });
 }
 
@@ -338,7 +338,7 @@ function waitingAcks() {
   return room.players.map((p, i) => [p, i]).filter(([p]) => !p.bot && (room.acks?.[p.uid] ?? -1) < showing.n).map(([, i]) => i);
 }
 const ACK_ALL = new Set(['prep', 'party', 'final']);
-const SHOW_PHASE = { setup: 'setup', final: 'uprising', estrid: 'party' };
+const SHOW_PHASE = { discard: 'trick', setup: 'setup', final: 'uprising', estrid: 'party' };
 function checkAcks() { if (ACK_ALL.has(showing?.k) && acked === showing.n && !waitingAcks().length) { acked = null; nextEvent(); } }
 
 function hypeTrack(pos, { mark = null, note = '' } = {}) { // pos[i] = casella del giocatore i (0..9)
@@ -403,6 +403,7 @@ function steps(e) {
       military: 'Scudo: a fine partita i quartieri presidiati dalla polizia contano come suoi per il controllo delle zone in palio.',
       trade: 'Rete: a fine partita i quartieri presidiati dalla polizia contano come suoi per il numero di zone in cui è presente.',
       spurn: 'La lascia libera e prende subito <b class="ptsup">+4 punti</b>.' }[e.choice]}</p>` }];
+    case 'discard': return [{ t: 'Fine delle azioni', b: `<p>Ognuno scarta la carta che gli è rimasta in mano.</p><div class="trickrow discards">${e.cards.map((cs, i) => cs.map(v => `<figure style="--pc:${THEME.players[i]}">${miniCard(v)}<figcaption>${esc(s.players[i].name)}</figcaption></figure>`).join('')).join('')}</div>` }];
     case 'setup': return [{ t: `${esc(s.players[e.p].name)} parte da ${esc(TOWNS[e.town].name)}`, b: `<p>${who(s, e.p)} sceglie ${townChip(e.town)} in <b>${REGIONS[TOWNS[e.town].region].name}</b>. <button class="btn ghost small goto" data-goto="${e.town}">Portami lì</button></p>` }];
     case 'prep': return [{ strip: true, card: e.character, t: `Round ${e.round}${e.final ? ' · ultimo' : ''}`, // una riga sola; la carta Hype sotto il riquadro
       b: `<span class="pp" title="Polizia in arrivo (in allerta ${e.area})">${logo('polizia', 18)}<b>${e.police}</b></span><span class="pp"><b class="tag">Hype</b>${hypeSummary(s, e.character)}</span>` }];
@@ -565,6 +566,14 @@ function bindPeek(s) { // "Vedi carta": la carta Hype si apre accanto alla planc
 const hypeBonus = (b, c) => c === 9 ? logo('hype', 12) : !b ? '' : b === 'CC' ? icon('C', 12, '#ffc20e', HOLE) + icon('C', 12, '#ffc20e', HOLE)
   : icon(b, 12, { C: '#ffc20e', R: '#f2b100', T: '#ff3d3d' }[b], HOLE);
 // riassunto della carta Hype: punti con la coppa, zona col triangolo (o street cred, o IA libera)
+// Regina Estrid: cosa daresti adesso con ciascuna scelta
+function estridNow(s, p) {
+  const e = estridPreview(s, p), zl = z => z.length ? z.map(x => `${REGIONS[x.r].name} (${x.pts})`).join(', ') : 'nessuna';
+  return `<ul class="estrid">
+    <li><b>${ESTRID.options.military}</b>: zone in palio che controlleresti adesso: ${zl(e.military.after)} → <b class="ptsup">${e.military.ptsAfter} punti</b>${e.military.ptsNow !== e.military.ptsAfter ? ` (ora ${e.military.ptsNow})` : ' (come adesso)'}.</li>
+    <li><b>${ESTRID.options.trade}</b>: sei presente in <b>${e.trade.now}</b> zone, con i presidi in <b>${e.trade.after}</b> → presenza da ${e.trade.ptsNow} a <b class="ptsup">${e.trade.ptsAfter} punti</b> a fine partita.</li>
+    <li><b>${ESTRID.options.spurn}</b>: <b class="ptsup">+4 punti</b> subito.</li></ul>`;
+}
 function hypeSummary(s, c) {
   if (c.princess) return '<span class="hs">IA libera: tre scelte</span>';
   const k = c.region, own = k ? s.claims[k]?.owner ?? null : null;
@@ -648,7 +657,8 @@ function renderHand(s, pd) {
   const fits = v => [color, 'white'].includes(CARDS[v].color);
   const ok = v => (playing || (choosingTown && ui.town != null)) && (!leading || fits(v) || !hand.some(fits));
   const dim = v => !ok(v) && (playing || (choosingTown && ui.town != null)); // senza quartiere scelto le carte restano a colori
-  el.innerHTML = hand.map((v, i) => card(v, `${ok(v) ? '' : 'aria-disabled="true"'} aria-pressed="${ui.armed === v}" aria-keyshortcuts="${i + 1}"`, dim(v) ? ' off' : '')).join('');
+  const lastHand = mine && s.trick?.last && hand.length === 2 && (playing || choosingTown); // ultima presa: la carta che non giochi si scarta
+  el.innerHTML = hand.map((v, i) => card(v, `${ok(v) ? '' : 'aria-disabled="true"'} aria-pressed="${ui.armed === v}" aria-keyshortcuts="${i + 1}"`, (dim(v) ? ' off' : '') + (lastHand ? (ui.armed != null && ui.armed !== v ? ' discard' : ' lastcard') : ''))).join('');
   el.querySelectorAll('[data-c]').forEach(b => (b.onclick = () => playCard(+b.dataset.c, ok, choosingTown)));
 }
 function playCard(v, ok, choosingTown) {
@@ -713,6 +723,7 @@ function endRecap(s) { // riepilogo di fine partita: come si è vinto
     <span class="facts">${towns(i)} quartieri · ${projects(i)} progetti · ${p.renown} street cred${p.claims.length ? ' · zone: ' + p.claims.map(r => REGIONS[r].name).join(', ') : ''}${p.marriages.length ? ' · ' + p.marriages.map(characterName).join(', ') : ''}</span></li>`; }).join('')}</ol>`;
 }
 
+const exitGame = () => { showing = null; queue = []; if (local) { local = false; state = null; clearTimeout(botTimer); } show(!net || me ? 'lobby' : 'auth'); }; // a partita finita si esce senza conferma
 function renderStage(s = state, pd = current(state)) {
   const el = $('stage');
   if (showing?.k === 'final') city.highlight(steps(showing)[Math.min(step, steps(showing).length - 1)].zone ?? null); // la zona che si sta contando si alza
@@ -736,18 +747,20 @@ function renderStage(s = state, pd = current(state)) {
       return;
     }
     el.innerHTML = head(cur.t, `${showing.k === 'final' ? 'Punteggio finale' : PHASES.find(p => p[0] === (SHOW_PHASE[showing.k] || showing.k))?.[1] || ''} · passo ${step + 1} di ${st.length}`, cur.b) +
-      (waitingAcks().length && acked === showing.n ? `<p class="waitack">In attesa che clicchino Avanti: ${waitingAcks().map(i => `<span class="blink">${who(s, i)}</span>`).join(' ')}</p>`
+      (showing.k === 'final' && step >= st.length - 1 ? '<div class="row end"><button class="btn" id="endexit">Esci</button></div>' // vincitore: ultima schermata, si esce da qui
+        : waitingAcks().length && acked === showing.n ? `<p class="waitack">In attesa che clicchino Avanti: ${waitingAcks().map(i => `<span class="blink">${who(s, i)}</span>`).join(' ')}</p>`
         : `<div class="row end"><button class="btn small" id="next" aria-keyshortcuts="Space">Avanti</button></div>`);
     $('next') && ($('next').onclick = advance);
+    $('endexit') && ($('endexit').onclick = exitGame);
     return;
   }
   if (!pd) { // fine partita
     const fe = s.events.find(x => x.k === 'final');
     el.innerHTML = head(s.winner.length > 1 ? 'Pareggio' : `Vince ${esc(s.players[s.winner[0]].name)}`, 'Fine partita', fe ? finalTable(fe, FINAL_COLS(fe), 6) : endRecap(s) + '<div class="row end"><button class="btn" id="endexit">Esci</button></div>');
-    $('endexit').onclick = () => { if (local) { local = false; state = null; clearTimeout(botTimer); } show(!net || me ? 'lobby' : 'auth'); }; // a partita finita si esce senza conferma
+    $('endexit').onclick = exitGame;
     return;
   }
-  const trick = trickRow(s) + resultsList(s);
+  const trick = (s.trick?.last && s.stage === 'trick' ? '<div class="lastbanner">Ultima presa del round: la carta che non giochi viene scartata.</div>' : '') + trickRow(s) + resultsList(s);
   const mine = local ? `Tocca a ${esc(s.players[seat]?.name || '')}` : 'Tocca a te';
   if (pd.type === 'draft') {
     if (seat >= 0 && !s.draft.picks[seat]) {
@@ -780,7 +793,7 @@ function renderStage(s = state, pd = current(state)) {
       : `Scegli quale quartiere di ${esc(s.players[pd.victim].name)} viene presidiato.`);
     case 'monastery': return confirmTown('Avvia un progetto urbano', 'Scegli un tuo quartiere: conterà doppio per il controllo della zona.');
     case 'activeTown':
-      el.innerHTML = resultsList(s) + head('Scegli il quartiere attivo', mine, `<p>Clicca uno spot libero di un colore che hai in mano (qualsiasi, se hai una carta di Briano Borro), poi <b>gioca una carta</b> di quel colore o di Briano Borro per confermare.</p>
+      el.innerHTML = (s.trick?.last ? '<div class="lastbanner">Ultima presa del round: la carta che non giochi viene scartata.</div>' : '') + resultsList(s) + head('Scegli il quartiere attivo', mine, `<p>Clicca uno spot libero di un colore che hai in mano (qualsiasi, se hai una carta di Briano Borro), poi <b>gioca una carta</b> di quel colore o di Briano Borro per confermare.</p>
         <p class="pickline">Scelta: ${ui.town != null ? `${townChip(ui.town)} · ${REGIONS[TOWNS[ui.town].region].name}` : '<em>nessuna</em>'}</p>
         ${ui.armed != null && ui.town != null ? `<button id="playarmed" class="btn wide">Gioca la carta ${ui.armed}</button>` : ''}`);
       bindArmed(true); return;
@@ -794,6 +807,7 @@ function renderStage(s = state, pd = current(state)) {
     case 'princess':
       el.innerHTML = head('Regina Estrid', mine, `<p>L'IA libera è dalla tua parte. Scegli come usarla:</p>
         <div class="choices">${['military', 'trade', 'spurn'].map(k => `<button class="btn ${ui.choice === k ? '' : 'ghost'}" data-c="${k}" aria-pressed="${ui.choice === k}">${ESTRID.options[k]}${k === 'spurn' ? ' (+4 punti)' : ''}</button>`).join('')}</div>
+        ${estridNow(s, seat)}
         <button id="ok" class="btn wide" ${ui.choice ? '' : 'disabled'} aria-keyshortcuts="Enter">${ui.choice ? 'Conferma: ' + ESTRID.options[ui.choice] : 'Scegli un\'opzione'}</button>
         <p class="note">${ESTRID.options.military}: i quartieri presidiati dalla polizia contano come tuoi per il controllo delle zone. ${ESTRID.options.trade}: contano come tuoi per il numero di zone a fine partita.</p>`);
       el.querySelectorAll('[data-c]').forEach(b => (b.onclick = () => { ui.choice = b.dataset.c; render(); }));
@@ -869,6 +883,8 @@ addEventListener('keydown', e => {
 window.__clickable = () => (state ? clickable(state, current(state)) : []);
 window.__pick = town => onTown(town);
 window.__ui = () => ui;
+// solo per le prove: fa giocare ai bot anche le mosse della persona finché pred(stato) non è vero
+window.__until = pred => { for (let k = 0; k < 3000 && local && state.stage !== 'end' && !pred(state, current(state)); k++) { const r = botMove(state); state = applyMove(state, r[0], r[1]); } seenN = state.eventN; queue = []; showing = null; render(); };
 window.__fw = ids => city.setFireworks(ids); // solo per le prove
 // solo per le prove: gioca da solo con i bot fino alla fine della partita (in locale)
 window.__autoplay = () => { while (local && state.stage !== 'end') { const r = botMove(state); state = applyMove(state, r[0], r[1]); } ingestEvents(state); render(); };
