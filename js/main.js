@@ -9,15 +9,14 @@ import { ESTRID, SYMBOLS, FACTION_MOTTO } from './milano/lore.js';
 import { createCity, WEATHER_TYPES, QUALITY } from './milano/city3d.js';
 import { connect, BOT_NAMES } from './milano/online.js';
 import { pixelSwap } from './milano/pixelfx.js';
-import { createMusic } from './milano/music.js';
 import { createSfx } from './milano/sfx.js';
 
 setIconSet('pixel'); // tutto in pixel art: simboli delle carte e loghi
 const $ = id => document.getElementById(id);
 const esc = t => String(t ?? '').replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
 const SCREENS = ['auth', 'nick', 'lobby', 'game'];
-let actx = null, music = null, sfx = null, phaseNow = null;  // audio e fase mostrata (servono già a show)
-const show = name => { SCREENS.forEach(s => ($(s).hidden = s !== name)); $('loading').hidden = true; if (name !== 'game') { music?.setPhase('lobby'); phaseNow = null; } }; // fuori dalla partita: musica della lobby
+let actx = null, sfx = null, phaseNow = null, song = null, outGain = null; // audio e fase mostrata (servono già a show)
+const show = name => { SCREENS.forEach(s => ($(s).hidden = s !== name)); $('loading').hidden = true; if (name !== 'game') { song?.pause(); song = null; phaseNow = null; } }; // fuori dalla partita: musica della lobby
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (t.hidden = true), 4500); }
 const guard = fn => async (...a) => { try { await fn(...a); } catch (e) { console.error(e); toast(friendly(e)); } };
 function friendly(e) {
@@ -230,7 +229,7 @@ async function enterGame(s) {
     renderQuality(); renderPixel();
     $('loading').hidden = true;
   }
-  state = s; ingestEvents(s); render();
+  state = s; startSong(); ingestEvents(s); render();
 }
 // carta riassuntiva: i numeri da 1 a 25 col loro colore (giallo, rosso, blu in colonna; Briano Borro su tutta la riga).
 // In evidenza le carte che hai in mano, sbiadite quelle già giocate nel round.
@@ -259,24 +258,19 @@ const audioOn = k => { try { return localStorage.getItem('bb-' + k) !== 'no'; } 
 function audioWake() { // i browser non suonano prima di un clic: tutto parte al primo tocco
   if (!actx) {
     try { actx = new AudioContext(); } catch { return; }
-    outGain = actx.createGain(); outGain.connect(actx.destination); // volume generale (musica ed effetti)
-    music = createMusic(actx, outGain, 'nebbia'); sfx = createSfx(actx, outGain); music.setPhase(phaseNow || 'lobby');
+    outGain = actx.createGain(); outGain.connect(actx.destination); // volume degli effetti
+    sfx = createSfx(actx, outGain);
   }
   if (actx.state === 'suspended') actx.resume();
   outGain.gain.setTargetAtTime(volume() / 100, actx.currentTime, 0.05);
-  const playing = song && !song.paused; // mentre suona la canzone, la musica generata tace
-  music.master.gain.setTargetAtTime(audioOn('music') && !playing ? 0.4 : 0, actx.currentTime, playing ? 0.05 : 1.2);
-  audioOn('music') && !playing ? music.start() : setTimeout(() => (!audioOn('music') || (song && !song.paused)) && music.stop(), 1500);
-  if (song) { song.volume = volume() / 100; if (!audioOn('music')) song.pause(); else if (songOn && song.paused && !song.ended) song.play().catch(() => {}); }
+  if (song) { song.volume = volume() / 100; audioOn('music') ? song.play().catch(() => {}) : song.pause(); }
 }
 // volume generale 0-100, resta sul dispositivo
 const volume = () => { try { const v = +localStorage.getItem('bb-vol'); return localStorage.getItem('bb-vol') === null ? 80 : Math.max(0, Math.min(100, v)); } catch { return 80; } };
-// canzone d'apertura: parte con la Panoramica di gioco; quando finisce entra la musica generata, che segue le fasi
-let song = null, songOn = false, outGain = null;
+// colonna sonora: una sola canzone, parte all'inizio della partita (Panoramica) e ricomincia quando finisce; uscendo si ferma
 function startSong() {
-  if (songOn) return; songOn = true;
-  song = new Audio('assets/milano/audio/i-like-the-night.mp3'); song.preload = 'auto';
-  song.onended = () => { songOn = false; audioWake(); };
+  if (song) return;
+  song = new Audio('assets/milano/audio/i-like-the-night.mp3'); song.loop = true; song.preload = 'auto';
   audioWake();
 }
 const sound = name => { if (sfx && audioOn('sfx')) sfx.play(name); };
@@ -390,7 +384,7 @@ function phaseBanner(k) {
 function renderPhases(s, pd) {
   const cur = showing ? SHOW_PHASE[showing.k] || showing.k : pd ? PEND_PHASE[pd.type] : 'uprising';
   if (cur !== phaseNow && phaseNow !== null) { phaseBanner(cur); hypeLit = false; city?.highlight(null); $('peekcard').hidden = true; } // cambio di fase: cartello grande, e si spegne l'illuminazione della fase prima
-  phaseNow = cur; music?.setPhase(s.stage === 'end' ? 'end' : cur);
+  phaseNow = cur;
   const SHORT = { party: 'Party', guerrilla: 'Guerrilla', community: 'Community', uprising: 'Uprising' }; // nomi brevi quando lo schermo è stretto
   const list = cur === 'setup' ? [['setup', 'Setup'], ...PHASES] : PHASES; // il setup si vede solo a inizio partita
   $('phases').innerHTML = list.map(([k, l], i) => `<span class="chev${k === cur ? ' on' : ''}${i >= list.length - 4 ? ' up' : ''}" data-short="${SHORT[k] || l}"${k === cur ? ' aria-current="step"' : ''}>${k === 'trick' && s.trick && s.stage === 'trick' ? (s.trick.last ? '<b class="lasttag">Ultima presa</b>' : `<small class="tn">presa ${s.trickNo} di ${s.tricksTotal}</small>`) : ''}${l}<span class="pos"> · ${i + 1} di ${list.length}</span></span>`).join('');
@@ -912,7 +906,7 @@ function renderStage(s = state, pd = current(state)) {
       el.innerHTML = `<h2>${round ? `Round ${showing.round} di ${total}${showing.final ? ' · ultimo' : ''}` : 'Panoramica di gioco'}</h2><div class="vsrow">${cards}</div>${info}
         <div class="vsgo" style="--d0:${n * 0.18 + 0.9}s">${acked === showing.n && waitingAcks().length ? `<p class="waitack">Aspettiamo: ${waitingAcks().map(i => `<span class="blink">${who(s, i)}</span>`).join(' ')}</p>`
           : `<button class="btn" id="next" aria-keyshortcuts="Space">Pronto</button>`}</div>`;
-      if (!round) { startSong(); renderQuality(); renderAudio(); }
+      if (!round) { renderQuality(); renderAudio(); }
       if (round) { const k = showing.character && !showing.character.princess ? showing.character.region : null; city.highlight(k); hypeMini(s, showing.character); }
       $('next') && ($('next').onclick = advance);
       return;
