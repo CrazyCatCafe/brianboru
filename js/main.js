@@ -9,14 +9,14 @@ import { ESTRID, SYMBOLS, FACTION_MOTTO } from './milano/lore.js';
 import { createCity, WEATHER_TYPES, QUALITY } from './milano/city3d.js';
 import { connect, BOT_NAMES } from './milano/online.js';
 import { pixelSwap } from './milano/pixelfx.js';
-import { createSfx } from './milano/sfx.js';
+import { createSfx, createAmbience } from './milano/sfx.js';
 
 setIconSet('pixel'); // tutto in pixel art: simboli delle carte e loghi
 const $ = id => document.getElementById(id);
 const esc = t => String(t ?? '').replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
 const SCREENS = ['auth', 'nick', 'lobby', 'game'];
-let actx = null, sfx = null, phaseNow = null, song = null, outGain = null; // audio e fase mostrata (servono già a show)
-const show = name => { SCREENS.forEach(s => ($(s).hidden = s !== name)); $('loading').hidden = true; if (name !== 'game') { song?.pause(); song = null; phaseNow = null; } }; // fuori dalla partita: musica della lobby
+let amb = null, actx = null, sfx = null, phaseNow = null, song = null, outGain = null; // audio e fase mostrata (servono già a show)
+const show = name => { SCREENS.forEach(s => ($(s).hidden = s !== name)); $('loading').hidden = true; if (name !== 'game') { song?.pause(); song = null; phaseNow = null; } applyAmb(); }; // fuori dalla partita: musica della lobby
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (t.hidden = true), 4500); }
 const guard = fn => async (...a) => { try { await fn(...a); } catch (e) { console.error(e); toast(friendly(e)); } };
 function friendly(e) {
@@ -253,7 +253,8 @@ function renderMeteo() {
   const ora = new Intl.DateTimeFormat('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' }).format(new Date()).replace(':', '.');
   $('b-meteo').innerHTML = `<b class="tit">Meteo</b><b class="where">Milano ${ora}</b>${meteo ? `<span class="row">
     <span class="mv" title="Umidità">${mi('goccia', meteo.h + '%')}</span><span class="mv" title="Vento">${mi('vento', meteo.v + ' km/h')}</span>
-    <span class="mv sky" title="${meteo.w[1]}">${mi(meteo.w[3])}</span><b class="temp" title="Temperatura">${meteo.t}°</b></span>` : ''}`; // meteo non arrivato: restano luogo e ora, niente scritta d'errore
+    <span class="mv sky" title="${meteo.w[1]}">${mi(meteo.w[3])}</span><b class="temp" title="Temperatura">${meteo.t}°</b></span>` : ''}<span class="msnd">Suono del meteo <b class="seg" data-aud="amb"><button data-on="1">Sì</button><button data-on="0">No</button></b></span>`; // meteo non arrivato: restano luogo e ora
+  renderAudio();
 }
 loadMeteo(); setInterval(loadMeteo, 15 * 60 * 1000); setInterval(renderMeteo, 30 * 1000);
 
@@ -286,11 +287,15 @@ async function enterGame(s) {
 // carta riassuntiva: i numeri da 1 a 25 col loro colore (giallo, rosso, blu in colonna; Briano Borro su tutta la riga).
 // In evidenza le carte che hai in mano, sbiadite quelle già giocate nel round.
 const REF_ORDER = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12], [13], [14, 15, 16], [17, 18, 19], [20], [21], [22], [23, 24, 25]];
-function renderRef() {
+function renderRef() { // player aid come una carta: le 25 carte per colore; quelle in mano evidenziate, quelle già giocate nel round barrate
   const s = state, mine = new Set(s?.players[seat]?.hand || []);
   const played = new Set([...(s?.trick?.plays || []).map(x => x.card), ...(s?.playedRound || [])]);
-  const chip = v => { const c = CARDS[v].color; return `<span class="rc ${c}${mine.has(v) ? ' mine' : ''}${played.has(v) ? ' gone' : ''}" title="${v} · ${cardLabel(v)}">${v}</span>`; };
-  $('ref-grid').innerHTML = REF_ORDER.map(row => `<div class="rrow${row.length === 1 ? ' wide' : ''}">${row.map(chip).join('')}</div>`).join('');
+  const chip = v => `<span class="rc ${CARDS[v].color}${mine.has(v) ? ' mine' : ''}${played.has(v) ? ' gone' : ''}" title="${v} · ${cardLabel(v)}${mine.has(v) ? ' · in mano' : played.has(v) ? ' · già giocata' : ''}">${v}</span>`;
+  const col = c => Object.keys(CARDS).map(Number).filter(v => CARDS[v].color === c).map(chip).join('');
+  $('ref-grid').innerHTML = `<div class="pa-head"><b>Carte 1–25</b><small>${played.size} giocate</small></div>
+    <div class="pa-cols"><div class="pa-col yellow"><i>Party</i>${col('yellow')}</div><div class="pa-col red"><i>Guerrilla</i>${col('red')}</div><div class="pa-col blue"><i>Community</i>${col('blue')}</div></div>
+    <div class="pa-white"><i>Briano Borro</i>${col('white')}</div>
+    <div class="pa-leg"><span><i class="rc mine"></i>in mano</span><span><i class="rc gone"></i>già giocata</span></div>`;
 }
 // strumenti (grafica, pixel) riducibili a icona; si ricorda la scelta
 $('tools').open = false; // si apre solo se la vuoi, sopra le altre box: non cambia la grandezza di niente
@@ -310,12 +315,15 @@ function audioWake() { // i browser non suonano prima di un clic: tutto parte al
   if (!actx) {
     try { actx = new AudioContext(); } catch { return; }
     outGain = actx.createGain(); outGain.connect(actx.destination); // volume degli effetti
-    sfx = createSfx(actx, outGain);
+    sfx = createSfx(actx, outGain); amb = createAmbience(actx, outGain);
   }
   if (actx.state === 'suspended') actx.resume();
   outGain.gain.setTargetAtTime(volume() / 100, actx.currentTime, 0.05);
   if (song) { song.volume = volume() / 100; audioOn('music') ? song.play().catch(() => {}) : song.pause(); }
+  applyAmb();
 }
+// suono del meteo: solo in partita, segue il meteo della mappa
+function applyAmb() { amb?.set(city?.weather?.() || 'nuvoloso', audioOn('amb') && !$('game').hidden); } // (dichiarata: serve già all'avvio)
 // volume generale 0-100, resta sul dispositivo
 const volume = () => { try { const v = +localStorage.getItem('bb-vol'); return localStorage.getItem('bb-vol') === null ? 80 : Math.max(0, Math.min(100, v)); } catch { return 80; } };
 // colonna sonora: una sola canzone, parte all'inizio della partita (Panoramica) e ricomincia quando finisce; uscendo si ferma
@@ -691,6 +699,7 @@ document.querySelectorAll('[data-sort]').forEach(b => (b.onclick = () => { handS
 const SUIT_ORDER = { yellow: 0, red: 1, blue: 2, white: 3 };
 const sorted = cards => [...cards].sort((a, b) => (handSort === 'color' ? SUIT_ORDER[CARDS[a].color] - SUIT_ORDER[CARDS[b].color] : 0) || a - b);
 
+let lastOwned = null, lastPicked = null, focusBack = null;
 let pendKey = null, mapPicking = false, framedKey = null, lastSaid = '';
 function render() {
   const f = document.activeElement, fkey = f && (f.id ? '#' + f.id : f.dataset?.c ? `[data-c="${f.dataset.c}"]` : f.dataset?.o ? `[data-o="${f.dataset.o}"]` : f.dataset?.x ? `[data-x="${f.dataset.x}"]` : null);
@@ -707,7 +716,7 @@ function render() {
   // si illumina solo la scelta provvisoria di chi sta giocando: finito il suo turno, si spegne
   city.select(showing?.k === 'setup' ? showing.town : pd && pd.p === seat && !showing ? (ui.town ?? ui.expand ?? ui.viking ?? null) : null); // si vede il quartiere di partenza appena scelto
   const wk = meteo?.w[3] || WKEYS[(s.round * 5 + s.start * 3) % WKEYS.length]; // meteo vero di Milano; se non arriva, uno a round
-  if (city.weather() !== wk) city.setWeather(wk);
+  if (city.weather() !== wk) { city.setWeather(wk); applyAmb(); }
   const picks = clickable(s, pd);
   city.setClickable(picks, onTown);
   city.setFireworks(pd?.type === 'action' && pd.p === seat && !showing && (ui.pick === 'expand' || (!ui.pick && actionSyms(s, pd).includes('E'))) ? picks.filter(id => expandTargets(s, seat).includes(id)) : []); // dove ci si può espandere: fuochi d'artificio
@@ -718,6 +727,11 @@ function render() {
   // niente zoom: la mappa resta com'è, si illuminano le zone dove si può scegliere
   framedKey = pk;
   document.querySelectorAll('[data-sort]').forEach(b => b.setAttribute('aria-pressed', b.dataset.sort === handSort));
+  // un giocatore ha scelto un quartiere (quartiere in gioco, partenza, conquista, espansione): la mappa ci va per tutti, poi torna
+  const owned = s.towns.map(t => t.owner), picked = s.trick?.town ?? null;
+  const fresh = lastOwned ? owned.findIndex((o, i) => o !== null && o !== lastOwned[i]) : -1, target = picked !== null && picked !== lastPicked ? picked : fresh;
+  if (target >= 0 && lastOwned) { city.focusTown(target); clearTimeout(focusBack); focusBack = setTimeout(() => city.resetView(), 3500); }
+  lastOwned = owned; lastPicked = picked;
   renderPhases(s, pd); renderBoard(s, pd);
   const tb = $('topbar').getBoundingClientRect(); if (tb.height) document.body.style.setProperty('--topb', Math.round(tb.bottom) + 'px'); // il box dell'azione parte sotto la barra dell'Hype
   renderTurn(s, pd, wk); renderStage(s, pd); renderHand(s, pd);
@@ -826,21 +840,33 @@ function renderBoard(s, pd) {
       <div class="pav">${factionLogo(gangOf(i), 64)}${i === s.active ? '<i class="actmark" title="Fazione Attiva"></i>' : ''}</div>
       <b class="pnm">${esc(p.name)}</b>
       <div class="phd">${tk('punti', i, p.points)}<span class="pflags">${flags}</span></div>
-      <div class="pres">${tk('crediti', i, p.coins)}${tk('guerrilla', i, p.raiders)}${tk('cred', i, p.renown)}${tk('community', i, p.church)}</div></div>`;
+      <div class="pres">${tk('crediti', i, p.coins)}${tk('guerrilla', i, p.raiders)}${tk('cred', i, p.renown)}${tk('community', i, p.church)}</div>${playedCard(i)}</div>`;
   };
   const tip = (p, i) => [p.name, isBot(i) ? 'bot' : i === seat && !local ? 'tu' : '', gangOf(i), `${p.hand.length} carte in mano`,
     p.claims.length ? 'municipi: ' + p.claims.map(r => REGIONS[r].name).join(', ') : '', p.marriages.length ? 'personaggi: ' + p.marriages.map(characterName).join(', ') : '',
     p.princess ? 'Estrid alleata' : '', i === s.active ? 'Fazione Attiva' : ''].filter(Boolean).join(' · ');
   const me = Math.max(0, seat);
+  const picking = pd?.type === 'action' && pd.p === seat && !showing; document.body.classList.toggle('cardpick', picking); // l'azione si sceglie sulla tua carta
+  function playedCard(i) { // carta giocata nella presa, accanto alla targa di chi l'ha giocata
+    const pl = s.trick?.plays.find(x => x.p === i); if (!pl) return '<div class="pcard empty"></div>';
+    const win = s.trick.order && s.trick.winner === i, now = pd?.type === 'action' && pd.p === i && pd.card === pl.card;
+    return `<div class="pcard${win ? ' win' : ''}${now ? ' now' : ''}${i === me && picking ? ' pick' : ''}" data-pc="${i}">${miniCard(pl.card)}${win ? '<em>vince</em>' : ''}</div>`;
+  }
   $('plates').innerHTML = s.players.map((p, i) => i).filter(i => i !== me).map(plate).join('');
   $('myplate').innerHTML = plate(me);
+  if (picking) $('myplate').querySelectorAll('.pcard .mc .r').forEach((r, k) => { // VINCI se hai vinto, altrimenti PERDI o OPPURE
+    const key = k === 0 ? 'p' : k - 1, ok = pd.won ? k === 0 : k > 0;
+    r.classList.toggle('ok', ok); r.classList.toggle('sel', ui.opt === key); if (!ok) return;
+    r.setAttribute('role', 'button'); r.tabIndex = 0; r.title = 'Scegli questa azione';
+    r.onclick = () => { ui = { opt: key }; render(); };
+  });
   // in alto: senso del draft, track Hype con i segnalini delle fazioni, carta Hype; accanto la polizia
   $('b-players').className = `box${phaseNow === 'party' ? ' on' : ''}`;
-  $('b-players').innerHTML = `<div class="hyhead"><span class="dl" title="${esc(dirTitle(s))}">Draft ${dirArrow(s)}</span>${s.marriage ? `<span class="hstrip"><b class="tag">Hype</b>${hypeSummary(s, s.marriage)}<button class="peek btn ghost small" type="button">Vedi carta</button></span>` : ''}</div>
+  $('b-players').innerHTML = `<div class="hyhead"><b class="tag">Hype</b>${s.marriage ? `<span class="hstrip">${hypeSummary(s, s.marriage)}<button class="peek btn ghost small" type="button">Vedi carta</button></span>` : ''}</div>
     <div class="htrack${actionSyms(s, pd).includes('M') ? ' flash' : ''}" role="img" aria-label="Hype: ${s.players.map(p => `${esc(p.name)} ${p.mar ? 'casella ' + p.mar : 'alla partenza'}`).join(', ')}">${MARRIAGE_TRACK.map((b, c) => (c === 0 ? '' :
-      `<span class="hc${b ? ' bonus' : ''}" title="Hype ${c}: ${b ? BONUS_TIP[b] : 'nessun bonus'}"><span class="g">${hypeBonus(b, c, 15)}</span><span class="pw">${s.players.map((p, i) => (p.mar === c ? ftok(i) : '')).join('')}</span></span>`)).join('')}</div>`;
+      `<span class="hc${b ? ' bonus' : ''}" title="Hype ${c}: ${b ? BONUS_TIP[b] : 'nessun bonus'}"><i class="hn">${c}</i><span class="g">${hypeBonus(b, c, 15)}</span><span class="pw">${s.players.map((p, i) => (p.mar === c ? ftok(i) : '')).join('')}</span></span>`)).join('')}</div>`;
   $('b-pol').className = `box${phaseNow === 'guerrilla' ? ' on' : ''}`;
-  $('b-pol').innerHTML = `${logo('polizia', 24)}<b>${s.area}</b><span>polizia<br>in allerta</span>`;
+  $('b-pol').innerHTML = `<span class="ptop">${logo('polizia', 24)}<b>${s.area}</b></span><span class="plab">Polizia in allerta</span>`;
   bindPeek(s); renderHypeCard(s); hypeMini(s); renderRef();
   // uprising: zone sbloccate e chi le tiene
   on('b-uprising', 'uprising');

@@ -669,7 +669,7 @@ export async function createCity(container, overlay, view = {}) {
     highlight: k => { lit = k ?? null; },
     // "portami lì": centra la mappa sul quartiere e avvicina del 30% (stesso angolo)
     focusTown: i => {
-      const p = spots[i].g.position, off = new THREE.Vector3().subVectors(camera.position, controls.target).multiplyScalar(0.7);
+      const p = spots[i].g.position, off = new THREE.Vector3().subVectors(HOME.camera, HOME.target).multiplyScalar(0.45); // sempre la stessa distanza, non si avvicina di più a ogni scelta
       goal.target.set(p.x, 0, p.z); goal.camera.copy(goal.target).add(off); homing = 1;
     },
     resetView: () => { goal.camera.copy(HOME.camera); goal.target.copy(HOME.target); homing = 1; },
