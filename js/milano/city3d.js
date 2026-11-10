@@ -4,6 +4,7 @@ import * as THREE from 'three';
 import { OrbitControls } from '../../vendor/three/OrbitControls.js';
 import { THEME } from './theme.js';
 import { logo } from './icons.js';
+import { loadPawns, makePawn } from './pawns.js';
 
 let T = THEME; // tema attivo: quello del gioco, o una variante passata in createCity(view.theme)
 const merge = (a, b) => Object.fromEntries([...new Set([...Object.keys(a), ...Object.keys(b || {})])].map(k =>
@@ -218,6 +219,7 @@ export async function createCity(container, overlay, view = {}) {
   const OCT_R = 0.13, BRIGHT = { red: '#ff1f2d', blue: '#0a84ff', yellow: '#ffd400' };
   const octs = towns.map(t => ({ x: X(t.x), z: Z(t.y), a: OCT_R * Math.cos(Math.PI / 8), blds: [] }));
   const meshes = buildingMeshes(bin, octs);
+  await loadPawns(base); // pedine 3D delle fazioni
   const paint = (i, color) => { // colora i palazzi dell'ottagono del quartiere i (null: colori originali)
     const c = color && new THREE.Color(color), touched = new Set();
     for (const [r, from, to] of octs[i].blds) {
@@ -360,6 +362,14 @@ export async function createCity(container, overlay, view = {}) {
       const sp = spots[i], c = st.owner === null ? null : T.players[st.owner]; // libero: palazzi normali; preso: colore della banda
       if (sp.color !== c) { sp.color = c; paint(i, c); if (c) { sp.fill.material.color.set(c); sp.thick.material.color.set(c); } } // ridipinge solo se cambia
       sp.thin.visible = !c; sp.thick.visible = sp.fill.visible = !!c;
+      // pedina della fazione al centro del quartiere preso; quando arriva cade dall'alto e rimbalza
+      const fac = st.owner === null ? null : s.factions?.[st.owner], key = st.owner === null ? null : `${st.owner}:${fac}`;
+      if (sp.pawnKey !== key) {
+        if (sp.pawn) sp.g.remove(sp.pawn);
+        sp.pawn = key && makePawn(fac, T.players[st.owner]); sp.pawnKey = key;
+        if (sp.pawn) { sp.pawn.scale.setScalar(0.36); sp.pawn.position.y = OV; sp.pawn.userData.born = sp.pawnKey && sp.seen ? performance.now() / 1000 : -9; sp.g.add(sp.pawn); }
+      }
+      sp.seen = true;
       if (st.owner === null) return;
       const p = spots[i].g.position, parent = regions[spots[i].region].pieces;
       const put = (m, y = OV, order = 5) => { over(m, order); m.position.x += p.x; m.position.y += y; m.position.z += p.z; parent.add(m); return m; };
@@ -551,6 +561,11 @@ export async function createCity(container, overlay, view = {}) {
       if (r.bld) r.bld.material.color.copy(white).lerp(r.owner || r.color, (r.owner ? 0.4 : 0) + r.lift * 0.35).multiplyScalar(1 - r.dim * 0.45); // controllato: palazzi del colore della banda
     }
     if (outsideBld) { const d = Object.values(regions).reduce((m, r) => Math.max(m, r.dim), 0); outsideBld.material.color.setScalar(1 - d * 0.45); }
+    spots.forEach(sp => { // pedina appena arrivata: cade e rimbalza (0,6 s)
+      if (!sp.pawn) return;
+      const a = still ? 1 : Math.min(1, (time / 1000 - sp.pawn.userData.born) / 0.6);
+      sp.pawn.position.y = OV + (a < 0.6 ? (1 - a / 0.6) ** 2 * 0.6 : Math.sin((a - 0.6) / 0.4 * Math.PI) * 0.04);
+    });
     spots.forEach((sp, i) => {
       const on = i === selected;
       sp.g.scale.setScalar(on ? 1.7 : i === hover && clickable.has(i) ? 1.25 : 1);
