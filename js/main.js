@@ -349,7 +349,7 @@ function onTown(town) {
 }
 
 const WKEYS = Object.keys(WEATHER_TYPES);
-const who = (s, p) => `<b class="who" style="--pc:${THEME.players[p]}">${esc(s.players[p].name)}</b>`;
+const who = (s, p) => `<b class="who" style="--pc:${THEME.players[p]}">${pmark(p)}${esc(s.players[p].name)}</b>`;
 const characterIndex = c => (c?.princess ? 'estrid' : MARRIAGES.findIndex(m => JSON.stringify(m) === JSON.stringify(c)));
 const characterName = c => (!c ? 'il personaggio' : c.princess ? 'IA libera' : `+${c.points} punti${c.renown ? ' +1 street cred' : ''}${c.region ? ' · ' + REGIONS[c.region].name : ''}`); // le carte Hype non hanno nome: si descrivono con l'effetto
 const townChip = id => { const t = TOWNS[id], su = THEME.suit[t.color]; return `<b class="chip" style="--sc:${su.fill};--si:${su.ink}">${esc(t.name)}</b>`; };
@@ -415,7 +415,7 @@ function checkAcks() { if (ACK_ALL.has(showing?.k) && acked === showing.n && !wa
 function hypeTrack(pos, { mark = null, note = '' } = {}) { // pos[i] = casella del giocatore i (0..9)
   return `<div class="track">${MARRIAGE_TRACK.map((b, c) => `<div class="cell${c === mark ? ' mark' : ''}" title="Casella ${c + 1}">
     <span class="b">${b === 'CC' ? icon('C', 13) + icon('C', 13) : b ? icon(b, 14) : ''}</span>
-    <span class="tok">${pos.map((p, i) => (p === c ? `<i style="--pc:${THEME.players[i]}" title="${esc(state.players[i].name)}"></i>` : '')).join('')}</span></div>`).join('')}</div>${note}`;
+    <span class="tok">${pos.map((p, i) => (p === c ? pmark(i) : '')).join('')}</span></div>`).join('')}</div>${note}`;
 }
 // guerrilla: casco della polizia con le unità in allerta e una barra per banda (unità neutralizzate), animabili
 function guerBoard(e, order, vals, { grow = false, lose = new Set(), raid = false, gone = false, hi = null, from = null } = {}) {
@@ -474,7 +474,7 @@ function steps(e) {
       military: 'Scudo: a fine partita i quartieri presidiati dalla polizia contano come suoi per il controllo delle zone in palio.',
       trade: 'Rete: a fine partita i quartieri presidiati dalla polizia contano come suoi per il numero di zone in cui è presente.',
       spurn: 'La lascia libera e prende subito <b class="ptsup">+4 punti</b>.' }[e.choice]}</p>` }];
-    case 'discard': return [{ t: 'Fine delle azioni', b: `<p>Ognuno scarta la carta che gli è rimasta in mano.</p><div class="trickrow discards">${e.cards.map((cs, i) => cs.map(v => `<figure style="--pc:${THEME.players[i]}">${miniCard(v)}<figcaption>${esc(s.players[i].name)}</figcaption></figure>`).join('')).join('')}</div>` }];
+    case 'discard': return [{ t: 'Fine delle azioni', b: `<p>Ognuno scarta la carta che gli è rimasta in mano.</p><div class="trickrow discards">${e.cards.map((cs, i) => cs.map(v => `<figure style="--pc:${THEME.players[i]}">${miniCard(v)}<figcaption>${pmark(i)}${esc(s.players[i].name)}</figcaption></figure>`).join('')).join('')}</div>` }];
     case 'setup': return [{ t: `${esc(s.players[e.p].name)} parte da ${esc(TOWNS[e.town].name)}`, b: `<p>${who(s, e.p)} sceglie ${townChip(e.town)} in <b>${REGIONS[TOWNS[e.town].region].name}</b>. <button class="btn ghost small goto" data-goto="${e.town}">Portami lì</button></p>` }];
     case 'prep': return [{ strip: true, card: e.character, t: `Round ${e.round}${e.final ? ' · ultimo' : ''}`, // una riga sola; la carta Hype sotto il riquadro
       b: `<span class="pp" title="Polizia in arrivo (in allerta ${e.area})">${logo('polizia', 18)}<b>${e.police}</b></span><span class="pp"><b class="tag">Hype</b>${hypeSummary(s, e.character)}</span><span class="pp"><b class="tag">Draft</b>${dirText(s, e.dir ?? draftDir(e.round))}</span>` }];
@@ -605,6 +605,8 @@ function render() {
 
 // ---------- plancia a sinistra (schizzo): bande, hype, guerrilla, comunità, uprising ----------
 const pdot = i => `<i class="pd" style="--pc:${THEME.players[i]}"></i>`;
+// quadratino del giocatore: il logo della sua fazione, bordato del suo colore (al posto del quadrato a tinta unita)
+const pmark = i => `<span class="pmark" style="--pc:${THEME.players[i]}">${factionLogo(gangOf(i), 12)}</span>`;
 const gangOf = i => room?.players?.[i]?.gang || FACTION_NAMES[i % FACTION_NAMES.length];
 // il colore di ogni giocatore è quello della sua fazione (se due avessero la stessa fazione, si torna ai colori per posto)
 const SEAT_COLORS = [...THEME.players];
@@ -613,7 +615,7 @@ function applyColors(n) {
   gs.forEach((g, i) => (THEME.players[i] = ok ? FACTION_COLORS[g] : SEAT_COLORS[i]));
 }
 const ftok = i => `<span class="ftok" style="--pc:${THEME.players[i]}">${factionLogo(gangOf(i), 10)}</span>`; // segnalino: logo della fazione col bordo del colore del giocatore
-const pname = (s, i) => `${pdot(i)}<b>${esc(s.players[i].name)}</b>`;
+const pname = (s, i) => `${pmark(i)}<b>${esc(s.players[i].name)}</b>`;
 // carta del personaggio in hype: si apre di fianco alla plancia, senza coprire gli altri riquadri
 // carta del personaggio in Hype: sempre visibile accanto alla plancia, sotto la barra delle fasi.
 // Niente descrizione: nome, punti con la coppa, zona con il triangolo che ruota (e chi la controlla). Cliccandola si illumina la zona.
@@ -728,7 +730,7 @@ function renderBoard(s, pd) {
 function noOwner(s, r) { const z = zoneControl(s, r); return z.max === 0 ? 'polizia' : z.tie ? `contesa ${z.max}–${z.max}` : 'nessuno'; }
 function renderTurn(s, pd, wk) {
   const total = s.players.length === 3 ? 3 : 4;
-  const turn = !pd ? 'Partita finita' : pd.type === 'draft' ? `<span>Draft</span> ${s.draft.picks.flatMap((x, i) => (x ? [] : [pdot(i)])).join('')}` : `<span>Turno di</span> ${pname(s, pd.p)}${pd.p === seat && !local ? ' <small>tu</small>' : ''}`;
+  const turn = !pd ? 'Partita finita' : pd.type === 'draft' ? `<span>Draft</span> ${s.draft.picks.flatMap((x, i) => (x ? [] : [pmark(i)])).join('')}` : `<span>Turno di</span> ${pname(s, pd.p)}${pd.p === seat && !local ? ' <small>tu</small>' : ''}`;
   const turnWas = $('turn').querySelector('.big')?.textContent.trim() || '';
   $('turn').innerHTML = `<p class="big">${turn}</p><p class="sub">${s.round ? `Round ${s.round} di ${total}` : 'Preparazione della partita'} · ${WEATHER_TYPES[wk]}</p>`;
   pixelSwap($('turn').querySelector('.big'), turnWas, { hideCls: 'pxswap-turn' }); // chi gioca cambia: la scritta si sgretola e si ricompone
@@ -830,7 +832,7 @@ function trickRow(s) {
   const now = current(s), acting = now?.type === 'action' || now?.type === 'play' ? now.p : null;
   const fresh = t.plays.length > (trickSeen.n || 0) && trickSeen.key === t.leader + ':' + t.town ? t.plays.length - 1 : -1; if (fresh >= 0) sound('card'); // carta appena giocata: arriva in volo
   trickSeen = { n: t.plays.length, key: t.leader + ':' + t.town };
-  return `<div class="trickrow">${t.plays.map((x, j) => `<figure class="${j === fresh ? (x.p === seat ? 'arrive mine' : 'arrive') + ' ' : ''}${t.winner === x.p ? 'win' : ''}${x.p === acting && now.type === 'action' && x.card === now.card ? ' now' : ''}" style="--pc:${THEME.players[x.p]}">${miniCard(x.card)}<figcaption>${esc(s.players[x.p].name)}${t.winner === x.p ? '<em>vince la presa</em>' : ''}</figcaption></figure>`).join('')}</div>`;
+  return `<div class="trickrow">${t.plays.map((x, j) => `<figure class="${j === fresh ? (x.p === seat ? 'arrive mine' : 'arrive') + ' ' : ''}${t.winner === x.p ? 'win' : ''}${x.p === acting && now.type === 'action' && x.card === now.card ? ' now' : ''}" style="--pc:${THEME.players[x.p]}">${miniCard(x.card)}<figcaption>${pmark(x.p)}${esc(s.players[x.p].name)}${t.winner === x.p ? '<em>vince la presa</em>' : ''}</figcaption></figure>`).join('')}</div>`;
 }
 
 function hypePreview(s, pl, syms, extra) { // dove arriva il disco sulla track, con la regola delle caselle occupate

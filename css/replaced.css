@@ -797,3 +797,8 @@ label > .flogo { width: 24px; height: 24px; margin: 0 6px 0 4px; }
 #b-players.big .htrack .hc { grid-template-rows: 15px minmax(12px, auto) !important; }
 .htrack .hc .pw .ftok .flogo { width: 9px; height: 9px; } .htrack .hc .pw .ftok .flogo svg { width: 7px; height: 7px; }
 .htrack .hc .pw { width: 100%; }
+/* quadratino del giocatore col logo della fazione, ovunque compare un nome */
+.pmark { display: inline-grid; place-items: center; width: 1.1em; height: 1.1em; min-width: 13px; min-height: 13px; margin-right: .35em; background: #eef1f3; box-shadow: 0 0 0 2px var(--pc); vertical-align: -.2em; flex: none; }
+.pmark .flogo { width: auto; height: auto; background: none; margin: 0; }
+.pmark svg { width: .85em; height: .85em; min-width: 10px; min-height: 10px; display: block; }
+.who::before, .rp .who::before, .trick figcaption::before, .rp .trickrow figcaption::before { content: none !important; }
