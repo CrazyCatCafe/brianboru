@@ -692,3 +692,22 @@ tr:nth-child(2n) .logo { animation-delay: -3s; }
 /* loghi sempre sul quadratino bianco */
 .htrack .hc .g .logo, .vhype .vc.top .logo { background: #eef1f3 !important; width: 15px !important; height: 15px !important; display: inline-grid !important; place-items: center; }
 .htrack .hc .g .logo svg { width: 11px; height: 11px; }
+/* animazioni: cambio di fase, valori che cambiano, carta che arriva nella presa */
+.phasebanner { position: fixed; left: 50%; top: 38%; translate: -50% -50%; z-index: 20; display: flex; align-items: center; gap: 14px; padding: 14px 30px 14px 18px; background: var(--rp-red); color: #fff;
+  clip-path: polygon(0 0, calc(100% - 22px) 0, 100% 50%, calc(100% - 22px) 100%, 0 100%); opacity: 0; pointer-events: none; }
+.phasebanner b { font: 700 30px var(--pix); text-transform: uppercase; letter-spacing: .06em; }
+.phasebanner .logo { width: 46px; height: 46px; display: grid; place-items: center; background: #eef1f3; }
+.phasebanner .logo svg { width: 34px; height: 34px; }
+.phasebanner.go { animation: phasein 1.3s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes phasein { 0% { opacity: 0; transform: translateX(-60px) scale(.9); } 18% { opacity: 1; transform: none; } 75% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-140px) scale(.5); } }
+.vgrid td { position: relative; }
+.vgrid .bump { display: inline-block; animation: bump .5s ease-out; }
+@keyframes bump { 40% { transform: scale(1.5); color: #ffd400; } }
+.vgrid .delta { position: absolute; left: 50%; top: -2px; translate: -50% 0; font: 800 13px var(--num); color: #ffd400; text-shadow: 0 1px 2px #000; pointer-events: none; animation: deltaup 1.6s ease-out forwards; }
+.vgrid .delta.down { color: #ff6b6b; }
+@keyframes deltaup { 0% { opacity: 0; transform: translateY(6px); } 15% { opacity: 1; } 100% { opacity: 0; transform: translateY(-18px); } }
+.rp .trickrow figure.arrive { animation: cardin .45s cubic-bezier(.2, .8, .2, 1) both; }
+.rp .trickrow figure.arrive.mine { animation-name: cardinme; }
+@keyframes cardin { from { opacity: 0; transform: translateY(-60px) rotate(-6deg) scale(.7); } }
+@keyframes cardinme { from { opacity: 0; transform: translateY(320px) scale(1.4); } }
+@media (prefers-reduced-motion: reduce) { .phasebanner.go, .vgrid .bump, .vgrid .delta, .rp .trickrow figure.arrive { animation: none; } .phasebanner.go { opacity: 0; } }

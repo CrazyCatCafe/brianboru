@@ -322,8 +322,17 @@ const townChip = id => { const t = TOWNS[id], su = THEME.suit[t.color]; return `
 const PHASES = [['prep', 'Preparazione'], ['draft', 'Draft'], ['trick', 'Azioni'], ['party', 'Underground Party'], ['guerrilla', 'Guerrilla'], ['community', 'Community Projects'], ['uprising', 'Uprising']];
 let phaseNow = null;
 const PEND_PHASE = { setupTown: 'setup', draft: 'draft', activeTown: 'trick', play: 'trick', action: 'trick', princess: 'party', placeTown: 'party', loseTown: 'guerrilla', monastery: 'community' };
+const PHASE_LOGO = { trick: 'punti', party: 'hype', guerrilla: 'guerrilla', community: 'community', uprising: 'uprising', prep: 'polizia' };
+function phaseBanner(k) {
+  const name = [['setup', 'Setup'], ...PHASES].find(p => p[0] === k)?.[1];
+  if (!name || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const el = $('phasebanner');
+  el.innerHTML = `${PHASE_LOGO[k] ? logo(PHASE_LOGO[k], 34) : ''}<b>${name}</b>`;
+  el.classList.remove('go'); void el.offsetWidth; el.classList.add('go');
+}
 function renderPhases(s, pd) {
   const cur = showing ? SHOW_PHASE[showing.k] || showing.k : pd ? PEND_PHASE[pd.type] : 'uprising';
+  if (cur !== phaseNow && phaseNow !== null) phaseBanner(cur); // cambio di fase: cartello grande al centro
   phaseNow = cur;
   const SHORT = { party: 'Party', guerrilla: 'Guerrilla', community: 'Community', uprising: 'Uprising' }; // nomi brevi quando lo schermo è stretto
   const list = cur === 'setup' ? [['setup', 'Setup'], ...PHASES] : PHASES; // il setup si vede solo a inizio partita
@@ -598,6 +607,7 @@ function hypeSummary(s, c) {
   const k = c.region, own = k ? s.claims[k]?.owner ?? null : null;
   return `<span class="hs">+${c.points}${logo('punti', 13)}</span>${k ? `<span class="hs"><i class="tri" style="--rc:${THEME.region[k]}" aria-hidden="true"><i></i><i></i><i></i><i></i></i>${REGIONS[k].name}${own !== null ? ` <em>(${esc(s.players[own].name)})</em>` : ''}</span>` : ''}${c.renown ? '<span class="hs">+1 street cred</span>' : ''}`;
 }
+const lastVals = {}, lastDelta = {}; // ultimi valori mostrati nella plancia, per animare i cambi
 let bigBoard = (() => { try { return localStorage.getItem('bb-board') === 'big'; } catch { return false; } })();
 const shortName = n => ([...n].length > 7 ? [...n].slice(0, 6).join('') + '.' : n); // nomi lunghi: quello che ci sta, poi il punto
 // iniziale della banda; se due coincidono (Bot 1, Bot 2) si aggiunge l'ultimo carattere: B1, B2
@@ -617,7 +627,14 @@ function renderBoard(s, pd) {
   const fl = new Set(actionSyms(s, pd).map(x => FLASH_ROW[x]));
   const gotPts = showing?.k === 'party' && showing.winner !== null && step >= 1 ? showing.winner : -1; // party: i punti del personaggio lampeggiano sulla plancia
   const shown = bigBoard ? s.players.map((p, i) => i) : [Math.max(0, seat)]; // rimpicciolita: solo la tua colonna
-  const row = (kind, key, k) => `<tr class="${phaseNow === k ? 'on' : ''}${fl.has(kind) ? ' flash' : ''}"><th scope="row">${lab(kind, k)}</th>${shown.map(i => [s.players[i], i]).map(([p, i]) => `<td class="${key === 'points' ? 'pts' : ''}${key === 'points' && i === gotPts ? ' got' : ''}">${typeof key === 'function' ? key(p) : p[key]}</td>`).join('')}</tr>`;
+  const cell = (kind, p, i, key) => { // valore che cambia: piccolo salto e "+N" che sale e svanisce
+    const v = typeof key === 'function' ? key(p) : p[key], id = kind + i, old = lastVals[id], now = performance.now();
+    if (old !== undefined && old !== v) lastDelta[id] = { d: v - old, t: now };
+    lastVals[id] = v;
+    const ch = lastDelta[id], age = ch ? (now - ch.t) / 1000 : 9; // l'animazione continua anche se la plancia si ridisegna
+    return age > 1.6 ? v : `<span class="bump" style="animation-delay:-${age}s">${v}</span><span class="delta ${ch.d > 0 ? 'up' : 'down'}" style="animation-delay:-${age}s">${ch.d > 0 ? '+' : '−'}${Math.abs(ch.d)}</span>`;
+  };
+  const row = (kind, key, k) => `<tr class="${phaseNow === k ? 'on' : ''}${fl.has(kind) ? ' flash' : ''}"><th scope="row">${lab(kind, k)}</th>${shown.map(i => [s.players[i], i]).map(([p, i]) => `<td class="${key === 'points' ? 'pts' : ''}${key === 'points' && i === gotPts ? ' got' : ''}">${cell(kind, p, i, key)}</td>`).join('')}</tr>`;
   const tip = (p, i) => [p.name, isBot(i) ? 'bot' : i === seat && !local ? 'tu' : '', room.players[i]?.gang, `street cred ${p.renown}`, `${p.hand.length} carte in mano`,
     p.claims.length ? 'zone: ' + p.claims.map(r => REGIONS[r].name).join(', ') : '', p.marriages.length ? 'personaggi: ' + p.marriages.map(characterName).join(', ') : '',
     p.princess ? 'Estrid alleata' : '', i === s.active ? 'ha il segnalino del quartiere attivo' : ''].filter(Boolean).join(' · ');
@@ -716,11 +733,14 @@ function miniCard(v) {
   const row = (lab, sy) => `<span class="r"><small>${lab}</small>${sy.map(x => icon(x, 13, '#111', '#f4f1ea')).join('')}</span>`;
   return `<div class="mc" style="--sc:${su.fill};--si:${su.ink}"><b class="n">${v}</b>${row('Vinci', k.primary)}${k.secondary.map((x, i) => row(i ? 'Oppure' : 'Perdi', x)).join('')}</div>`;
 }
+let trickSeen = {};
 function trickRow(s) {
   const t = s.trick;
   if (!t?.plays.length) return '';
   const now = current(s), acting = now?.type === 'action' || now?.type === 'play' ? now.p : null;
-  return `<div class="trickrow">${t.plays.map(x => `<figure class="${t.winner === x.p ? 'win' : ''}${x.p === acting && now.type === 'action' && x.card === now.card ? ' now' : ''}" style="--pc:${THEME.players[x.p]}">${miniCard(x.card)}<figcaption>${esc(s.players[x.p].name)}${t.winner === x.p ? '<em>vince la presa</em>' : ''}</figcaption></figure>`).join('')}</div>`;
+  const fresh = t.plays.length > (trickSeen.n || 0) && trickSeen.key === t.leader + ':' + t.town ? t.plays.length - 1 : -1; // carta appena giocata: arriva in volo
+  trickSeen = { n: t.plays.length, key: t.leader + ':' + t.town };
+  return `<div class="trickrow">${t.plays.map((x, j) => `<figure class="${j === fresh ? (x.p === seat ? 'arrive mine' : 'arrive') + ' ' : ''}${t.winner === x.p ? 'win' : ''}${x.p === acting && now.type === 'action' && x.card === now.card ? ' now' : ''}" style="--pc:${THEME.players[x.p]}">${miniCard(x.card)}<figcaption>${esc(s.players[x.p].name)}${t.winner === x.p ? '<em>vince la presa</em>' : ''}</figcaption></figure>`).join('')}</div>`;
 }
 
 function hypePreview(s, pl, syms, extra) { // dove arriva il disco sulla track, con la regola delle caselle occupate
@@ -777,7 +797,7 @@ function renderStage(s = state, pd = current(state)) {
   }
   if (!pd) { // fine partita
     const fe = s.events.find(x => x.k === 'final');
-    el.innerHTML = head(s.winner.length > 1 ? 'Pareggio' : `Vince ${esc(s.players[s.winner[0]].name)}`, 'Fine partita', fe ? finalTable(fe, FINAL_COLS(fe), 6) : endRecap(s) + '<div class="row end"><button class="btn" id="endexit">Esci</button></div>');
+    el.innerHTML = head(s.winner.length > 1 ? 'Pareggio' : `Vince ${esc(s.players[s.winner[0]].name)}`, 'Fine partita', (fe ? finalTable(fe, FINAL_COLS(fe), 6) : endRecap(s)) + '<div class="row end"><button class="btn" id="endexit">Esci</button></div>');
     $('endexit').onclick = exitGame;
     return;
   }
