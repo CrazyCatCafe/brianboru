@@ -123,7 +123,7 @@ function buildingMeshes(buf, octs = []) {
     const mat = new THREE.MeshLambertMaterial({ vertexColors: true, flatShading: true, side: THREE.DoubleSide });
     const m = new THREE.Mesh(g, mat);
     m.castShadow = m.receiveShadow = true;
-    m.userData.orig = col.slice(); // colori originali, per ripulire i quartieri tornati liberi
+    m.userData.orig = col.slice(); m.userData.origPos = pos.slice(0, v * 3); // colori e altezze originali (i palazzi sprofondano sotto le pedine)
     meshes[r] = m;
   }
   return meshes;
@@ -220,14 +220,15 @@ export async function createCity(container, overlay, view = {}) {
   const octs = towns.map(t => ({ x: X(t.x), z: Z(t.y), a: OCT_R * Math.cos(Math.PI / 8), blds: [] }));
   const meshes = buildingMeshes(bin, octs);
   await loadPawns(base); // pedine 3D delle fazioni
-  const paint = (i, color) => { // colora i palazzi dell'ottagono del quartiere i (null: colori originali)
-    const c = color && new THREE.Color(color), touched = new Set();
+  // altezza dei palazzi dentro l'ottagono del quartiere i: 1 normali, 0 rasi al suolo (piazza)
+  const sink = (i, k) => {
+    const touched = new Set();
     for (const [r, from, to] of octs[i].blds) {
-      const a = meshes[r].geometry.attributes.color, o = meshes[r].userData.orig;
-      for (let v = from; v < to; v++) c ? a.setXYZ(v, c.r, c.g, c.b) : a.setXYZ(v, o[v * 3] / 255, o[v * 3 + 1] / 255, o[v * 3 + 2] / 255);
-      touched.add(a);
+      const a = meshes[r].geometry.attributes.position, o = meshes[r].userData.origPos;
+      for (let v = from; v < to; v++) a.setY(v, Math.max(0.0005, o[v * 3 + 1] * k));
+      touched.add(meshes[r].geometry);
     }
-    touched.forEach(a => (a.needsUpdate = true));
+    touched.forEach(g => { g.attributes.position.needsUpdate = true; g.computeBoundingSphere(); });
   };
   scene.add(meshes[0]); const outsideBld = meshes[0];
   const regions = {};
@@ -360,7 +361,8 @@ export async function createCity(container, overlay, view = {}) {
     spinners.length = glows.length = dancers.length = cones.length = 0;
     s.towns.forEach((st, i) => {
       const sp = spots[i], c = st.owner === null ? null : T.players[st.owner]; // libero: palazzi normali; preso: colore della banda
-      if (sp.color !== c) { sp.color = c; paint(i, c); if (c) { sp.fill.material.color.set(c); sp.thick.material.color.set(c); } } // ridipinge solo se cambia
+      if (sp.color !== c) { sp.color = c; if (c) { sp.fill.material.color.set('#2b3036'); sp.thick.material.color.set(c); } } // preso: piazza scura col bordino del giocatore
+      sp.sinkTo = c ? 0 : 1; // i palazzi del quartiere preso sprofondano, quelli dei quartieri liberi restano
       sp.thin.visible = !c; sp.thick.visible = sp.fill.visible = !!c;
       // pedina della fazione al centro del quartiere preso; quando arriva cade dall'alto e rimbalza
       const fac = st.owner === null ? null : s.factions?.[st.owner], key = st.owner === null ? null : `${st.owner}:${fac}`;
@@ -561,6 +563,12 @@ export async function createCity(container, overlay, view = {}) {
       if (r.bld) r.bld.material.color.copy(white).lerp(r.owner || r.color, (r.owner ? 0.4 : 0) + r.lift * 0.35).multiplyScalar(1 - r.dim * 0.45); // controllato: palazzi del colore della banda
     }
     if (outsideBld) { const d = Object.values(regions).reduce((m, r) => Math.max(m, r.dim), 0); outsideBld.material.color.setScalar(1 - d * 0.45); }
+    spots.forEach((sp, i) => { // palazzi che sprofondano (o rispuntano) insieme alla pedina
+      if (sp.sinkTo === undefined) return;
+      const k = sp.sinkK ?? 1, goal = sp.sinkTo, nk = still || !sp.seenSink ? goal : k + Math.sign(goal - k) * Math.min(Math.abs(goal - k), dt * 2.2);
+      if (nk !== k || sp.sinkK === undefined) { sp.sinkK = nk; sink(i, nk); }
+      sp.seenSink = true;
+    });
     spots.forEach(sp => { // pedina appena arrivata: cade e rimbalza (0,6 s)
       if (!sp.pawn) return;
       const a = still ? 1 : Math.min(1, (time / 1000 - sp.pawn.userData.born) / 0.6);
