@@ -252,7 +252,6 @@ const mi = (k, t) => `<svg viewBox="0 0 20 20" width="16" height="16" fill="none
 function renderMeteo() {
   const ora = new Intl.DateTimeFormat('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' }).format(new Date()).replace(':', '.');
   $('b-meteo').innerHTML = `<b class="tit">Meteo</b><b class="where">Milano ${ora}</b>${meteo ? `<span class="row">
-    <span class="mv" title="Umidità">${mi('goccia', meteo.h + '%')}</span><span class="mv" title="Vento">${mi('vento', meteo.v + ' km/h')}</span>
     <span class="mv sky" title="${meteo.w[1]}">${mi(meteo.w[3])}</span><b class="temp" title="Temperatura">${meteo.t}°</b></span>` : ''}<span class="msnd">Suono del meteo <b class="seg" data-aud="amb"><button data-on="1">Sì</button><button data-on="0">No</button></b></span>`; // meteo non arrivato: restano luogo e ora
   renderAudio();
 }
@@ -287,15 +286,11 @@ async function enterGame(s) {
 // carta riassuntiva: i numeri da 1 a 25 col loro colore (giallo, rosso, blu in colonna; Briano Borro su tutta la riga).
 // In evidenza le carte che hai in mano, sbiadite quelle già giocate nel round.
 const REF_ORDER = [[1, 2, 3], [4, 5, 6], [7, 8, 9], [10, 11, 12], [13], [14, 15, 16], [17, 18, 19], [20], [21], [22], [23, 24, 25]];
-function renderRef() { // player aid come una carta: le 25 carte per colore; quelle in mano evidenziate, quelle già giocate nel round barrate
+function renderRef() { // Player Aid: le 25 carte in ordine, le Briano Borro come strisce tra le righe; in mano o già giocate diventano bianche
   const s = state, mine = new Set(s?.players[seat]?.hand || []);
   const played = new Set([...(s?.trick?.plays || []).map(x => x.card), ...(s?.playedRound || [])]);
   const chip = v => `<span class="rc ${CARDS[v].color}${mine.has(v) ? ' mine' : ''}${played.has(v) ? ' gone' : ''}" title="${v} · ${cardLabel(v)}${mine.has(v) ? ' · in mano' : played.has(v) ? ' · già giocata' : ''}">${v}</span>`;
-  const col = c => Object.keys(CARDS).map(Number).filter(v => CARDS[v].color === c).map(chip).join('');
-  $('ref-grid').innerHTML = `<div class="pa-head"><b>Carte 1–25</b><small>${played.size} giocate</small></div>
-    <div class="pa-cols"><div class="pa-col yellow"><i>Party</i>${col('yellow')}</div><div class="pa-col red"><i>Guerrilla</i>${col('red')}</div><div class="pa-col blue"><i>Community</i>${col('blue')}</div></div>
-    <div class="pa-white"><i>Briano Borro</i>${col('white')}</div>
-    <div class="pa-leg"><span><i class="rc mine"></i>in mano</span><span><i class="rc gone"></i>già giocata</span></div>`;
+  $('ref-grid').innerHTML = `<div class="pa-head"><b>Player Aid</b></div><div class="pa-rows">${REF_ORDER.map(row => `<div class="rrow${row.length === 1 ? ' wide' : ''}">${row.map(chip).join('')}</div>`).join('')}</div>`;
 }
 // strumenti (grafica, pixel) riducibili a icona; si ricorda la scelta
 $('tools').open = false; // si apre solo se la vuoi, sopra le altre box: non cambia la grandezza di niente
@@ -422,7 +417,7 @@ const CHIP_BG = { blue: '#1666d0', red: '#d42424' }; // fondo più scuro dove la
 const townChip = id => { const t = TOWNS[id], su = THEME.suit[t.color]; return `<b class="chip" style="--sc:${CHIP_BG[t.color] || su.fill};--si:${su.ink}">${esc(t.name)}</b>`; };
 
 // ---------- fasi del round ----------
-const PHASES = [['prep', 'Preparazione'], ['draft', 'Draft'], ['trick', 'Azioni'], ['party', 'Underground Party'], ['guerrilla', 'Guerrilla'], ['community', 'Community Projects'], ['uprising', 'Uprising']];
+const PHASES = [['prep', 'Preparazione'], ['draft', 'Draft'], ['trick', 'Azioni'], ['party', 'Hype'], ['guerrilla', 'Guerrilla'], ['community', 'Community'], ['uprising', 'Uprising']];
 const PEND_PHASE = { setupTown: 'setup', draft: 'draft', activeTown: 'trick', play: 'trick', action: 'trick', princess: 'party', placeTown: 'party', loseTown: 'guerrilla', monastery: 'community' };
 const PHASE_LOGO = { draft: 'carte', trick: 'punti', party: 'hype', guerrilla: 'guerrilla', community: 'community', uprising: 'uprising', prep: 'polizia', setup: 'quartiere' };
 function phaseBanner(k) {
@@ -447,8 +442,9 @@ function renderPhases(s, pd) {
     hypeLit = false; city?.highlight(null); $('peekcard').hidden = true; } // cambio di fase: cartello grande, e si spegne l'illuminazione della fase prima
   phaseNow = cur;
   const SHORT = { party: 'Party', guerrilla: 'Guerrilla', community: 'Community', uprising: 'Uprising' }; // nomi brevi quando lo schermo è stretto
-  const list = cur === 'setup' ? [['setup', 'Setup'], ...PHASES] : PHASES; // il setup si vede solo a inizio partita
-  $('phases').innerHTML = list.map(([k, l], i) => `<span class="chev${k === cur ? ' on' : ''}${i >= list.length - 4 ? ' up' : ''}" data-short="${SHORT[k] || l}"${k === cur ? ' aria-current="step"' : ''}>${k === 'trick' && s.trick && s.stage === 'trick' ? (s.trick.last ? '<b class="lasttag">Ultima presa</b>' : `<small class="tn">presa ${s.trickNo} di ${s.tricksTotal}</small>`) : ''}${l}<span class="pos"> · ${i + 1} di ${list.length}</span></span>`).join('');
+  const total = s.players.length === 3 ? 3 : 4, rnd = (showing ? showing.round ?? s.round : s.round) || 0;
+  const list = PHASES; // prima delle fasi: Setup a inizio partita, poi Round N/4
+  $('phases').innerHTML = `<span class="chev rnd${cur === 'setup' ? ' on' : ''}">${cur === 'setup' || !rnd ? 'Setup' : `Round ${rnd}/${total}`}</span>` + list.map(([k, l], i) => `<span class="chev${k === cur ? ' on' : ''}${i >= list.length - 4 ? ' up' : ''}" data-short="${SHORT[k] || l}"${k === cur ? ' aria-current="step"' : ''}>${k === 'trick' && s.trick && s.stage === 'trick' ? (s.trick.last ? '<b class="lasttag">Ultima presa</b>' : `<small class="tn">presa ${s.trickNo} di ${s.tricksTotal}</small>`) : ''}${l}<span class="pos"> · ${i + 1} di ${list.length}</span></span>`).join('');
 }
 
 // ---------- racconto dell'upkeep: un evento alla volta, a passi ----------
@@ -601,7 +597,7 @@ function steps(e) {
     case 'prep': return [{ vs: true, t: `Round ${e.round}`, b: '' }]; // tra un round e l'altro: punteggi provvisori, Fazione Attiva, polizia e Hype
     case 'party': { // la track in orizzontale si avvicina; dal più avanti: usa la carta, torna all'inizio, gli altri prendono i bonus
       const c = e.card, W = e.winner, after = e.track.map((p, i) => (i === W ? 0 : p));
-      if (W === null) return [{ t: 'Underground Party', b: partyTrack(e.track, { zoom: true }) + '<p>Nessuno ha hype: il personaggio se ne va.</p>' }];
+      if (W === null) return [{ t: 'Hype', b: partyTrack(e.track, { zoom: true }) + '<p>Nessuno ha hype: il personaggio se ne va.</p>' }];
       const eff = c.princess ? 'sceglie come usare la Regina Estrid' : `+${c.points} punti${c.renown ? ', +1 street cred' : ''}${c.region ? `, un quartiere in ${REGIONS[c.region].name}` : ''}`;
       const order = s.players.map((p, i) => i).filter(i => i !== W).sort((a, b) => e.track[b] - e.track[a]);
       const bonusOf = i => e.bonuses.find(x => x.p === i)?.b;
@@ -609,7 +605,7 @@ function steps(e) {
         <tr class="win${upto >= 0 ? ' on' : ''}"><td>${who(s, W)}</td><td>${upto >= 0 ? `ingaggia il personaggio: ${eff}${e.before && !c.princess ? ` · <b class="ptsup">punti ${e.before[W]} → ${e.before[W] + c.points}</b>` : ''}${upto >= 1 ? ' · torna alla partenza' : ''}` : 'ottiene più hype'}</td></tr>
         ${order.map((i, k) => `<tr class="${upto >= 2 + k ? 'on' : 'dim'}"><td>${who(s, i)}</td><td>${upto >= 2 + k ? (bonusOf(i) ? BONUS[bonusOf(i)] : 'nessun bonus') : ''}</td></tr>`).join('')}</table></div>`;
       const out = [
-        { t: 'Underground Party', b: partyTrack(e.track, { zoom: true }) + '<p>Chi è più avanti nell\'hype ingaggia il personaggio.</p>' },
+        { t: 'Hype', b: partyTrack(e.track, { zoom: true }) + '<p>Chi è più avanti nell\'hype ingaggia il personaggio.</p>' },
         { t: `${esc(s.players[W].name)} ottiene più hype`, b: partyTrack(e.track, { hi: W }) + res(0, true) },
         { t: `${esc(s.players[W].name)} torna all'inizio`, b: partyTrack(after, { hi: W, from: { [W]: e.track[W] } }) + res(1) },
       ];
@@ -641,8 +637,8 @@ function steps(e) {
       return out;
     }
     case 'community': {
-      if (e.church.every(c => c === 0)) return [{ t: 'Community Projects', b: '<p>Nessuno ha punti community: nessun progetto urbano in questo round.</p>' }];
-      const out = [{ t: 'Community Projects', b: `<ul class="plain">${list(e.church.map((c, i) => `<li>${who(s, i)} ${c} di comunità</li>`))}</ul>` }];
+      if (e.church.every(c => c === 0)) return [{ t: 'Community', b: '<p>Nessuno ha punti community: nessun progetto urbano in questo round.</p>' }];
+      const out = [{ t: 'Community', b: `<ul class="plain">${list(e.church.map((c, i) => `<li>${who(s, i)} ${c} di comunità</li>`))}</ul>` }];
       if (e.first !== null) out.push({ t: `${who(s, e.first)} guida la comunità`, b: '<p>Avvia un progetto urbano e diventa la Fazione Attiva.</p>' });
       else out[0].b += '<p><b>Pareggio</b>: niente progetto principale.</p>'; // pareggio: nello stesso passo
       if (e.ties.length) out.push({ t: '+1 punto', b: `<p>${e.ties.map(i => who(s, i)).join(', ')}</p>` });
@@ -673,15 +669,13 @@ function fitZoom(el) {
     z = Math.max(0.45, z * (el.clientHeight / el.scrollHeight) * 0.98); el.style.setProperty('--fit', z);
   }
 }
-function fitHand() {
-  const el = $('hand'), cards = [...el.querySelectorAll(':scope > .card')];
-  cards.forEach(c => (c.style.marginLeft = ''));
-  if (cards.length < 2) return;
-  const gap = parseFloat(getComputedStyle(el).columnGap) || 0, kept = el.querySelector('.kept')?.offsetWidth || 0;
-  const free = el.clientWidth - parseFloat(getComputedStyle(el).paddingLeft) * 2 - kept, need = cards.reduce((a, c) => a + c.offsetWidth, 0) + gap * (cards.length - 1);
-  if (need <= free) return;
-  const over = (need - free) / (cards.length - 1);
-  cards.slice(1).forEach(c => (c.style.marginLeft = `${-over}px`)); // si sovrappongono: la carta sotto il dito sale (CSS)
+function fitHand() { // le carte in mano non si sovrappongono: se non ci stanno, diventano tutte un po' più piccole
+  const el = $('hand'); el.style.removeProperty('--card-w');
+  const cards = [...el.querySelectorAll(':scope > .card')]; cards.forEach(c => (c.style.marginLeft = ''));
+  if (!cards.length) return;
+  const cs = getComputedStyle(el), gap = parseFloat(cs.columnGap) || 0;
+  const free = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight), need = cards.reduce((a, c) => a + c.offsetWidth, 0) + gap * (cards.length - 1);
+  if (need > free) el.style.setProperty('--card-w', `${Math.max(56, (free - gap * (cards.length - 1)) / cards.length)}px`);
 }
 const fitAll = () => { fitZoom($('stage')); fitZoom($('board')); fitHand(); };
 addEventListener('resize', () => state && !$('game').hidden && fitAll());
@@ -734,7 +728,9 @@ function render() {
   lastOwned = owned; lastPicked = picked;
   renderPhases(s, pd); renderBoard(s, pd);
   const tb = $('topbar').getBoundingClientRect(); if (tb.height) document.body.style.setProperty('--topb', Math.round(tb.bottom) + 'px'); // il box dell'azione parte sotto la barra dell'Hype
-  renderTurn(s, pd, wk); renderStage(s, pd); renderHand(s, pd);
+  renderStage(s, pd); renderHand(s, pd);
+  const kept = $('hand').querySelector('.kept'); $('keptdock').replaceChildren(...(kept ? [kept] : [])); $('keptdock').hidden = !kept; // draft: le carte tenute stanno sopra la tua targa
+  // (il riquadro del turno non c'è più: il turno si vede dal bordo della targa, il round nella barra delle fasi)
   // scelta dell'azione: conferme, passi extra, espansione e "ti espandi?" stanno sopra la tua carta; nel box centrale resta cosa fanno i giocatori
   const myCard = document.body.classList.contains('cardpick') && $('myplate').querySelector('.pcard');
   if (myCard) {
@@ -742,7 +738,12 @@ function render() {
     [...$('stage').children].filter(c => !c.matches('.results, .trickrow, .lastbanner')).forEach(c => box.appendChild(c));
     myCard.appendChild(box);
   }
-  $('stage').classList.toggle('onlylog', !!myCard);
+  // le altre decisioni tue (draft, quartiere in gioco, scelte sulla mappa...): sopra le tue carte, centrate
+  const dock = $('actdock'), mineNow = !showing && pd && (pd.type === 'draft' ? seat >= 0 && !s.draft.picks[seat] : pd.p === seat) && !myCard;
+  dock.innerHTML = '';
+  if (mineNow) [...$('stage').children].filter(c => !c.matches('.results, .trickrow, .lastbanner')).forEach(c => dock.appendChild(c));
+  dock.hidden = !dock.children.length;
+  $('stage').classList.toggle('onlylog', !!myCard || mineNow);
   fitAll();
   if (fkey) document.querySelector(fkey)?.focus({ preventScroll: true }); // il focus non si perde quando il pannello si aggiorna
   const tEl = $('stage').querySelector('h2 .ttl') || $('stage').querySelector('h2'), said = tEl?.textContent || '';
@@ -895,7 +896,7 @@ function renderTurn(s, pd, wk) {
   pixelSwap($('turn').querySelector('.big'), turnWas, { hideCls: 'pxswap-turn' }); // chi gioca cambia: la scritta si sgretola e si ricompone
 }
 
-const SUIT_WORD = { red: 'Guerrilla', blue: 'Community Projects', yellow: 'Underground Party' };
+const SUIT_WORD = { red: 'Guerrilla', blue: 'Community', yellow: 'Hype' };
 const coarse = matchMedia('(pointer: coarse)').matches; // su touch la carta in presa va confermata
 
 let lastPacket = '', dealtAt = 0, keptSeen = new Map(); // quando sono arrivate: l'animazione continua anche se la mano si ridisegna
@@ -1029,7 +1030,7 @@ function renderStage(s = state, pd = current(state)) {
   // titolo prima, informazioni di contorno sotto (niente etichetta sopra il titolo)
   const chip = () => { const k = phaseNow, nm = [['setup', 'Setup'], ...PHASES].find(p => p[0] === k)?.[1]; return nm ? `<span class="phchip">${PHASE_LOGO[k] ? logo(PHASE_LOGO[k], 18) : ''}${nm}</span>` : ''; }; // la fase, col suo logo, accanto al titolo
   const head = (h, meta = '', body = '') => { // la fase è già nel titolo: sotto non si ripete
-    h = { 'Underground Party': 'Chi è più avanti?', Guerrilla: 'Unità neutralizzate', 'Community Projects': 'Punti community', Uprising: 'Zone in palio' }[h] || h; // il titolo non ripete il nome della fase
+    h = { Hype: 'Chi è più avanti?', Guerrilla: 'Unità neutralizzate', Community: 'Punti community', Uprising: 'Zone in palio' }[h] || h; // il titolo non ripete il nome della fase
     const nm = [['setup', 'Setup'], ...PHASES].find(p => p[0] === phaseNow)?.[1]; if (nm && meta.startsWith(nm + ' · ')) meta = meta.slice(nm.length + 3); else if (meta === nm) meta = '';
     return `<h2>${chip()}<span class="ttl">${h}</span></h2>${meta ? `<p class="meta">${meta}</p>` : ''}${body}`;
   };
@@ -1094,7 +1095,7 @@ function renderStage(s = state, pd = current(state)) {
     if (seat >= 0 && !s.draft.picks[seat]) {
       const n = (ui.draft || []).length;
       el.innerHTML = head('Scegli 2 carte', `Draft · ${mine}`,
-        `<p>Tieni 2 carte dal mazzetto: le altre passano a ${who(s, (seat + (s.draft.dir ?? 1) + s.players.length) % s.players.length)} (${(s.draft.dir ?? 1) > 0 ? '→' : '←'}). In basso a sinistra trovi quelle già tenute.</p>
+        `<p>Tieni 2 carte dal mazzetto: le altre passano a ${who(s, (seat + (s.draft.dir ?? 1) + s.players.length) % s.players.length)} (${(s.draft.dir ?? 1) > 0 ? '→' : '←'}). </p>
          <button id="ok" class="btn wide" ${n === 2 ? '' : 'disabled'} aria-keyshortcuts="Enter">${n === 2 ? 'Tieni queste 2' : n === 1 ? 'Scegli ancora 1 carta' : 'Scegli 2 carte'}</button>`);
       $('ok').onclick = () => act({ cards: ui.draft });
     } else el.innerHTML = head('In attesa del draft', 'Draft', `<p>Stanno scegliendo: ${s.draft.picks.flatMap((x, i) => (x ? [] : [who(s, i)])).join(', ')}</p>`);

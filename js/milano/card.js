@@ -4,7 +4,7 @@ import { THEME } from './theme.js';
 import { iconAt } from './icons.js';
 import { CHARACTERS, ESTRID, POLICE } from './lore.js';
 
-const SHORT = { red: 'GUERRILLA', blue: 'COMMUNITY PROJECTS', yellow: 'UNDERGROUND PARTY', white: 'BRIANO BORRO' };
+const SHORT = { red: 'GUERRILLA', blue: 'COMMUNITY', yellow: 'HYPE', white: 'BRIANO BORRO' };
 const ROYAL = { 20: 'BB RESISTANCE', 21: 'BB RESISTANCE' }; // le altre bianche (13, 22) restano Briano Borro
 export const cardLabel = v => ROYAL[v] || SHORT[CARDS[v].color];
 import { STORY_ART, CHARACTER_ART, ESTRID_ART, POLICE_ART } from './art.js';

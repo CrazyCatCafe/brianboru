@@ -44,7 +44,7 @@ export function createAmbience(ctx, out) {
     s.connect(f).connect(g).connect(bus); s.start(t, Math.random()); s.stop(t + 5.5);
   };
   const SET = { // filtri e volume per ogni meteo
-    sereno: { hp: 120, lp: 600, v: 0.05 }, nuvoloso: { hp: 140, lp: 800, v: 0.07 },
+    sereno: { hp: 120, lp: 600, v: 0 }, nuvoloso: { hp: 140, lp: 800, v: 0 }, // niente fruscio: si sente solo con pioggia e temporale
     pioggia: { hp: 900, lp: 7000, v: 0.32 }, temporale: { hp: 600, lp: 9000, v: 0.48 },
   };
   return {

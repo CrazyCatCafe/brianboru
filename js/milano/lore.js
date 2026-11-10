@@ -15,7 +15,7 @@ export const STORIES = {
   13: 'Il carpentiere', 20: 'Il sindacalista', 21: 'La voce della resistenza', 22: 'Briano Borro',
 };
 
-export const SUIT_NAMES = { yellow: 'Underground Party', red: 'Guerrilla', blue: 'Community Projects', white: 'Briano Borro e BB Resistance' };
+export const SUIT_NAMES = { yellow: 'Hype', red: 'Guerrilla', blue: 'Community', white: 'Briano Borro e BB Resistance' };
 
 // Personaggi da ingaggiare (le carte matrimonio), nello stesso ordine di MARRIAGES in js/game/data.js
 export const CHARACTERS = [
