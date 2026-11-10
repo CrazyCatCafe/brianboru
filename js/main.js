@@ -215,7 +215,7 @@ function leaveGame() {
   unwatch?.(); unwatch = null; roomCode = room = null; history.replaceState(null, '', location.pathname); $('room').hidden = true;
   local = false; state = null; clearTimeout(botTimer);
   showing = null; queue = []; step = 0; acked = null; seenN = null; ui = {};
-  loading = false; loadDone = allReady = false; loadId++; $('loadscreen').hidden = true; $('loadscreen').classList.remove('last');
+  loading = false; loadDone = allReady = crashing = false; loadId++; $('loadscreen').hidden = true; ['stage', 'loadscreen'].forEach(k => { $(k).style.filter = ''; $(k).style.opacity = ''; }); $('loadscreen').classList.remove('last');
   show(!net || me ? 'lobby' : 'auth');
 }
 
@@ -458,9 +458,24 @@ function advance() {
 let loadDone = false, allReady = false;
 function endEvent() {
   if (showing?.k !== 'pregame') return nextEvent();
-  allReady = true; if (loadDone) startGame(); else render();
+  allReady = true; if (loadDone) goGame(); else render();
+}
+// un secondo e mezzo prima di entrare: Panoramica e caricamento si sgretolano in pixel sempre più grossi
+let crashing = false;
+function goGame() {
+  if (crashing) return; crashing = true; const id = loadId;
+  const f = $('pxcrash'), [flood, comp, , , morph] = f.children, t0 = performance.now(), D = 1500;
+  ['stage', 'loadscreen'].forEach(k => ($(k).style.filter = 'url(#pxcrash)'));
+  (function step() {
+    if (id !== loadId) return;
+    const k = Math.min(1, (performance.now() - t0) / D), z = Math.round(2 + 46 * k * k); // lato del pixel che cresce
+    flood.setAttribute('x', z / 2); flood.setAttribute('y', z / 2); comp.setAttribute('width', z); comp.setAttribute('height', z); morph.setAttribute('radius', z / 2);
+    ['stage', 'loadscreen'].forEach(n => ($(n).style.opacity = String(1 - Math.max(0, k - 0.6) / 0.4)));
+    if (k < 1) requestAnimationFrame(step); else startGame();
+  })();
 }
 function startGame() {
+  ['stage', 'loadscreen'].forEach(k => { $(k).style.filter = ''; $(k).style.opacity = ''; }); crashing = false;
   const el = $('loadscreen'); el.hidden = true; el.classList.remove('last'); el.querySelector('.lsline').textContent = '';
   loading = false; loadDone = allReady = false; nextEvent();
   const st = $('stage'); st.classList.remove('dropflash'); void st.offsetWidth; st.classList.add('dropflash'); // Scegli il quartiere di partenza, con un lampo
@@ -477,15 +492,16 @@ function startLoading() {
   el.hidden = false;
   const t0 = performance.now(); let shown = -1, best = 0;
   (function tickLoad() {
-    if (id !== loadId) return;
+    if (id !== loadId || !loading) return; // in gioco (o uscendo) il caricamento si ferma
     const wall = (performance.now() - t0) / 1000, t = song && !song.paused && song.currentTime > 0 ? Math.max(wall - 1.5, Math.min(wall + 1.5, song.currentTime)) : wall; // in pari con la musica (se suona), senza salti
     const k = Math.floor((t - 2.5) / 3), i = Math.max(0, Math.min(LOAD_LINES.length - 1, k)); // una frase ogni 3 secondi, l'ultima fino allo stacco
     if (t >= 2.5 && i !== shown) { shown = i; line.textContent = LOAD_LINES[i]; line.classList.remove('in'); void line.offsetWidth; line.classList.add('in'); if (i === LOAD_LINES.length - 1) el.classList.add('last'); }
     const x = Math.min(1, t / DROP), fake = Math.min(99, Math.round(100 * (x + 0.04 * Math.sin(t * 2.3) * (1 - x)))); // finto caricamento: avanza a strappi
     best = Math.max(best, fake); fill.style.width = best + '%'; pct.textContent = best + '%'; bar.setAttribute('aria-valuenow', best);
+    if (allReady && t >= DROP - 1.5) goGame(); // tutti pronti: il crash finisce proprio allo stacco
     if (t < DROP) return requestAnimationFrame(tickLoad);
     fill.style.width = '100%'; pct.textContent = '100%'; bar.setAttribute('aria-valuenow', 100);
-    loadDone = true; if (allReady) setTimeout(() => id === loadId && startGame(), 150); else render(); // chi non ha cliccato Pronto fa aspettare tutti
+    loadDone = true; if (allReady) goGame(); else render(); // chi non ha cliccato Pronto fa aspettare tutti
   })();
 }
 // chi deve ancora cliccare Avanti alla fine del party (in locale lo schermo è uno solo: basta un clic)
@@ -945,7 +961,7 @@ function endRecap(s) { // riepilogo di fine partita: come si è vinto
 // coriandoli nei colori delle fazioni (vincitore)
 const confetti = () => `<div class="confetti" aria-hidden="true">${Array.from({ length: 36 }, (_, k) => `<i style="--x:${(k * 37) % 100}%;--d:${(k % 9) * 0.15}s;--c:${THEME.players[k % 5]};--r:${(k * 53) % 360}deg"></i>`).join('')}</div>`;
 const exitGame = () => leaveGame(); // a partita finita si esce senza conferma
-let wasMine = false;
+let wasMine = false, vsShown = null;
 function renderStage(s = state, pd = current(state)) {
   const el = $('stage');
   if (showing?.k === 'final') city.highlight(steps(showing)[Math.min(step, steps(showing).length - 1)].zone ?? null); // la zona che si sta contando si alza
@@ -962,11 +978,11 @@ function renderStage(s = state, pd = current(state)) {
   if (nowMine && !wasMine) { sound('turn'); el.classList.remove('turnin'); void el.offsetWidth; el.classList.add('turnin'); } // tocca a te: il riquadro fa un piccolo salto
   wasMine = nowMine;
   el.classList.toggle('compact', !!mapPicking);
-  el.classList.remove('strip', 'vs');
+  el.classList.remove('strip', 'vs', 'still');
   if (showing) {
     const st = steps(showing), cur = st[Math.min(step, st.length - 1)];
     if (cur.vs) { // Panoramica di gioco (inizio partita) e schermata tra un round e l'altro: box dei giocatori, Pronto
-      el.classList.add('vs');
+      el.classList.add('vs'); if (vsShown === showing.n) el.classList.add('still'); vsShown = showing.n; // ridisegnando (es. dopo Pronto) i giocatori non rientrano
       const isReady = i => isBot(i) || (local ? acked === showing.n : (room.acks?.[room.players[i]?.uid] ?? -1) >= showing.n);
       const first = showing.k === 'pregame' ? showing.start : s.active, round = showing.k === 'prep';
       const cards = s.players.map((p, i) => `<div class="vscard" style="--pc:${THEME.players[i] === '#1b1b1b' ? '#cfd6dc' : THEME.players[i]};--d:${i * 0.18}s">

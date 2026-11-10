@@ -983,3 +983,4 @@ body.phasefly #stage h2 { visibility: visible; }
 .loadscreen.last .lsline { font-size: clamp(20px, 2.6vw, 34px); }
 #game .rp-stage.vs { padding-bottom: 170px !important; }
 @media (max-width: 700px) { #game .rp-stage.vs { padding-bottom: 150px !important; } .loadscreen { padding: 10px 12px 14px !important; } }
+#game .rp-stage.vs.still .vscard, #game .rp-stage.vs.still .vsinfo, #game .rp-stage.vs.still .vsgo { animation: none; } /* ridisegnata: niente rientro */
