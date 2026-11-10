@@ -913,3 +913,17 @@ body.phasefly #stage h2 { visibility: visible; }
 .vline .vsset { justify-content: center; }
 @media (max-width: 700px) { .vval { font-size: 17px; } .vval b { font-size: 22px; } .dnm { font-size: 14px !important; } .dch { font-size: 22px !important; } .vsinfo { gap: 8px; } }
 #game .rp-stage.vs { z-index: 90 !important; background: rgba(10, 12, 15, .95) !important; } /* sopra la mappa e i suoi cartelli */
+/* scia che gira intorno al bordo in senso orario: la testa brilla, dietro la coda gialla (al posto dei contorni che lampeggiano) */
+@property --ta { syntax: '<angle>'; initial-value: 0deg; inherits: false; }
+.vgrid .ini.act { outline: none; animation: none; position: relative; }
+.rp .trickrow figure.now { outline: none; animation: none; } .rp .trickrow figure.now .mc { outline: none; position: relative; }
+.rp .card[aria-pressed="true"] { outline: none; }
+.vgrid .ini.act::before, .rp .trickrow figure.now .mc::before, .rp .card[aria-pressed="true"]::before, .rp .rlabel.focus::before {
+  content: ''; position: absolute; inset: -5px; padding: 3px; border-radius: 4px; pointer-events: none; z-index: 3;
+  background: conic-gradient(from var(--ta), transparent 0deg 170deg, rgba(255, 212, 0, .12) 210deg, rgba(255, 212, 0, .6) 300deg, #ffd400 340deg, #fff 356deg, transparent 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  filter: drop-shadow(0 0 3px rgba(255, 212, 0, .9)); animation: trail 1.6s linear infinite;
+}
+.rp .card[aria-pressed="true"]::before { inset: -6px; border-radius: 10px; }
+@keyframes trail { to { --ta: 360deg; } }
+@media (prefers-reduced-motion: reduce) { .vgrid .ini.act::before, .rp .trickrow figure.now .mc::before, .rp .card[aria-pressed="true"]::before, .rp .rlabel.focus::before { animation: none; background: #ffd400; } }
