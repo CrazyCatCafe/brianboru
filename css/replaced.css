@@ -899,3 +899,17 @@ label > .flogo { width: 24px; height: 24px; margin: 0 6px 0 4px; }
 body.phasefly #stage { opacity: 0 !important; } #stage { transition: opacity .25s; }
 body.phasefly #stage h2 { visibility: visible; }
 .htrack .hc .g .logo + .logo { margin-left: -8px; box-shadow: -1px 0 0 rgba(0, 0, 0, .35); } /* due crediti: uno sopra l'altro, stanno nella casella */
+/* Panoramica e round: righe centrate e grandi, niente riquadri */
+.vsinfo { display: flex !important; flex-direction: column; align-items: center; gap: 14px; width: 100%; }
+.vline { display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; }
+.vline .vlab::before { display: none; }
+.vval { display: inline-flex; align-items: center; flex-wrap: wrap; justify-content: center; gap: 10px; font: 700 24px var(--num); color: #fff; }
+.vval b { font: 800 30px var(--num); } .vval .logo { width: 34px; height: 34px; display: inline-grid; place-items: center; background: #eef1f3; } .vval .logo svg { width: 26px; height: 26px; }
+.vval .tag { font: 700 14px var(--pix); background: #ffd400; color: #111; padding: 4px 10px; text-transform: uppercase; letter-spacing: .08em; }
+.vval .rzn { font: 700 18px var(--pix); text-transform: uppercase; display: inline-flex; align-items: center; gap: 8px; }
+.vval .rzn::before { content: ''; width: 14px; height: 14px; background: var(--rc); }
+.dchain { justify-content: center; gap: 8px 14px !important; } .dnm { font-size: 20px !important; } .dnm .pmark { font-size: 20px; }
+.dch { font-size: 34px !important; line-height: 1; }
+.vline .vsset { justify-content: center; }
+@media (max-width: 700px) { .vval { font-size: 17px; } .vval b { font-size: 22px; } .dnm { font-size: 14px !important; } .dch { font-size: 22px !important; } .vsinfo { gap: 8px; } }
+#game .rp-stage.vs { z-index: 90 !important; background: rgba(10, 12, 15, .95) !important; } /* sopra la mappa e i suoi cartelli */

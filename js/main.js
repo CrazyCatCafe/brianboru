@@ -889,23 +889,24 @@ function renderStage(s = state, pd = current(state)) {
       el.classList.add('vs');
       const isReady = i => isBot(i) || (local ? acked === showing.n : (room.acks?.[room.players[i]?.uid] ?? -1) >= showing.n);
       const first = showing.k === 'pregame' ? showing.start : s.active, round = showing.k === 'prep';
-      const cards = s.players.map((p, i) => `${i ? '<b class="vsx">VS</b>' : ''}<div class="vscard" style="--pc:${THEME.players[i] === '#1b1b1b' ? '#cfd6dc' : THEME.players[i]};--d:${i * 0.18}s">
+      const cards = s.players.map((p, i) => `<div class="vscard" style="--pc:${THEME.players[i] === '#1b1b1b' ? '#cfd6dc' : THEME.players[i]};--d:${i * 0.18}s">
         ${i === first ? '<em class="first">Fazione Attiva</em>' : ''}
         <span class="vslogo">${factionLogo(gangOf(i), 84)}</span><b class="vsname">${esc(p.name)}</b><span class="vsfac">${esc(gangOf(i))}</span>
         ${round ? `<span class="vspts"><b>${p.points}</b> punti${p.claims.length ? ` <small>+${p.claims.reduce((a, r) => a + REGIONS[r].points, 0)} municipi</small>` : ''}</span>` : ''}
         <span class="vsready${isReady(i) ? ' ok' : ''}">${isReady(i) ? 'Pronto' : 'Non pronto'}</span></div>`).join('');
       const total = s.players.length === 3 ? 3 : 4, n = s.players.length, dir = draftDir(round ? showing.round : 1);
-      const chain = Array.from({ length: n + 1 }, (_, k) => ((k * dir) % n + n) % n).map((i, k) => `${k ? '<b class="dch">→</b>' : ''}<span class="dnm">${pmark(i)}${esc(s.players[i].name)}</span>`);
-      const draftTile = `<div class="vtile wide"><span class="vlab">Senso del draft${round ? '' : ' · round 1'}</span><div class="dchain">${chain.join('')}</div>
-        <span class="vsub">Tieni 2 carte e passa le altre ${dir > 0 ? 'alla fazione a destra' : 'alla fazione a sinistra'}; nel round dopo si gira al contrario</span></div>`;
-      const tiles = round
-        ? `<div class="vtile"><span class="vlab">Polizia in arrivo</span><b class="vbig pol">${logo('polizia', 26)}${showing.police}</b><span class="vsub">in allerta: ${showing.area}</span></div>
-           <div class="vtile"><span class="vlab">Carta Hype del round</span><div class="vthype">${(c => c.princess ? '<b>Regina Estrid</b> · IA libera, tre scelte' : `<b>+${c.points}</b> punti${c.renown ? ' · <b>+1</b> street cred' : ''}${c.region ? ` · un quartiere in <span class="rzn" style="--rc:${THEME.region[c.region]}">${REGIONS[c.region].name}</span>` : ''}`)(showing.character)}</div><span class="vsub">la ingaggia chi è più avanti nell'hype</span></div>${draftTile}`
-        : `<div class="vtile"><span class="vlab">Round</span><b class="vbig">${total}</b><span class="vsub">nell'ultimo arriva la Regina Estrid</span></div>
-           <div class="vtile"><span class="vlab">Setup</span><b class="vmid">Scegli un quartiere di partenza</b><span class="vsub">in una zona dove non c'è nessun'altra fazione</span></div>${draftTile}
-           <div class="vtile wide vset"><span class="vlab">Impostazioni</span><div class="vsset"><span>Grafica <b class="seg" data-quality></b></span><span>Musica <b class="seg" data-aud="music"><button data-on="1">Sì</button><button data-on="0">No</button></b></span>
+      // senso del draft: i giocatori nell'ordine dei posti, con la freccia grande verso chi riceve le carte
+      const chain = s.players.map((p, i) => `${i ? `<b class="dch">${dir > 0 ? '→' : '←'}</b>` : ''}<span class="dnm">${pmark(i)}${esc(p.name)}</span>`).join('');
+      const draftLine = `<div class="vline"><span class="vlab">Draft${round ? '' : ' · round 1'}</span><div class="dchain">${chain}</div></div>`;
+      const c = showing.character;
+      const hypeLine = c ? `<div class="vline"><span class="vval"><b class="tag">Hype</b>${c.princess ? '<b>Regina Estrid</b>' : `<b>+${c.points}</b>${logo('punti', 22)}${c.renown ? `<b>+1</b>${logo('cred', 22)}` : ''}${c.region ? `<span class="rzn" style="--rc:${THEME.region[c.region]}">${REGIONS[c.region].name}</span>` : ''}`}</span></div>` : '';
+      const lines = round
+        ? `<div class="vline"><span class="vval">${logo('polizia', 30)}Polizia <b>${showing.police}</b></span></div>${hypeLine}${draftLine}`
+        : `<div class="vline"><span class="vval">Round <b>${total}</b></span></div>
+           <div class="vline"><span class="vlab">Setup</span><span class="vval">Scegli un quartiere di partenza</span></div>${draftLine}
+           <div class="vline"><div class="vsset"><span>Grafica <b class="seg" data-quality></b></span><span>Musica <b class="seg" data-aud="music"><button data-on="1">Sì</button><button data-on="0">No</button></b></span>
             <span>Effetti <b class="seg" data-aud="sfx"><button data-on="1">Sì</button><button data-on="0">No</button></b></span><label>Volume <input type="range" min="0" max="100" data-vol aria-label="Volume"></label></div></div>`;
-      const info = `<div class="vsinfo" style="--d0:${n * 0.18 + 0.45}s">${tiles}</div>`; // prima entrano i giocatori, poi le informazioni
+      const info = `<div class="vsinfo" style="--d0:${n * 0.18 + 0.45}s">${lines}</div>`; // prima entrano i giocatori, poi le informazioni
       el.innerHTML = `<h2>${round ? `Round ${showing.round} di ${total}${showing.final ? ' · ultimo' : ''}` : 'Panoramica di gioco'}</h2><div class="vsrow">${cards}</div>${info}
         <div class="vsgo" style="--d0:${n * 0.18 + 0.9}s">${acked === showing.n && waitingAcks().length ? `<p class="waitack">Aspettiamo: ${waitingAcks().map(i => `<span class="blink">${who(s, i)}</span>`).join(' ')}</p>`
           : `<button class="btn" id="next" aria-keyshortcuts="Space">Pronto</button>`}</div>`;
