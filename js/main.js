@@ -71,12 +71,44 @@ $('nick-form').onsubmit = guard(async e => {
 $('logout').onclick = $('nick-out').onclick = guard(() => net.signOut());
 
 // ---------- lobby ----------
-document.querySelectorAll('.dash-nav a').forEach(a => (a.onclick = e => { e.preventDefault(); $(a.getAttribute('href').slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' }); })); // tutte le sezioni sono in colonna: il menu porta alla sezione
+// box del menu uno sotto l'altro: cliccando si apre il cassetto con le opzioni (uno alla volta, si ricorda l'ultimo)
+const MENU_PX = {
+  online: ['....##....', '...#..#...', '..#.##.#..', '....##....', '...####...', '....##....', '...#..#...', '..#....#..', '.#......#.', '##########'], // antenna
+  locale: ['....oo....', '....##....', '.########.', '.#..##..#.', '.#.o##o.#.', '.########.', '.##....##.', '.########.', '..#....#..', '.###..###.'], // bot
+  amici: ['..##...##.', '.####.####', '.####.####', '..##...##.', '..........', '.####.####', '##########', '##########', '##########', '##########'], // due persone
+};
+const menuIcon = (k, c) => `<svg viewBox="0 0 40 40" shape-rendering="crispEdges" aria-hidden="true">${MENU_PX[k].flatMap((r, y) => [...r].map((ch, x) => (ch === '#' || ch === 'o' ? `<rect x="${x * 4}" y="${y * 4}" width="4" height="4" fill="${ch === 'o' ? '#ffd400' : c}"/>` : ''))).join('')}</svg>`;
+function renderMenuIcons() {
+  document.querySelectorAll('.accb').forEach(sec => {
+    const ic = sec.querySelector('[data-ic]'), k = ic.dataset.ic;
+    if (k === 'profilo') { sec.style.setProperty('--c', FACTION_COLORS[gang()] === '#1b1b1b' ? '#cfd6dc' : FACTION_COLORS[gang()]); ic.innerHTML = factionLogo(gang(), 50); }
+    else ic.innerHTML = menuIcon(k, getComputedStyle(sec).getPropertyValue('--c').trim());
+  });
+}
+function openAcc(id, toggle = false) {
+  document.querySelectorAll('.accb').forEach(sec => {
+    const on = sec.id === id && !(toggle && sec.classList.contains('open'));
+    sec.classList.toggle('open', on); sec.querySelector('.drawer').hidden = !on;
+    sec.querySelector('.mhead').setAttribute('aria-expanded', String(on)); sec.querySelector('.arr').textContent = on ? '▾' : '▸';
+  });
+  try { localStorage.setItem('bb-acc', document.querySelector('.accb.open')?.id || ''); } catch {}
+}
+document.querySelectorAll('.accb .mhead').forEach(h => (h.onclick = () => openAcc(h.parentElement.id, true)));
+// numero di bot: pulsanti al posto del menu a tendina
+document.querySelectorAll('select[data-seg]').forEach(sel => {
+  const seg = document.createElement('span'); seg.className = 'seg'; seg.setAttribute('role', 'group');
+  const draw = () => { seg.innerHTML = [...sel.options].map(o => `<button type="button" aria-pressed="${o.value === sel.value}">${o.value}</button>`).join(''); seg.querySelectorAll('button').forEach(b => (b.onclick = () => { sel.value = b.textContent; draw(); })); };
+  sel.hidden = true; sel.after(seg); draw();
+});
+if (!net) { renderMenuIcons(); openAcc('p-solo'); } // senza Firebase: solo la partita locale, già aperta
 let lobbyReady = false, friends = [];
 function enterLobby() {
+  renderMenuIcons();
+  let last = ''; try { last = localStorage.getItem('bb-acc') ?? ''; } catch {}
+  openAcc(last && $(last) && getComputedStyle($(last)).display !== 'none' ? last : net ? 'p-create' : 'p-solo');
   show('lobby');
   $('me').innerHTML = `<b>${esc(me.nick)}</b>`;
-  $('pf-nick').textContent = me.nick; $('pf-mail').textContent = net.email();
+  $('pf-nick').textContent = me.nick; $('sub-profile').textContent = me.nick; $('pf-mail').textContent = net.email();
   if ($('solo-name').value === 'Tu') $('solo-name').value = me.nick;
   const saved = localStorage.getItem('bb-gang'), sv = saved && document.querySelector(`[name=gang][value="${saved}"]`); if (sv) sv.checked = true;
   if (lobbyReady) return;
@@ -88,14 +120,14 @@ function enterLobby() {
   const code = location.hash.slice(1).toUpperCase();
   if (/^[A-Z]{5}$/.test(code)) openRoom(code, true).catch(e => toast(friendly(e)));
 }
-document.querySelectorAll('[name=gang]').forEach(r => (r.onchange = () => localStorage.setItem('bb-gang', gang())));
+document.querySelectorAll('[name=gang]').forEach(r => (r.onchange = () => { localStorage.setItem('bb-gang', gang()); renderMenuIcons(); }));
 
 const otherGangs = () => FACTION_NAMES.filter(g => g !== gang());
-document.querySelectorAll('[name=gang]').forEach(r => r.insertAdjacentHTML('afterend', factionLogo(r.value, 18))); // scelta della fazione col suo logo
+document.querySelectorAll('[name=gang]').forEach(r => { r.insertAdjacentHTML('afterend', factionLogo(r.value, 42)); const c = FACTION_COLORS[r.value]; r.parentElement.style.setProperty('--fc', c === '#1b1b1b' ? '#cfd6dc' : c); }); // fazioni come box col loro logo e colore
 $('create').onclick = guard(async () => openRoom(await net.createGame(gang(), +$('create-bots').value, otherGangs())));
 async function openRoom(code, join = true) {
   if (join) await net.joinGame(code, gang());
-  unwatch?.(); roomCode = code; location.hash = code; local = false; seenN = null;
+  unwatch?.(); roomCode = code; location.hash = code; local = false; seenN = null; openAcc('p-create');
   unwatch = net.watchGame(code, g => {
     room = g;
     if (g.status === 'lobby') { if (!$('game').hidden) show('lobby'); renderRoom(); }
@@ -126,7 +158,8 @@ function renderRoom() {
 // le mie partite: apri, cancella (se le hai create tu) o esci (se sei stato invitato)
 const STATUS = { lobby: 'in attesa', play: 'in corso', end: 'finita' };
 function renderMyGames(list) {
-  const mine = g => g.host === net.uid();
+  const mine = g => g.host === net.uid(), live = list.filter(g => g.status === 'play').length;
+  myGamesN = live; onlineSub();
   $('mygames').innerHTML = list.length ? list.map(g => `<li><span><b>${g.code}</b> · ${STATUS[g.status] || g.status} · ${g.players.map(p => esc(p.nick)).join(', ')}</span>
     <span><button class="btn small" data-open="${g.code}">Apri</button> <button class="btn ghost small" data-${mine(g) ? 'del' : 'out'}="${g.code}">${mine(g) ? 'Cancella' : 'Esci'}</button></span></li>`).join('') : '<li class="empty">Nessuna partita.</li>';
   $('mygames').querySelectorAll('[data-open]').forEach(b => (b.onclick = guard(() => openRoom(b.dataset.open))));
@@ -137,13 +170,18 @@ function renderMyGames(list) {
     if (g.status === 'lobby') await net.leaveGame(g.code); else await net.hideGame(g.code);
   })));
 }
+let myGamesN = 0, invitesN = 0;
+const onlineSub = () => ($('sub-online').textContent = [myGamesN ? `${myGamesN} ${myGamesN === 1 ? 'partita' : 'partite'} in corso` : '', invitesN ? `${invitesN} ${invitesN === 1 ? 'invito' : 'inviti'}` : ''].filter(Boolean).join(' · ') || 'Crea una partita e invita gli amici');
 function renderInvites(list) {
+  invitesN = list.length; onlineSub();
   $('invites').innerHTML = list.length ? list.map(i => `<li><span><b>${esc(i.from)}</b> ti invita (${esc(i.code)})</span>
     <span><button class="btn small" data-go="${esc(i.code)}">Entra</button> <button class="btn ghost small" data-no="${esc(i.code)}">Ignora</button></span></li>`).join('') : '<li class="empty">Nessun invito.</li>';
   $('invites').querySelectorAll('[data-go]').forEach(b => (b.onclick = guard(async () => { await openRoom(b.dataset.go); net.dismissInvite(b.dataset.go); })));
   $('invites').querySelectorAll('[data-no]').forEach(b => (b.onclick = guard(() => net.dismissInvite(b.dataset.no))));
 }
 function renderFriends() {
+  const ok = friends.filter(f => f.st === 'ok'), on = ok.filter(f => f.online).length;
+  $('sub-friends').textContent = ok.length ? `${ok.length} ${ok.length === 1 ? 'amico' : 'amici'} · ${on} online` : friends.length ? 'Richieste in sospeso' : 'Ancora nessun amico';
   const order = { in: 0, ok: 1, out: 2 };
   $('friends').innerHTML = friends.length ? [...friends].sort((a, b) => order[a.st] - order[b.st] || b.online - a.online).map(f => `<li>
     <span><i class="dot ${f.online ? 'on' : ''}" title="${f.online ? 'online' : 'offline'}"></i><b>${esc(f.nick)}</b>

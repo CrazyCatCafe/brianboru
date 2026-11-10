@@ -84,53 +84,58 @@
       <span id="me" class="me"></span>
       <p class="note offline-only">Server online non raggiungibile: puoi giocare in solitario.</p>
     </header>
-    <nav class="dash-nav online-only" aria-label="Menu principale">
-      <a href="#p-profile">Profilo</a><a href="#p-create">Crea partita online</a><a href="#p-solo">Gioca con i bot</a><a href="#p-friends">Amici</a><a href="#p-mine">Le mie partite</a>
-    </nav>
-    <div class="lobby-grid">
-      <section class="panel online-only" id="p-profile">
-        <h2>Profilo</h2>
-        <dl class="profile"><dt>Nickname</dt><dd id="pf-nick"></dd><dt>Account</dt><dd id="pf-mail"></dd></dl>
-        <p class="note">La fazione scelta in "Crea partita online" resta salvata su questo dispositivo.</p>
-        <button id="logout" class="btn ghost wide">Esci dall'account</button>
+    <div class="lobby-grid acc">
+      <section class="accb online-only" id="p-create" style="--c:#ff3d3d">
+        <button class="mhead" type="button" aria-expanded="false"><span class="ic" data-ic="online"></span><span class="mt"><b>Partita online</b><span id="sub-online">Crea una partita e invita gli amici</span></span><span class="arr" aria-hidden="true">▸</span></button>
+        <div class="drawer" hidden>
+          <fieldset class="gang">
+            <legend>La tua fazione</legend>
+              <label><input type="radio" name="gang" value="Technoborghesi" checked> Technoborghesi</label>
+              <label><input type="radio" name="gang" value="Punk"> Punk</label>
+              <label><input type="radio" name="gang" value="Partite Iva"> Partite Iva</label>
+              <label><input type="radio" name="gang" value="Startuppers"> Startuppers</label>
+              <label><input type="radio" name="gang" value="Le Sciure"> Le Sciure</label>
+          </fieldset>
+          <div class="go">
+            <label class="field">Bot nella partita <select id="create-bots" data-seg><option selected>0</option><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
+            <button id="create" class="btn red">Crea partita</button>
+          </div>
+          <p class="note">I bot li muove il computer di chi crea la partita. Puoi aggiungerne o toglierne anche nella sala d'attesa.</p>
+          <div id="room" class="room" hidden></div>
+          <h3>Inviti</h3>
+          <ul id="invites" class="list"><li class="empty">Nessun invito.</li></ul>
+          <h3>Le mie partite</h3>
+          <ul id="mygames" class="list"><li class="empty">Nessuna partita.</li></ul>
+        </div>
       </section>
-      <section class="panel online-only" id="p-create">
-        <h2>Crea partita online</h2>
-        <fieldset class="gang">
-          <legend>La tua fazione</legend>
-            <label><input type="radio" name="gang" value="Technoborghesi" checked> Technoborghesi</label>
-            <label><input type="radio" name="gang" value="Punk"> Punk</label>
-            <label><input type="radio" name="gang" value="Partite Iva"> Partite Iva</label>
-            <label><input type="radio" name="gang" value="Startuppers"> Startuppers</label>
-            <label><input type="radio" name="gang" value="Le Sciure"> Le Sciure</label>
-        </fieldset>
-        <label class="field">Bot nella partita <select id="create-bots"><option selected>0</option><option>1</option><option>2</option><option>3</option><option>4</option></select></label>
-        <p class="note">I bot li muove il computer di chi crea la partita. Puoi aggiungerne o toglierne anche nella sala d'attesa.</p>
-        <button id="create" class="btn wide">Crea partita</button>
-        <div id="room" class="room" hidden></div>
+      <section class="accb" id="p-solo" style="--c:#00a6a6">
+        <button class="mhead" type="button" aria-expanded="false"><span class="ic" data-ic="locale"></span><span class="mt"><b>Partita locale</b><span>Tu contro i bot, su questo dispositivo</span></span><span class="arr" aria-hidden="true">▸</span></button>
+        <div class="drawer" hidden>
+          <label class="field">Il tuo nome <input id="solo-name" maxlength="16" value="Tu"></label>
+          <div class="go">
+            <label class="field">Bot <select id="local-bots" data-seg><option>2</option><option>3</option><option>4</option></select></label>
+            <button id="local" class="btn red">Gioca</button>
+          </div>
+        </div>
       </section>
-      <section class="panel" id="p-solo">
-        <h2>Gioca con i bot</h2>
-        <p class="note">Tu contro i bot, su questo dispositivo.</p>
-        <label class="field">Il tuo nome <input id="solo-name" maxlength="16" value="Tu"></label>
-        <label class="field">Bot <select id="local-bots"><option>2</option><option>3</option><option>4</option></select></label>
-        <button id="local" class="btn wide">Gioca</button>
+      <section class="accb online-only" id="p-friends" style="--c:#6c3bff">
+        <button class="mhead" type="button" aria-expanded="false"><span class="ic" data-ic="amici"></span><span class="mt"><b>Amici</b><span id="sub-friends">Ancora nessun amico</span></span><span class="arr" aria-hidden="true">▸</span></button>
+        <div class="drawer" hidden>
+          <form id="friend-form" class="row">
+            <input id="friend-nick" placeholder="Nickname" aria-label="Nickname dell'amico" maxlength="16">
+            <button class="btn">Aggiungi</button>
+          </form>
+          <p id="friend-msg" class="msg" role="alert"></p>
+          <ul id="friends" class="list"><li class="empty">Ancora nessun amico.</li></ul>
+        </div>
       </section>
-      <section class="panel online-only" id="p-friends">
-        <h2>Amici</h2>
-        <form id="friend-form" class="row">
-          <input id="friend-nick" placeholder="Nickname" aria-label="Nickname dell'amico" maxlength="16">
-          <button class="btn">Aggiungi</button>
-        </form>
-        <p id="friend-msg" class="msg" role="alert"></p>
-        <ul id="friends" class="list"><li class="empty">Ancora nessun amico.</li></ul>
-      </section>
-      <section class="panel online-only" id="p-mine">
-        <h2>Le mie partite</h2>
-        <h3>Inviti</h3>
-        <ul id="invites" class="list"><li class="empty">Nessun invito.</li></ul>
-        <h3>Partite</h3>
-        <ul id="mygames" class="list"><li class="empty">Nessuna partita.</li></ul>
+      <section class="accb online-only" id="p-profile" style="--c:#ff2d87">
+        <button class="mhead" type="button" aria-expanded="false"><span class="ic" data-ic="profilo"></span><span class="mt"><b>Profilo</b><span id="sub-profile"></span></span><span class="arr" aria-hidden="true">▸</span></button>
+        <div class="drawer" hidden>
+          <dl class="profile"><dt>Nickname</dt><dd id="pf-nick"></dd><dt>Account</dt><dd id="pf-mail"></dd></dl>
+          <p class="note">La fazione scelta in "Partita online" resta salvata su questo dispositivo.</p>
+          <button id="logout" class="btn ghost wide">Esci dall'account</button>
+        </div>
       </section>
     </div>
   </main>
