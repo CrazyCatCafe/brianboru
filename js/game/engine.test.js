@@ -138,4 +138,20 @@ for (let g = 0; g < 40; g++) {
   b = move({ ...b, pending: [{ type: 'princess', p: 0 }] }, 0, { choice: 'spurn' }); // fa girare l'upkeep fino all'uprising
   assert.equal(b.claims.MUN.owner, 0, 'con 5 quartieri contro 4 presidi la zona resta alla banda');
 }
+// controllo = valore: libero 1, community 2, polizia 0; parità in testa = contesa (anche con lo Scudo di Estrid in gioco)
+for (const [setup, want] of [
+  [[[0, 0], [0, 0], [1, 0], [1, 'V'], [2, 'M']], null],   // Lybra 2, Giacomo 1, Filippa 2 → contesa
+  [[[0, 0], [0, 0], [1, 0], [1, 'V'], [2, 0]], 0],        // Lybra 2, Giacomo 1, Filippa 1 → Lybra
+  [[[0, 'V'], [0, 'V'], [1, 0], [1, 'V'], [2, 'M']], 2],  // Lybra 0, Giacomo 1, Filippa 2 → Filippa
+]) {
+  let b = newGame(['Lybra', 'Giacomo', 'Filippa'], 7);
+  Object.values(b.towns).forEach(t => Object.assign(t, { owner: null, viking: false, monastery: false }));
+  const ids = TOWNS.filter(t => t.region === 'MUN').map(t => t.id);
+  setup.forEach(([o, f], k) => Object.assign(b.towns[ids[k]], { owner: o, viking: f === 'V', monastery: f === 'M' }));
+  b.claims.MUN = { up: true, owner: null };
+  b.players[1].princess = 'military';
+  b.pending = []; b.stage = 'claim';
+  b = move({ ...b, pending: [{ type: 'princess', p: 0 }] }, 0, { choice: 'spurn' });
+  assert.equal(b.claims.MUN.owner, want, JSON.stringify(setup));
+}
 console.log('ok: 600 partite simulate, 60 partite tra bot');

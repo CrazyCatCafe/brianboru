@@ -185,12 +185,13 @@ const STAGES = {
     s.stage = 'claim';
   },
   claim(s) {
-    const ev = { k: 'uprising', flips: [], changes: [] };
+    const ev = { k: 'uprising', flips: [], changes: [], values: {} };
     for (const [r, c] of Object.entries(REGIONS)) {
-      const cl = s.claims[r], counts = regionCounts(s, r, 'military');
+      const cl = s.claims[r], counts = regionCounts(s, r); // valore: libero 1, community 2, polizia 0 (lo Scudo di Estrid vale solo a fine partita)
       const total = Object.values(regionCounts(s, r)).reduce((a, b) => a + b, 0);
       if (!cl.up && total >= c.threshold) { cl.up = true; ev.flips.push(r); log(s, `${c.name} è in palio.`); }
       if (!cl.up) continue;
+      ev.values[r] = Object.fromEntries(Object.entries(counts).filter(([k]) => k !== 'V'));
       // la polizia conta solo per la soglia: il controllo si decide tra le bande (regola della casa)
       const bands = Object.keys(counts).filter(k => k !== 'V'), max = Math.max(0, ...bands.map(k => counts[k])), top = bands.filter(k => counts[k] === max);
       if (max === 0 || top.length !== 1) continue;
