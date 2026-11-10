@@ -104,8 +104,9 @@ const FACTION_PX = {
 };
 export const factionLogo = (name, size = 16) => FACTION_PX[name]
   ? `<span class="logo flogo" title="${name}"><svg viewBox="0 0 40 40" width="${size}" height="${size}" shape-rendering="crispEdges" aria-hidden="true">${FACTION_PX[name](FACTION_COLORS[name])}</svg></span>` : '';
-export const LOGO_COLORS = { cred: '#b8860b', hype: '#7d868e', guerrilla: '#e62e2d', community: '#14a04b', uprising: '#111111', punti: '#111111', crediti: '#d9a400', polizia: '#1f5fbf' };
-const LOGOS = { cred: c => PIXEL.R(c), hype: c => PIXEL.M(c), guerrilla: c => PIXEL.A(c), community: c => PIXEL.X(c), uprising: FIST_PX, punti: CUP_PX, crediti: c => PIXEL.C(c), polizia: SHIELD_PX }; // tutto in pixel art
-export const LOGO_NAMES = { cred: 'Street cred', hype: 'Hype', guerrilla: 'Guerrilla', community: 'Community', uprising: 'Uprising', punti: 'Punti', crediti: 'Crediti', polizia: 'Polizia' };
+export const LOGO_COLORS = { quartiere: '#e62e2d', carte: '#111111', cred: '#b8860b', hype: '#7d868e', guerrilla: '#e62e2d', community: '#14a04b', uprising: '#111111', punti: '#111111', crediti: '#d9a400', polizia: '#1f5fbf' };
+const CARDS_PX = pix(['..######..', '.#......#.', '.#.####.#.', '##.####.##', '##......#.', '#.#....#..', '#..####...', '#......#..', '########..', '..........']); // due carte a ventaglio (draft)
+const LOGOS = { quartiere: c => PIXEL.T(c), carte: CARDS_PX, cred: c => PIXEL.R(c), hype: c => PIXEL.M(c), guerrilla: c => PIXEL.A(c), community: c => PIXEL.X(c), uprising: FIST_PX, punti: CUP_PX, crediti: c => PIXEL.C(c), polizia: SHIELD_PX }; // tutto in pixel art
+export const LOGO_NAMES = { quartiere: 'Quartiere', carte: 'Draft', cred: 'Street cred', hype: 'Hype', guerrilla: 'Guerrilla', community: 'Community', uprising: 'Uprising', punti: 'Punti', crediti: 'Crediti', polizia: 'Polizia' };
 export const logo = (kind, size = 20) =>
   `<span class="logo" style="--hole:#eef1f3" title="${LOGO_NAMES[kind]}"><svg viewBox="0 0 40 40" width="${size}" height="${size}" shape-rendering="crispEdges" aria-hidden="true">${LOGOS[kind](LOGO_COLORS[kind])}</svg></span>`;

@@ -731,7 +731,6 @@ body.phasefly #stage h2 { visibility: hidden; }
 .rrow { gap: 3px; }
 .toolrow { display: flex; gap: 8px; align-items: stretch; }
 .toolrow > #tools { flex: 1; min-width: 0 !important; width: auto !important; }
-.toolrow > #tools[open] { flex-basis: 100%; }
 .toolrow { flex-wrap: wrap; }
 .rp .toolrow > .exit { width: auto !important; min-width: 0 !important; flex: none; padding: 6px 12px; }
 .htrack { margin-top: 5px; }
@@ -776,7 +775,7 @@ body.phasefly #stage h2 { visibility: hidden; }
 #b-players .zoom { z-index: 3; }
 .vgrid tbody th, .vgrid tfoot th, .vgrid thead tr > td:first-child { width: 1%; }
 .vgrid tr.draftdir .dl { margin-right: 4px; }
-body.pxswap #stage h2 { visibility: hidden; }
+body.pxswap #stage h2:not(:has(.ttl)), body.pxswap #stage h2 .ttl { visibility: hidden; }
 body.pxswap-turn #turn .big { visibility: hidden; }
 /* loghi delle fazioni in pixel art: nella scelta, accanto al nome, sulla track hype */
 .logo svg[shape-rendering="crispEdges"] { image-rendering: pixelated; }
@@ -875,3 +874,28 @@ label > .flogo { width: 24px; height: 24px; margin: 0 6px 0 4px; }
 .vthype .rzn::before { content: ''; display: inline-block; width: 10px; height: 10px; background: var(--rc); margin-right: 6px; vertical-align: 0; }
 #lobby .gang { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
 #lobby .gang label { display: flex; align-items: center; gap: 6px; white-space: nowrap; }
+/* loghi: quadrato bianco dritto, niente prospettiva */
+.logo { transform: none; box-shadow: none; }
+/* Grafica e audio: si apre sopra le altre box, non sposta né ridimensiona nulla */
+#tools { position: relative; }
+#tools .toolpop { position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 30; width: max-content; max-width: min(360px, 90vw); display: grid; gap: 8px; padding: 12px; background: #12161a; border: 1px solid var(--rp-line); box-shadow: 0 10px 30px rgba(0, 0, 0, .5); }
+#tools[open] > summary { margin-bottom: 0; }
+/* track dell'azione hype: bassa, 9 caselle, il tuo logo grande che avanza a passi */
+.htrk { position: relative; margin: 8px 0 4px; }
+.hcells { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 3px; }
+.hcell { height: 44px; display: grid; grid-template-rows: 18px 1fr; justify-items: center; align-items: center; border: 1px solid var(--rp-line); background: rgba(255, 255, 255, .04); }
+.hcell.bonus { background: rgba(255, 255, 255, .09); } .hcell.mark { border-color: var(--rp-red); box-shadow: inset 0 0 0 1px var(--rp-red); }
+.hcell .b { display: flex; gap: 2px; } .hcell .b .logo { width: 17px; height: 17px; display: inline-grid; place-items: center; background: #eef1f3; } .hcell .b .logo svg { width: 13px; height: 13px; }
+.hcell .tok { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; } .hcell .tok .pmark { width: 13px; height: 13px; min-width: 0; min-height: 0; margin: 0; } .hcell .tok .pmark svg { width: 10px; height: 10px; min-width: 0; min-height: 0; }
+.hgo { --w: calc((100% - 24px) / 9); position: absolute; bottom: 3px; width: var(--w); display: grid; place-items: center; left: calc(var(--to) * (var(--w) + 3px)); animation-name: hgo; animation-fill-mode: both; }
+.hgo .pmark { width: 24px; height: 24px; margin: 0; box-shadow: 0 0 0 3px var(--pc), 0 4px 10px rgba(0, 0, 0, .5); } .hgo .pmark svg { width: 19px; height: 19px; }
+@keyframes hgo { from { left: calc(var(--from) * (var(--w) + 3px)); } }
+@media (prefers-reduced-motion: reduce) { .hgo { animation: none; } }
+/* box stat: 9 caselle (la partenza non si mostra) */
+.htrack { grid-template-columns: repeat(9, minmax(0, 1fr)) !important; }
+/* fase nel titolo del box: logo e nome, poi il titolo dell'azione */
+.phchip { display: inline-flex; align-items: center; gap: 6px; margin-right: 10px; padding: 2px 8px 2px 2px; background: var(--rp-red); color: #fff; font-size: .62em; vertical-align: .2em; }
+.phchip .logo { width: 22px; height: 22px; display: inline-grid; place-items: center; background: #eef1f3; }
+body.phasefly #stage { opacity: 0 !important; } #stage { transition: opacity .25s; }
+body.phasefly #stage h2 { visibility: visible; }
+.htrack .hc .g .logo + .logo { margin-left: -8px; box-shadow: -1px 0 0 rgba(0, 0, 0, .35); } /* due crediti: uno sopra l'altro, stanno nella casella */

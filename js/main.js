@@ -241,8 +241,7 @@ function renderRef() {
   $('ref-grid').innerHTML = REF_ORDER.map(row => `<div class="rrow${row.length === 1 ? ' wide' : ''}">${row.map(chip).join('')}</div>`).join('');
 }
 // strumenti (grafica, pixel) riducibili a icona; si ricorda la scelta
-try { $('tools').open = localStorage.getItem('bb-tools') === 'open'; } catch {}
-$('tools').ontoggle = () => { try { localStorage.setItem('bb-tools', $('tools').open ? 'open' : 'closed'); } catch {} fitZoom($('board')); };
+$('tools').open = false; // si apre solo se la vuoi, sopra le altre box: non cambia la grandezza di niente
 $('help').onclick = () => {
   $('glossary-list').innerHTML = Object.entries(SYMBOLS).map(([k, t]) => `<li>${icon(k, 22, 'currentColor', HOLE)}<span>${t}</span></li>`).join('');
   $('glossary').showModal();
@@ -364,7 +363,7 @@ const townChip = id => { const t = TOWNS[id], su = THEME.suit[t.color]; return `
 // ---------- fasi del round ----------
 const PHASES = [['prep', 'Preparazione'], ['draft', 'Draft'], ['trick', 'Azioni'], ['party', 'Underground Party'], ['guerrilla', 'Guerrilla'], ['community', 'Community Projects'], ['uprising', 'Uprising']];
 const PEND_PHASE = { setupTown: 'setup', draft: 'draft', activeTown: 'trick', play: 'trick', action: 'trick', princess: 'party', placeTown: 'party', loseTown: 'guerrilla', monastery: 'community' };
-const PHASE_LOGO = { trick: 'punti', party: 'hype', guerrilla: 'guerrilla', community: 'community', uprising: 'uprising', prep: 'polizia' };
+const PHASE_LOGO = { draft: 'carte', trick: 'punti', party: 'hype', guerrilla: 'guerrilla', community: 'community', uprising: 'uprising', prep: 'polizia', setup: 'quartiere' };
 function phaseBanner(k) {
   const name = [['setup', 'Setup'], ...PHASES].find(p => p[0] === k)?.[1];
   if (!name || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
@@ -372,9 +371,9 @@ function phaseBanner(k) {
   el.innerHTML = `<div class="pb">${PHASE_LOGO[k] ? logo(PHASE_LOGO[k], 34) : ''}<b>${name}</b></div>`;
   el.classList.remove('go'); void el.offsetWidth; el.classList.add('go'); sound('phase');
   document.body.classList.add('phasefly'); // finché il cartello non arriva, il box non ha titolo
-  clearTimeout(phaseBanner.t); phaseBanner.t = setTimeout(() => { document.body.classList.remove('phasefly'); pixelSwap(document.querySelector('#stage h2'), name); }, 1700); // atterrato: il nome della fase si sgretola nel titolo vero
+  clearTimeout(phaseBanner.t); phaseBanner.t = setTimeout(() => { document.body.classList.remove('phasefly'); pixelSwap(document.querySelector('#stage h2 .ttl') || document.querySelector('#stage h2'), name); }, 1700); // atterrato: il nome della fase si sgretola nel titolo vero
   requestAnimationFrame(() => { // il box viene disegnato dopo: si legge dove sta il suo titolo e ci si vola sopra
-    const pb = el.querySelector('.pb'), h = document.querySelector('#stage h2'), a = pb.getBoundingClientRect(), t = h?.getBoundingClientRect();
+    const pb = el.querySelector('.pb'), h = document.querySelector('#stage h2 .phchip') || document.querySelector('#stage h2'), a = pb.getBoundingClientRect(), t = h?.getBoundingClientRect();
     const end = t && t.width ? `translate(${t.left - a.left}px, ${t.top + t.height / 2 - (a.top + a.height / 2)}px) scale(${Math.min(1, t.height / a.height * 1.4)})` : 'translateY(-140px) scale(.5)';
     const ease = 'cubic-bezier(.2, .8, .2, 1)';
     pb.animate([{ opacity: 0, transform: 'translateX(-40vw)', easing: ease }, { opacity: 1, transform: 'none', offset: .2 }, { opacity: 1, transform: 'none', offset: .62, easing: 'cubic-bezier(.6, 0, .3, 1)' }, { opacity: 1, transform: end, offset: .95 }, { opacity: 0, transform: end }],
@@ -419,10 +418,12 @@ const ACK_ALL = new Set(['pregame', 'prep', 'party', 'final']);
 const SHOW_PHASE = { pregame: 'setup', discard: 'trick', setup: 'setup', final: 'uprising', estrid: 'party' };
 function checkAcks() { if (ACK_ALL.has(showing?.k) && acked === showing.n && !waitingAcks().length) { acked = null; nextEvent(); } }
 
-function hypeTrack(pos, { mark = null, note = '' } = {}) { // pos[i] = casella del giocatore i (0..9)
-  return `<div class="track">${MARRIAGE_TRACK.map((b, c) => `<div class="cell${c === mark ? ' mark' : ''}" title="Casella ${c + 1}">
-    <span class="b">${b === 'CC' ? icon('C', 13) + icon('C', 13) : b ? icon(b, 14) : ''}</span>
-    <span class="tok">${pos.map((p, i) => (p === c ? pmark(i) : '')).join('')}</span></div>`).join('')}</div>${note}`;
+function hypeTrack(pos, { mark = null, note = '', me = -1, from = 0 } = {}) { // pos[i] = casella del giocatore i (0..9); la 0 (partenza) non si mostra
+  const cells = MARRIAGE_TRACK.map((b, c) => (c === 0 ? '' : `<div class="hcell${c === mark ? ' mark' : ''}${b ? ' bonus' : ''}" title="Casella ${c}">
+    <span class="b">${hypeBonus(b, c, 15)}</span><span class="tok">${pos.map((p, i) => (p === c && i !== me ? pmark(i) : '')).join('')}</span></div>`)).join('');
+  const n = Math.max(1, mark - from), go = me >= 0 && mark > 0 // il tuo logo, grande, avanza casella per casella
+    ? `<span class="hgo" style="--to:${mark - 1};--from:${from - 1};animation-duration:${n * 0.28}s;animation-timing-function:steps(${n}, end)">${pmark(me)}</span>` : '';
+  return `<div class="htrk"><div class="hcells">${cells}</div>${go}</div>${note}`;
 }
 // guerrilla: casco della polizia con le unità in allerta e una barra per banda (unità neutralizzate), animabili
 function guerBoard(e, order, vals, { grow = false, lose = new Set(), raid = false, gone = false, hi = null, from = null } = {}) {
@@ -453,7 +454,7 @@ function tieNote(e) {
   return t[second] === t[w] ? `<p>Pari punti con ${who(state, second)}: vince chi controlla più zone, poi chi ha più carte Hype.</p>` : `<p>${who(state, w)} vince con <b>${t[w]} punti</b>.</p>`;
 }
 function partyTrack(pos, { zoom = false, hi = null, from = {}, bonus = null } = {}) {
-  const cells = MARRIAGE_TRACK.map((b, c) => `<div class="pc${b ? ' bonus' : ''}${bonus !== null && pos[bonus] === c ? ' got' : ''}"><span class="n">${c + 1}</span><span class="b">${b === 'CC' ? icon('C', 12) + icon('C', 12) : b ? icon(b, 13) : ''}</span></div>`).join('');
+  const cells = MARRIAGE_TRACK.map((b, c) => `<div class="pc${b ? ' bonus' : ''}${bonus !== null && pos[bonus] === c ? ' got' : ''}"><span class="n">${c || 'Via'}</span><span class="b">${b === 'CC' ? icon('C', 12) + icon('C', 12) : b ? icon(b, 13) : ''}</span></div>`).join('');
   const stack = {};
   const toks = pos.map((p, i) => { const k = stack[p] = (stack[p] ?? -1) + 1; return `<i class="pt${i === hi ? ' hi' : ''}" style="--pc:${THEME.players[i]};--x:${p};--y:${k};${from[i] != null ? `--fx:${from[i]};` : ''}"${from[i] != null ? ' data-move' : ''} title="${esc(state.players[i].name)}">${factionLogo(gangOf(i), 10)}</i>`; }).join('');
   return `<div class="ptrack${zoom ? ' zoom' : ''}"><div class="cells">${cells}</div>${toks}</div>`;
@@ -492,7 +493,7 @@ function steps(e) {
       const order = s.players.map((p, i) => i).filter(i => i !== W).sort((a, b) => e.track[b] - e.track[a]);
       const bonusOf = i => e.bonuses.find(x => x.p === i)?.b;
       const res = (upto, cardHi) => `<div class="partyres"><figure class="${cardHi ? 'hi' : ''}">${characterSVG(characterIndex(c))}</figure><table class="ptable">
-        <tr class="win${upto >= 0 ? ' on' : ''}"><td>${who(s, W)}</td><td>${upto >= 0 ? `ingaggia il personaggio: ${eff}${e.before && !c.princess ? ` · <b class="ptsup">punti ${e.before[W]} → ${e.before[W] + c.points}</b>` : ''}${upto >= 1 ? ' · torna alla casella 1' : ''}` : 'ottiene più hype'}</td></tr>
+        <tr class="win${upto >= 0 ? ' on' : ''}"><td>${who(s, W)}</td><td>${upto >= 0 ? `ingaggia il personaggio: ${eff}${e.before && !c.princess ? ` · <b class="ptsup">punti ${e.before[W]} → ${e.before[W] + c.points}</b>` : ''}${upto >= 1 ? ' · torna alla partenza' : ''}` : 'ottiene più hype'}</td></tr>
         ${order.map((i, k) => `<tr class="${upto >= 2 + k ? 'on' : 'dim'}"><td>${who(s, i)}</td><td>${upto >= 2 + k ? (bonusOf(i) ? BONUS[bonusOf(i)] : 'nessun bonus') : ''}</td></tr>`).join('')}</table></div>`;
       const out = [
         { t: 'Underground Party', b: partyTrack(e.track, { zoom: true }) + '<p>Chi è più avanti nell\'hype ingaggia il personaggio.</p>' },
@@ -522,7 +523,7 @@ function steps(e) {
     }
     case 'community': {
       const out = [{ t: 'Community Projects', b: `<ul class="plain">${list(e.church.map((c, i) => `<li>${who(s, i)} ${c} di comunità</li>`))}</ul>` }];
-      out.push(e.first !== null ? { t: `${who(s, e.first)} guida la comunità`, b: '<p>Avvia un progetto urbano e diventa la Fazione Attiva.</p>' } : { t: 'Nessun capo', b: '<p>Pareggio o nessuno: niente progetto principale.</p>' });
+      out.push(e.first !== null ? { t: `${who(s, e.first)} guida la comunità`, b: '<p>Avvia un progetto urbano e diventa la Fazione Attiva.</p>' } : { t: 'Pareggio', b: '<p>Pareggio o nessuno: niente progetto principale.</p>' });
       if (e.ties.length) out.push({ t: '+1 punto', b: `<p>${e.ties.map(i => who(s, i)).join(', ')}</p>` });
       if (e.fours.length) out.push({ t: 'Progetti con 4 o più', b: `<p>${e.fours.map(i => who(s, i)).join(', ')} avviano un progetto urbano.</p>` });
       return out;
@@ -602,9 +603,9 @@ function render() {
   renderPhases(s, pd); renderBoard(s, pd); renderTurn(s, pd, wk); renderStage(s, pd); renderHand(s, pd);
   fitAll();
   if (fkey) document.querySelector(fkey)?.focus({ preventScroll: true }); // il focus non si perde quando il pannello si aggiorna
-  const said = $('stage').querySelector('h2')?.textContent || '';
+  const tEl = $('stage').querySelector('h2 .ttl') || $('stage').querySelector('h2'), said = tEl?.textContent || '';
   if (said !== lastSaid) { // titolo nuovo: la scritta vecchia si sgretola e la nuova si ricompone (mentre vola il cartello di fase ci pensa lui)
-    if (lastSaid && !document.body.classList.contains('phasefly')) pixelSwap($('stage').querySelector('h2'), lastSaid);
+    if (lastSaid && !document.body.classList.contains('phasefly')) pixelSwap(tEl, lastSaid);
     $('announce').textContent = said; lastSaid = said;
   } // lo screen reader sente solo il titolo nuovo
   $('log').innerHTML = [...s.log].reverse().map(l => `<li>${logLine(s, l)}</li>`).join('');
@@ -659,8 +660,7 @@ function bindPeek(s) { // "Vedi carta": la carta Hype si apre accanto alla planc
   show(hypeLit);
 }
 // track dell'hype: logo del bonus a colori in alto (la casella 1 è la partenza, la 10 ha il logo dell'Hype)
-const hypeBonus = (b, c) => c === 9 ? logo('hype', 12) : !b ? '' : b === 'CC' ? icon('C', 12, '#ffc20e', HOLE) + icon('C', 12, '#ffc20e', HOLE)
-  : icon(b, 12, { C: '#ffc20e', R: '#f2b100', T: '#ff3d3d' }[b], HOLE);
+const hypeBonus = (b, c, z = 12) => c === 9 ? logo('hype', z) : !b ? '' : b === 'CC' ? logo('crediti', z) + logo('crediti', z) : logo({ C: 'crediti', R: 'cred', T: 'quartiere' }[b], z); // crediti gialli, street cred, quartiere
 // riassunto della carta Hype: punti con la coppa, zona col triangolo (o street cred, o IA libera)
 // Regina Estrid: cosa daresti adesso con ciascuna scelta
 function estridNow(s, p) {
@@ -713,8 +713,8 @@ function renderBoard(s, pd) {
     <tfoot><tr${phaseNow === 'guerrilla' ? ' class="on"' : ''}><th scope="row">${lab('polizia', 'guerrilla')}</th><td colspan="${shown.length}">${s.area}</td></tr></tfoot>
     </table>
     </div>
-    <div class="htrack${phaseNow === 'party' ? ' on' : ''}${actionSyms(s, pd).includes('M') ? ' flash' : ''}" role="img" aria-label="Hype: ${s.players.map(p => `${esc(p.name)} casella ${p.mar + 1}`).join(', ')}">${MARRIAGE_TRACK.map((b, c) =>
-      `<span class="hc${b ? ' bonus' : ''}" title="Hype ${c + 1}: ${c ? (b ? BONUS_TIP[b] : 'nessun bonus') : 'partenza delle fazioni'}"><span class="g">${hypeBonus(b, c)}</span><span class="pw">${s.players.map((p, i) => (p.mar === c ? (bigBoard ? ftok(i) : pdot(i)) : '')).join('')}</span></span>`).join('')}</div>
+    <div class="htrack${phaseNow === 'party' ? ' on' : ''}${actionSyms(s, pd).includes('M') ? ' flash' : ''}" role="img" aria-label="Hype: ${s.players.map(p => `${esc(p.name)} ${p.mar ? 'casella ' + p.mar : 'alla partenza'}`).join(', ')}">${MARRIAGE_TRACK.map((b, c) => (c === 0 ? '' : // la casella di partenza non si mostra: chi è a 0 non è ancora sul tracciato
+      `<span class="hc${b ? ' bonus' : ''}" title="Hype ${c}: ${b ? BONUS_TIP[b] : 'nessun bonus'}"><span class="g">${hypeBonus(b, c)}</span><span class="pw">${s.players.map((p, i) => (p.mar === c ? (bigBoard ? ftok(i) : pdot(i)) : '')).join('')}</span></span>`)).join('')}</div>
     ${s.marriage ? `<div class="hstrip"><b class="tag">Hype</b>${hypeSummary(s, s.marriage)}<button class="peek btn ghost small" type="button">Vedi carta</button></div>` : ''}`;
   $('b-players').querySelector('.zoom').onclick = () => { // si allarga (o stringe) con un'animazione; allargando, le colonne degli altri entrano una alla volta
     const box = $('b-players'), w0 = box.offsetWidth;
@@ -800,8 +800,7 @@ function renderHand(s, pd) {
 }
 function playCard(v, ok, choosingTown) {
   if (!ok(v)) return choosingTown && ui.town == null ? toast('Prima scegli il quartiere in gioco sulla mappa o dall\'elenco') : toast('Questa carta non si può giocare adesso');
-  if (ui.armed !== v) { ui.armed = v; return render(); } // ogni scelta va confermata: il clic seleziona, il pulsante gioca
-  if (choosingTown) act({ town: ui.town }, { card: v }); else act({ card: v });
+  if (ui.armed !== v) { ui.armed = v; render(); } // il clic seleziona; si gioca solo con il pulsante "Gioca la carta"
 }
 
 // cosa hanno fatto gli altri con le carte della presa, con le parole del gioco (Crediti, Hype, Guerrilla, Community, Punti)
@@ -849,10 +848,10 @@ function hypePreview(s, pl, syms, extra) { // dove arriva il disco sulla track, 
   let pos = Math.min(9, pl.mar + nM + extra);
   const aim = pos;
   while (pos > 0 && others.includes(pos)) pos--;
-  const note = pos === aim ? `<p>Arrivi alla casella <b>${pos + 1}</b>.</p>`
-    : extra > 0 ? `<p class="warn" role="alert">Attenzione: paghi ${extra * 2} crediti ma la casella ${aim + 1} è occupata, scendi alla <b>${pos + 1}</b>.</p>`
-    : `<p>La casella ${aim + 1} è occupata: scendi alla <b>${pos + 1}</b>. Con 2 crediti in più fai un passo in più.</p>`;
-  return hypeTrack(s.players.map((o, i) => (o === pl ? pos : o.mar)), { mark: pos, note });
+  const note = pos === aim ? `<p>Arrivi alla casella <b>${pos}</b>.</p>`
+    : extra > 0 ? `<p class="warn" role="alert">Attenzione: paghi ${extra * 2} crediti ma la casella ${aim} è occupata, scendi alla <b>${pos}</b>.</p>`
+    : `<p>La casella ${aim} è occupata: scendi alla <b>${pos}</b>. Con 2 crediti in più fai un passo in più.</p>`;
+  return hypeTrack(s.players.map((o, i) => (o === pl ? pos : o.mar)), { mark: pos, note, me: s.players.indexOf(pl), from: pl.mar });
 }
 
 function endRecap(s) { // riepilogo di fine partita: come si è vinto
@@ -872,7 +871,11 @@ function renderStage(s = state, pd = current(state)) {
   if (showing?.k === 'final') city.highlight(steps(showing)[Math.min(step, steps(showing).length - 1)].zone ?? null); // la zona che si sta contando si alza
   el.onclick = e => { const g = e.target.closest('[data-goto]'); if (g) city.focusTown(+g.dataset.goto); }; // "Portami lì"
   // titolo prima, informazioni di contorno sotto (niente etichetta sopra il titolo)
-  const head = (h, meta = '', body = '') => `<h2>${h}</h2>${meta ? `<p class="meta">${meta}</p>` : ''}${body}`;
+  const chip = () => { const k = phaseNow, nm = [['setup', 'Setup'], ...PHASES].find(p => p[0] === k)?.[1]; return nm ? `<span class="phchip">${PHASE_LOGO[k] ? logo(PHASE_LOGO[k], 18) : ''}${nm}</span>` : ''; }; // la fase, col suo logo, accanto al titolo
+  const head = (h, meta = '', body = '') => { // la fase è già nel titolo: sotto non si ripete
+    const nm = [['setup', 'Setup'], ...PHASES].find(p => p[0] === phaseNow)?.[1]; if (nm && meta.startsWith(nm + ' · ')) meta = meta.slice(nm.length + 3); else if (meta === nm) meta = '';
+    return `<h2>${chip()}<span class="ttl">${h}</span></h2>${meta ? `<p class="meta">${meta}</p>` : ''}${body}`;
+  };
   const mineTurn = pd && pd.p === seat && !showing && !(pd.type === 'draft' && s.draft.picks[seat]);
   const nowMine = !!mineTurn || (pd?.type === 'draft' && seat >= 0 && !s.draft.picks[seat] && !showing);
   el.classList.toggle('mine', nowMine); $('hand').classList.toggle('mine', nowMine);
