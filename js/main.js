@@ -8,6 +8,7 @@ import { icon, setIconSet, logo, LOGO_NAMES } from './milano/icons.js';
 import { ESTRID, SYMBOLS } from './milano/lore.js';
 import { createCity, WEATHER_TYPES, QUALITY } from './milano/city3d.js';
 import { connect, BOT_NAMES } from './milano/online.js';
+import { pixelSwap } from './milano/pixelfx.js';
 
 setIconSet('pieno');
 const $ = id => document.getElementById(id);
@@ -343,7 +344,7 @@ function phaseBanner(k) {
   el.innerHTML = `<div class="pb">${PHASE_LOGO[k] ? logo(PHASE_LOGO[k], 34) : ''}<b>${name}</b></div>`;
   el.classList.remove('go'); void el.offsetWidth; el.classList.add('go');
   document.body.classList.add('phasefly'); // finché il cartello non arriva, il box non ha titolo
-  clearTimeout(phaseBanner.t); phaseBanner.t = setTimeout(() => document.body.classList.remove('phasefly'), 1700);
+  clearTimeout(phaseBanner.t); phaseBanner.t = setTimeout(() => { document.body.classList.remove('phasefly'); pixelSwap(document.querySelector('#stage h2'), name); }, 1700); // atterrato: il nome della fase si sgretola nel titolo vero
   requestAnimationFrame(() => { // il box viene disegnato dopo: si legge dove sta il suo titolo e ci si vola sopra
     const pb = el.querySelector('.pb'), h = document.querySelector('#stage h2'), a = pb.getBoundingClientRect(), t = h?.getBoundingClientRect();
     const end = t && t.width ? `translate(${t.left - a.left}px, ${t.top + t.height / 2 - (a.top + a.height / 2)}px) scale(${Math.min(1, t.height / a.height * 1.4)})` : 'translateY(-140px) scale(.5)';
@@ -573,7 +574,10 @@ function render() {
   fitAll();
   if (fkey) document.querySelector(fkey)?.focus({ preventScroll: true }); // il focus non si perde quando il pannello si aggiorna
   const said = $('stage').querySelector('h2')?.textContent || '';
-  if (said !== lastSaid) { $('announce').textContent = said; lastSaid = said; } // lo screen reader sente solo il titolo nuovo
+  if (said !== lastSaid) { // titolo nuovo: la scritta vecchia si sgretola e la nuova si ricompone (mentre vola il cartello di fase ci pensa lui)
+    if (lastSaid && !document.body.classList.contains('phasefly')) pixelSwap($('stage').querySelector('h2'), lastSaid);
+    $('announce').textContent = said; lastSaid = said;
+  } // lo screen reader sente solo il titolo nuovo
   $('log').innerHTML = [...s.log].reverse().map(l => `<li>${logLine(s, l)}</li>`).join('');
 }
 
@@ -695,7 +699,9 @@ function noOwner(s, r) { const z = zoneControl(s, r); return z.max === 0 ? 'poli
 function renderTurn(s, pd, wk) {
   const total = s.players.length === 3 ? 3 : 4;
   const turn = !pd ? 'Partita finita' : pd.type === 'draft' ? `<span>Draft</span> ${s.draft.picks.flatMap((x, i) => (x ? [] : [pdot(i)])).join('')}` : `<span>Turno di</span> ${pname(s, pd.p)}${pd.p === seat && !local ? ' <small>tu</small>' : ''}`;
+  const turnWas = $('turn').querySelector('.big')?.textContent.trim() || '';
   $('turn').innerHTML = `<p class="big">${turn}</p><p class="sub">${s.round ? `Round ${s.round} di ${total}` : 'Preparazione della partita'} · ${WEATHER_TYPES[wk]}</p>`;
+  pixelSwap($('turn').querySelector('.big'), turnWas, { hideCls: 'pxswap-turn' }); // chi gioca cambia: la scritta si sgretola e si ricompone
 }
 
 const SUIT_WORD = { red: 'Guerrilla', blue: 'Community Projects', yellow: 'Underground Party' };

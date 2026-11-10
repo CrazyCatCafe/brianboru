@@ -778,3 +778,5 @@ body.phasefly #stage h2 { visibility: hidden; }
 #b-players .zoom { z-index: 3; }
 .vgrid tbody th, .vgrid tfoot th, .vgrid thead tr > td:first-child { width: 1%; }
 .vgrid tr.draftdir .dl { margin-right: 4px; }
+body.pxswap #stage h2 { visibility: hidden; }
+body.pxswap-turn #turn .big { visibility: hidden; }
