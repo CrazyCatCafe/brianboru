@@ -116,7 +116,7 @@ for (let g = 0; g < 300; g++) {
   while (b.stage !== 'end' && !checked) {
     const n0 = b.eventN || 0, [q, m] = botMove(b); b = move(b, q, m);
     for (const e of b.events.filter(e => e.n > n0 && e.k === 'guerrilla' && e.area > 0 && e.raiders.every(r => r === 0))) {
-      assert.equal(e.losses.length, 3, 'tutti a 0: tutti perdono un quartiere'); checked = true;
+      assert.equal(e.losses.length, [0, 1, 2].filter(i => ownTowns(b, i).length).length, 'tutti a 0: chi ha un quartiere ne perde uno'); checked = true; // chi non ha quartieri non perde nulla
     }
   }
 }

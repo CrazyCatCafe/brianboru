@@ -9,12 +9,15 @@ import { ESTRID, SYMBOLS } from './milano/lore.js';
 import { createCity, WEATHER_TYPES, QUALITY } from './milano/city3d.js';
 import { connect, BOT_NAMES } from './milano/online.js';
 import { pixelSwap } from './milano/pixelfx.js';
+import { createMusic } from './milano/music.js';
+import { createSfx } from './milano/sfx.js';
 
 setIconSet('pixel'); // tutto in pixel art: simboli delle carte e loghi
 const $ = id => document.getElementById(id);
 const esc = t => String(t ?? '').replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
 const SCREENS = ['auth', 'nick', 'lobby', 'game'];
-const show = name => { SCREENS.forEach(s => ($(s).hidden = s !== name)); $('loading').hidden = true; };
+let actx = null, music = null, sfx = null, phaseNow = null; // audio e fase mostrata (servono già a show)
+const show = name => { SCREENS.forEach(s => ($(s).hidden = s !== name)); $('loading').hidden = true; if (name !== 'game') { music?.setPhase('lobby'); phaseNow = null; } }; // fuori dalla partita: musica della lobby
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (t.hidden = true), 4500); }
 const guard = fn => async (...a) => { try { await fn(...a); } catch (e) { console.error(e); toast(friendly(e)); } };
 function friendly(e) {
@@ -258,6 +261,23 @@ $('board-toggle').onclick = () => { const open = document.body.classList.toggle(
 // pixel art solo sulla mappa, si può spegnere; la scelta resta sul dispositivo
 const pixelOn = () => { try { return localStorage.getItem('bb-pixel') !== 'no'; } catch { return true; } };
 const pixelScale = () => (innerWidth < 900 ? Math.min(1, PIXEL_SCALE * 1.5) : PIXEL_SCALE); // sugli schermi piccoli pixel più fini
+// ---------- audio: musica e effetti, ognuno con il suo Sì/No (la scelta resta sul dispositivo) ----------
+const audioOn = k => { try { return localStorage.getItem('bb-' + k) !== 'no'; } catch { return true; } };
+function audioWake() { // i browser non suonano prima di un clic: tutto parte al primo tocco
+  if (!actx) { try { actx = new AudioContext(); } catch { return; } music = createMusic(actx, actx.destination, 'nebbia'); sfx = createSfx(actx, actx.destination); music.setPhase(phaseNow || 'lobby'); }
+  if (actx.state === 'suspended') actx.resume();
+  music.master.gain.setTargetAtTime(audioOn('music') ? 0.4 : 0, actx.currentTime, 0.3);
+  audioOn('music') ? music.start() : setTimeout(() => !audioOn('music') && music.stop(), 1500);
+}
+const sound = name => { if (sfx && audioOn('sfx')) sfx.play(name); };
+addEventListener('pointerdown', e => { audioWake(); if (e.target.closest?.('button, .btn, summary')) sound('ui'); }, true);
+function renderAudio() {
+  [['music', 'aud-music'], ['sfx', 'aud-sfx']].forEach(([k, id]) => $(id).querySelectorAll('[data-on]').forEach(b => {
+    b.setAttribute('aria-pressed', String(+b.dataset.on === +audioOn(k)));
+    b.onclick = () => { try { localStorage.setItem('bb-' + k, +b.dataset.on ? 'si' : 'no'); } catch {} audioWake(); renderAudio(); };
+  }));
+}
+renderAudio();
 function renderPixel() {
   const on = pixelOn();
   document.body.classList.toggle('noscan', !on);
@@ -336,7 +356,6 @@ const townChip = id => { const t = TOWNS[id], su = THEME.suit[t.color]; return `
 
 // ---------- fasi del round ----------
 const PHASES = [['prep', 'Preparazione'], ['draft', 'Draft'], ['trick', 'Azioni'], ['party', 'Underground Party'], ['guerrilla', 'Guerrilla'], ['community', 'Community Projects'], ['uprising', 'Uprising']];
-let phaseNow = null;
 const PEND_PHASE = { setupTown: 'setup', draft: 'draft', activeTown: 'trick', play: 'trick', action: 'trick', princess: 'party', placeTown: 'party', loseTown: 'guerrilla', monastery: 'community' };
 const PHASE_LOGO = { trick: 'punti', party: 'hype', guerrilla: 'guerrilla', community: 'community', uprising: 'uprising', prep: 'polizia' };
 function phaseBanner(k) {
@@ -344,7 +363,7 @@ function phaseBanner(k) {
   if (!name || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const el = $('phasebanner');
   el.innerHTML = `<div class="pb">${PHASE_LOGO[k] ? logo(PHASE_LOGO[k], 34) : ''}<b>${name}</b></div>`;
-  el.classList.remove('go'); void el.offsetWidth; el.classList.add('go');
+  el.classList.remove('go'); void el.offsetWidth; el.classList.add('go'); sound('phase');
   document.body.classList.add('phasefly'); // finché il cartello non arriva, il box non ha titolo
   clearTimeout(phaseBanner.t); phaseBanner.t = setTimeout(() => { document.body.classList.remove('phasefly'); pixelSwap(document.querySelector('#stage h2'), name); }, 1700); // atterrato: il nome della fase si sgretola nel titolo vero
   requestAnimationFrame(() => { // il box viene disegnato dopo: si legge dove sta il suo titolo e ci si vola sopra
@@ -358,7 +377,7 @@ function phaseBanner(k) {
 function renderPhases(s, pd) {
   const cur = showing ? SHOW_PHASE[showing.k] || showing.k : pd ? PEND_PHASE[pd.type] : 'uprising';
   if (cur !== phaseNow && phaseNow !== null) { phaseBanner(cur); hypeLit = false; city?.highlight(null); $('peekcard').hidden = true; } // cambio di fase: cartello grande, e si spegne l'illuminazione della fase prima
-  phaseNow = cur;
+  phaseNow = cur; music?.setPhase(s.stage === 'end' ? 'end' : cur);
   const SHORT = { party: 'Party', guerrilla: 'Guerrilla', community: 'Community', uprising: 'Uprising' }; // nomi brevi quando lo schermo è stretto
   const list = cur === 'setup' ? [['setup', 'Setup'], ...PHASES] : PHASES; // il setup si vede solo a inizio partita
   $('phases').innerHTML = list.map(([k, l], i) => `<span class="chev${k === cur ? ' on' : ''}${i >= list.length - 4 ? ' up' : ''}" data-short="${SHORT[k] || l}"${k === cur ? ' aria-current="step"' : ''}>${k === 'trick' && s.trick && s.stage === 'trick' ? (s.trick.last ? '<b class="lasttag">Ultima presa</b>' : `<small class="tn">presa ${s.trickNo} di ${s.tricksTotal}</small>`) : ''}${l}<span class="pos"> · ${i + 1} di ${list.length}</span></span>`).join('');
@@ -669,7 +688,7 @@ function renderBoard(s, pd) {
   const shown = bigBoard ? s.players.map((p, i) => i) : [Math.max(0, seat)]; // rimpicciolita: solo la tua colonna
   const cell = (kind, p, i, key) => { // valore che cambia: piccolo salto e "+N" che sale e svanisce
     const v = typeof key === 'function' ? key(p) : p[key], id = kind + i, old = lastVals[id], now = performance.now();
-    if (old !== undefined && old !== v) lastDelta[id] = { d: v - old, t: now };
+    if (old !== undefined && old !== v) { lastDelta[id] = { d: v - old, t: now }; if (i === seat) sound(v > old && (kind === 'crediti' || kind === 'punti') ? 'coin' : 'ui'); }
     lastVals[id] = v;
     const ch = lastDelta[id], age = ch ? (now - ch.t) / 1000 : 9; // l'animazione continua anche se la plancia si ridisegna
     return age > 1.6 ? v : `<span class="bump" style="animation-delay:-${age}s">${v}</span><span class="delta ${ch.d > 0 ? 'up' : 'down'}" style="animation-delay:-${age}s">${ch.d > 0 ? '+' : '−'}${Math.abs(ch.d)}</span>`;
@@ -809,7 +828,7 @@ function trickRow(s) {
   const t = s.trick;
   if (!t?.plays.length) return '';
   const now = current(s), acting = now?.type === 'action' || now?.type === 'play' ? now.p : null;
-  const fresh = t.plays.length > (trickSeen.n || 0) && trickSeen.key === t.leader + ':' + t.town ? t.plays.length - 1 : -1; // carta appena giocata: arriva in volo
+  const fresh = t.plays.length > (trickSeen.n || 0) && trickSeen.key === t.leader + ':' + t.town ? t.plays.length - 1 : -1; if (fresh >= 0) sound('card'); // carta appena giocata: arriva in volo
   trickSeen = { n: t.plays.length, key: t.leader + ':' + t.town };
   return `<div class="trickrow">${t.plays.map((x, j) => `<figure class="${j === fresh ? (x.p === seat ? 'arrive mine' : 'arrive') + ' ' : ''}${t.winner === x.p ? 'win' : ''}${x.p === acting && now.type === 'action' && x.card === now.card ? ' now' : ''}" style="--pc:${THEME.players[x.p]}">${miniCard(x.card)}<figcaption>${esc(s.players[x.p].name)}${t.winner === x.p ? '<em>vince la presa</em>' : ''}</figcaption></figure>`).join('')}</div>`;
 }
@@ -848,7 +867,7 @@ function renderStage(s = state, pd = current(state)) {
   const mineTurn = pd && pd.p === seat && !showing && !(pd.type === 'draft' && s.draft.picks[seat]);
   const nowMine = !!mineTurn || (pd?.type === 'draft' && seat >= 0 && !s.draft.picks[seat] && !showing);
   el.classList.toggle('mine', nowMine); $('hand').classList.toggle('mine', nowMine);
-  if (nowMine && !wasMine) { el.classList.remove('turnin'); void el.offsetWidth; el.classList.add('turnin'); } // tocca a te: il riquadro fa un piccolo salto
+  if (nowMine && !wasMine) { sound('turn'); el.classList.remove('turnin'); void el.offsetWidth; el.classList.add('turnin'); } // tocca a te: il riquadro fa un piccolo salto
   wasMine = nowMine;
   el.classList.toggle('compact', !!mapPicking);
   el.classList.remove('strip');
@@ -867,7 +886,7 @@ function renderStage(s = state, pd = current(state)) {
       return;
     }
     el.innerHTML = head(cur.t, `${showing.k === 'final' ? 'Punteggio finale' : PHASES.find(p => p[0] === (SHOW_PHASE[showing.k] || showing.k))?.[1] || ''} · passo ${step + 1} di ${st.length}`, cur.b) +
-      (showing.k === 'final' && step >= st.length - 1 ? confetti() + '<div class="row end"><button class="btn" id="endexit">Esci</button></div>' // vincitore: ultima schermata, si esce da qui
+      (showing.k === 'final' && step >= st.length - 1 ? (sound('win'), confetti()) + '<div class="row end"><button class="btn" id="endexit">Esci</button></div>' // vincitore: ultima schermata, si esce da qui
         : waitingAcks().length && acked === showing.n ? `<p class="waitack">In attesa che clicchino Avanti: ${waitingAcks().map(i => `<span class="blink">${who(s, i)}</span>`).join(' ')}</p>`
         : `<div class="row end"><button class="btn small" id="next" aria-keyshortcuts="Space">Avanti</button></div>`);
     $('next') && ($('next').onclick = advance);
