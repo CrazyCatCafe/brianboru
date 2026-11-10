@@ -678,3 +678,10 @@ tr:nth-child(2n) .logo { animation-delay: -3s; }
 .rp .estrid { margin: 8px 0; padding-left: 18px; display: grid; gap: 4px; font-size: 13px; }
 .rp .trickrow.discards { display: flex; gap: 6px; flex-wrap: wrap; }
 @media (prefers-reduced-motion: reduce) { .chev .lasttag { animation: none; } }
+/* meteo vero di Milano, sopra le statistiche */
+.box.meteo { display: flex; align-items: center; gap: 8px; padding: 6px 10px; font: 600 13px var(--font); white-space: nowrap; }
+.meteo .city { font: 400 11px var(--pix); text-transform: uppercase; letter-spacing: .06em; }
+.meteo .time { color: var(--rp-muted); font-variant-numeric: tabular-nums; }
+.meteo .ico { margin-left: auto; font-size: 16px; line-height: 1; }
+.meteo .temp { font: 800 16px var(--num); color: #fff; }
+.meteo .cond { color: var(--rp-muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; }

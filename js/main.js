@@ -176,6 +176,23 @@ $('to-lobby').onclick = () => {
   show(!net || me ? 'lobby' : 'auth');
 };
 
+// ---------- meteo vero di Milano (Open-Meteo, senza chiave) ----------
+const WMO = [[0, 'Sereno', '☀'], [1, 'Poco nuvoloso', '🌤'], [3, 'Nuvoloso', '☁'], [48, 'Nebbia', '🌫'], [57, 'Pioggerella', '🌦'], [67, 'Pioggia', '🌧'],
+  [77, 'Neve', '❄'], [82, 'Rovesci', '🌧'], [86, 'Neve', '❄'], [99, 'Temporale', '⛈']];
+let meteo = null;
+async function loadMeteo() {
+  try {
+    const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=45.4642&longitude=9.19&current=temperature_2m,weather_code&timezone=Europe%2FRome');
+    const c = (await r.json()).current; meteo = { t: Math.round(c.temperature_2m), w: WMO.find(([k]) => c.weather_code <= k) || WMO[0] };
+  } catch { meteo = meteo || null; }
+  renderMeteo();
+}
+function renderMeteo() {
+  const ora = new Intl.DateTimeFormat('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' }).format(new Date());
+  $('b-meteo').innerHTML = `<b class="city">Milano</b><span class="time">${ora}</span>${meteo ? `<span class="ico" aria-hidden="true">${meteo.w[2]}</span><b class="temp">${meteo.t}°</b><span class="cond">${meteo.w[1]}</span>` : '<span class="cond">meteo non disponibile</span>'}`;
+}
+loadMeteo(); setInterval(loadMeteo, 15 * 60 * 1000); setInterval(renderMeteo, 30 * 1000);
+
 // ---------- bot (partita locale) ----------
 function botTurn(s, pd) {
   clearTimeout(botTimer);
