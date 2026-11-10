@@ -1198,3 +1198,12 @@ body.cardpick #game .rp-stage .note { display: none; }
 #game .topbar .htrack .hc .pw { display: flex; gap: 2px; flex-wrap: wrap; justify-content: center; }
 body #game nav.rp-phases { right: calc(var(--right-w) + 24px) !important; }
 #game .rp-phases .chev { letter-spacing: .02em !important; padding-left: 16px !important; padding-right: 8px !important; white-space: nowrap; }
+/* controlli dell'azione sopra la tua carta */
+.pcard .actbox { position: absolute; left: 0; bottom: calc(100% + 34px); width: 360px; z-index: 40; display: grid; gap: 8px; padding: 10px 12px 12px; background: #12161a; border: 1px solid var(--rp-line); border-top: 3px solid var(--rp-red); box-shadow: 0 10px 26px rgba(0, 0, 0, .6); color: var(--rp-ink); }
+.pcard .actbox h2 { margin: 0; font-size: 15px; } .pcard .actbox h2 .phchip { display: none; }
+.pcard .actbox .meta { margin: 0; } .pcard .actbox p { margin: 0; font-size: 14px; } .pcard .actbox .explain { margin: 0; padding-left: 0; list-style: none; font-size: 14px; display: grid; gap: 3px; }
+.pcard .actbox .btn.wide { width: 100%; } .pcard .actbox .row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.pcard .actbox .opts { display: none !important; }
+#game .rp-stage.onlylog { padding-top: 8px; padding-bottom: 8px; }
+#game .rp-stage.onlylog:not(:has(.results)) { display: none !important; }
+.pcard .actbox .btn { font-size: 12px; letter-spacing: .08em; padding: 10px 12px; line-height: 1.3; }

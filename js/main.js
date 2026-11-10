@@ -735,6 +735,14 @@ function render() {
   renderPhases(s, pd); renderBoard(s, pd);
   const tb = $('topbar').getBoundingClientRect(); if (tb.height) document.body.style.setProperty('--topb', Math.round(tb.bottom) + 'px'); // il box dell'azione parte sotto la barra dell'Hype
   renderTurn(s, pd, wk); renderStage(s, pd); renderHand(s, pd);
+  // scelta dell'azione: conferme, passi extra, espansione e "ti espandi?" stanno sopra la tua carta; nel box centrale resta cosa fanno i giocatori
+  const myCard = document.body.classList.contains('cardpick') && $('myplate').querySelector('.pcard');
+  if (myCard) {
+    const box = document.createElement('div'); box.className = 'actbox';
+    [...$('stage').children].filter(c => !c.matches('.results, .trickrow, .lastbanner')).forEach(c => box.appendChild(c));
+    myCard.appendChild(box);
+  }
+  $('stage').classList.toggle('onlylog', !!myCard);
   fitAll();
   if (fkey) document.querySelector(fkey)?.focus({ preventScroll: true }); // il focus non si perde quando il pannello si aggiorna
   const tEl = $('stage').querySelector('h2 .ttl') || $('stage').querySelector('h2'), said = tEl?.textContent || '';
