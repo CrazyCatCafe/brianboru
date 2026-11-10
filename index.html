@@ -147,15 +147,19 @@
     <div id="labels" class="labels"></div>
     <div class="scan" aria-hidden="true"></div>
     <nav id="phases" class="rp-phases" aria-label="Fasi del round"></nav>
+    <section id="plates" class="plates" aria-label="Le altre fazioni"></section>
+    <section id="myplate" class="plates mine" aria-label="La tua fazione"></section>
+    <section id="topbar" class="topbar"><div class="box" id="b-players"></div><div class="box" id="b-pol"></div></section>
     <button id="board-toggle" class="rp-toggle" aria-controls="board" aria-expanded="false">Plancia</button>
     <aside id="board" class="rp-left" aria-label="Plancia">
       <section class="box meteo" id="b-meteo" aria-label="Meteo a Milano adesso"></section>
-      <section class="box" id="b-players"></section>
       <section class="box" id="b-uprising"></section>
       <section class="box" id="b-ref" aria-label="Carta riassuntiva: i 25 numeri e i loro colori"><div id="ref-grid" class="refgrid"></div></section>
-      <div class="toolrow">
-      <details class="box tools" id="tools">
-        <summary title="Grafica, audio e partita" aria-label="Grafica, audio e partita">⚙<span>Grafica e audio</span></summary>
+    </aside>
+    <div class="rtools">
+      <button id="help" class="rp-help" aria-haspopup="dialog" aria-label="Simboli e regole" title="Simboli e regole">?</button>
+      <details class="tools" id="tools">
+        <summary title="Grafica, audio e partita" aria-label="Grafica, audio e partita"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M10 1h4l.6 3 2.2 1 2.6-1.7 2.8 2.8-1.7 2.6 1 2.2 3 .6v4l-3 .6-1 2.2 1.7 2.6-2.8 2.8-2.6-1.7-2.2 1-.6 3h-4l-.6-3-2.2-1-2.6 1.7-2.8-2.8 1.7-2.6-1-2.2-3-.6v-4l3-.6 1-2.2-1.7-2.6 2.8-2.8 2.6 1.7 2.2-1ZM12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/></svg></summary>
         <div class="toolpop">
         <span id="code"></span>
         <div class="sets"><span>Grafica</span><b id="quality" data-quality role="group" aria-label="Qualità grafica"></b></div>
@@ -163,11 +167,10 @@
         <div class="sets"><span>Musica</span><b id="aud-music" data-aud="music" role="group" aria-label="Musica"><button data-on="1">Sì</button><button data-on="0">No</button></b></div>
         <div class="sets"><span>Effetti</span><b id="aud-sfx" data-aud="sfx" role="group" aria-label="Effetti sonori"><button data-on="1">Sì</button><button data-on="0">No</button></b></div>
         <div class="sets"><span>Volume</span><input type="range" min="0" max="100" data-vol aria-label="Volume"></div>
+        <button id="to-lobby" class="btn ghost small exit">Esci dalla partita</button>
         </div>
       </details>
-      <button id="to-lobby" class="btn ghost small exit">Esci</button>
-      </div>
-    </aside>
+    </div>
     <div id="phasebanner" class="phasebanner" aria-hidden="true"></div>
     <svg width="0" height="0" style="position:absolute" aria-hidden="true"><filter id="pxcrash" x="0" y="0" width="100%" height="100%"><feFlood x="1" y="1" width="1" height="1"/><feComposite width="2" height="2"/><feTile result="t"/><feComposite in="SourceGraphic" in2="t" operator="in"/><feMorphology operator="dilate" radius="1"/></filter></svg>
     <div id="loadscreen" class="loadscreen" hidden><p class="lsline" aria-live="polite"></p><div class="lsbar" role="progressbar" aria-label="Caricamento" aria-valuemin="0" aria-valuemax="100"><i></i></div><b class="lspct">0%</b></div>
@@ -179,7 +182,6 @@
       <div id="turn"></div>
       <details class="log"><summary>Cronaca</summary><ol id="log"></ol></details>
     </aside>
-    <button id="help" class="rp-help" aria-haspopup="dialog" aria-label="Simboli e regole" title="Simboli e regole">?</button>
     <dialog id="glossary" class="rp-dialog" aria-labelledby="glossary-title">
       <h2 id="glossary-title">Simboli delle carte</h2>
       <ul id="glossary-list" class="glossary"></ul>

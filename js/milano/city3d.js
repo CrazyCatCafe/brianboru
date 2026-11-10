@@ -439,8 +439,25 @@ export async function createCity(container, overlay, view = {}) {
     const el = document.createElement('div'); el.className = cls; el.innerHTML = html; overlay.appendChild(el);
     labels.push({ el, p: new THREE.Vector3(X(x), h, Z(y)), region }); return el;
   };
+  // posto del cartello: dentro la zona, il più lontano possibile dai quartieri (le pedine ci stanno sopra) e dal bordo; a parità, un po' più in alto
+  function labelSpot(k, r) {
+    const polys = rings(r.svg_path), mine = towns.filter(t => t.region === k), all = towns;
+    const inside = (x, y) => polys.reduce((n, pl) => { let c = false; for (let a = 0, b = pl.length - 1; a < pl.length; b = a++) { const [xa, ya] = pl[a], [xb, yb] = pl[b]; if ((ya > y) !== (yb > y) && x < (xb - xa) * (y - ya) / (yb - ya) + xa) c = !c; } return n ^ c; }, false);
+    const segD = (x, y, [xa, ya], [xb, yb]) => { const dx = xb - xa, dy = yb - ya, t = Math.max(0, Math.min(1, ((x - xa) * dx + (y - ya) * dy) / (dx * dx + dy * dy || 1))); return Math.hypot(x - xa - t * dx, y - ya - t * dy); };
+    const xs = polys.flat().map(p => p[0]), ys = polys.flat().map(p => p[1]);
+    const [x0, x1, y0, y1] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+    let best = [r.label.x, r.label.y], bs = -1e9;
+    for (let y = y0; y <= y1; y += 8) for (let x = x0; x <= x1; x += 8) {
+      if (!inside(x, y)) continue;
+      const dTown = Math.min(...all.map(t => Math.hypot((t.x - x) * 0.85, (t.y - y) * 1.3))); // il cartello è più largo che alto
+      let dEdge = 1e9; polys.forEach(pl => pl.forEach((p, i) => (dEdge = Math.min(dEdge, segD(x, y, p, pl[(i + 1) % pl.length])))));
+      const sc = Math.min(dTown, 46) + Math.min(dEdge, 40) * 0.6 - (y - y0) * 0.04;
+      if (sc > bs) { bs = sc; best = [x, y]; }
+    }
+    return mine.length ? best : [r.label.x, r.label.y];
+  }
   for (const [k, r] of Object.entries(map.regions)) {
-    const [lx, ly] = r.label.tx ? [r.label.tx, r.label.ty] : [r.label.x, r.label.y];
+    const [lx, ly] = labelSpot(k, r); // il punto della zona più lontano da quartieri, pedine e bordi: il cartello non copre niente
     regions[k].title = addLabel(`<b style="--rc:${T.region[k]}" title="${r.name}"><i class="tri" aria-hidden="true"><i></i><i></i><i></i><i></i></i><span class="nm">${r.name}</span></b><i title="Quartieri occupati su quelli che servono per l'Uprising"><span class="frac"><span class="cnt">0</span>/${r.threshold}</span>${logo('uprising', 13)}</i><i title="Punti per chi controlla la zona">${r.points}${logo('punti', 13)}</i>`, 'rlabel', lx, ly, 0.02, k);
     regions[k].title.dataset.region = k;
   }
