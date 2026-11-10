@@ -195,12 +195,9 @@ const STAGES = {
       const bands = Object.keys(counts).filter(k => k !== 'V'), max = Math.max(0, ...bands.map(k => counts[k])), top = bands.filter(k => counts[k] === max);
       if (max === 0 || top.length !== 1) continue;
       const owner = Number(top[0]);
-      if (owner !== cl.owner) {
-        // regola della casa: i punti della zona si prendono subito e passano a chi la conquista dopo
-        if (cl.owner !== null) s.players[cl.owner].points = Math.max(0, s.players[cl.owner].points - c.points);
-        if (owner !== null) s.players[owner].points += c.points;
+      if (owner !== cl.owner) { // i punti del municipio sono provvisori: si contano a fine partita
         ev.changes.push({ r, owner, from: cl.owner, pts: c.points }); cl.owner = owner;
-        log(s, `${c.name}: ${owner === null ? 'nessuno la controlla' : 'la controlla ' + name(s, owner) + ` (+${c.points} punti)`}.`);
+        log(s, `${c.name}: ${owner === null ? 'nessuno la controlla' : 'la controlla ' + name(s, owner) + ` (vale ${c.points} punti a fine partita)`}.`);
       }
     }
     s.players.forEach((pl, i) => (pl.claims = Object.keys(REGIONS).filter(r => s.claims[r].owner === i)));
@@ -259,7 +256,7 @@ function score(s) {
   for (const [r, c] of Object.entries(REGIONS)) {
     const cl = s.claims[r];
     if (!cl.up) continue;
-    if (cl.owner !== null) { ev.zones.push({ r, owner: cl.owner, pts: c.points, half: [], counted: true }); continue; } // già nei punti in partita
+    if (cl.owner !== null) { ev.zonePts[cl.owner] += c.points; ev.zones.push({ r, owner: cl.owner, pts: c.points, half: [] }); continue; }
     const counts = regionCounts(s, r, 'military'), max = Math.max(0, ...Object.entries(counts).filter(([k]) => k !== 'V').map(([, v]) => v)), half = [];
     if (max > 0) pls.forEach((pl, i) => { if (counts[i] === max) { ev.zonePts[i] += Math.floor(c.points / 2); half.push(i); } });
     ev.zones.push({ r, owner: null, pts: c.points, half });

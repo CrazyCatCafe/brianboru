@@ -177,8 +177,9 @@ $('to-lobby').onclick = () => {
 };
 
 // ---------- meteo vero di Milano (Open-Meteo, senza chiave) ----------
-const WMO = [[0, 'Sereno', '☀'], [1, 'Poco nuvoloso', '🌤'], [3, 'Nuvoloso', '☁'], [48, 'Nebbia', '🌫'], [57, 'Pioggerella', '🌦'], [67, 'Pioggia', '🌧'],
-  [77, 'Neve', '❄'], [82, 'Rovesci', '🌧'], [86, 'Neve', '❄'], [99, 'Temporale', '⛈']];
+// codice WMO → testo, icona e meteo della mappa 3D (che segue quello vero)
+const WMO = [[0, 'Sereno', '☀', 'sereno'], [1, 'Poco nuvoloso', '🌤', 'sereno'], [3, 'Nuvoloso', '☁', 'nuvoloso'], [48, 'Nebbia', '🌫', 'nuvoloso'], [57, 'Pioggerella', '🌦', 'pioggia'],
+  [67, 'Pioggia', '🌧', 'pioggia'], [77, 'Neve', '❄', 'nuvoloso'], [82, 'Rovesci', '🌧', 'pioggia'], [86, 'Neve', '❄', 'nuvoloso'], [99, 'Temporale', '⛈', 'temporale']];
 let meteo = null;
 async function loadMeteo() {
   try {
@@ -186,6 +187,7 @@ async function loadMeteo() {
     const c = (await r.json()).current; meteo = { t: Math.round(c.temperature_2m), w: WMO.find(([k]) => c.weather_code <= k) || WMO[0] };
   } catch { meteo = meteo || null; }
   renderMeteo();
+  if (state && !$('game').hidden) render(); // la mappa cambia meteo con quello vero
 }
 function renderMeteo() {
   const ora = new Intl.DateTimeFormat('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' }).format(new Date());
@@ -374,10 +376,10 @@ function guerBoard(e, order, vals, { grow = false, lose = new Set(), raid = fals
 // tabella del punteggio finale: colonne svelate fino a "upto", la colonna corrente accesa, totale che sale
 const FINAL_COLS = e => [
   ['start', 'In partita', i => e.start[i]], ['coins', 'Crediti', i => e.coins[i]], ['active', 'Q. att.', i => e.active[i]],
-  ['renown', 'Street cred', i => e.renown[i]], ['zones', 'Zone', i => e.zonePts[i]], ['presence', 'Presenza', i => e.presence[i]],
+  ['renown', 'Street cred', i => e.renown[i]], ['zones', 'Municipi', i => e.zonePts[i]], ['presence', 'Presenza', i => e.presence[i]],
 ];
 function finalTable(e, cols, upto, zoneK = null) {
-  const s = state, zonePart = i => (zoneK === null ? e.zonePts[i] : e.zones.slice(0, zoneK + 1).reduce((a, x) => a + (x.owner === i && !x.counted ? x.pts : x.half.includes(i) ? Math.floor(x.pts / 2) : 0), 0));
+  const s = state, zonePart = i => (zoneK === null ? e.zonePts[i] : e.zones.slice(0, zoneK + 1).reduce((a, x) => a + (x.owner === i ? x.pts : x.half.includes(i) ? Math.floor(x.pts / 2) : 0), 0));
   const val = (c, i) => (c[0] === 'zones' ? zonePart(i) : c[2](i));
   const tot = i => cols.slice(0, Math.min(upto, 5) + 1).reduce((a, c) => a + val(c, i), 0);
   const order = s.players.map((p, i) => i).sort((a, b) => (upto >= 6 ? e.rank.indexOf(a) - e.rank.indexOf(b) : 0));
@@ -407,9 +409,9 @@ function steps(e) {
       out.push({ t: 'Crediti', b: finalTable(e, cols, 1) + (e.coinsTie ? '<p>Più fazioni pareggiano per i crediti: nessuno prende il punto.</p>' : `<p>${who(s, e.coins.indexOf(1))} ha più crediti: <b class="ptsup">+1 punto</b>.</p>`) });
       out.push({ t: 'Quartiere attivo', b: finalTable(e, cols, 2) + `<p>${who(s, e.active.indexOf(1))} ha il segnalino del quartiere attivo: <b class="ptsup">+1 punto</b>.</p>` });
       out.push({ t: 'Street cred', b: finalTable(e, cols, 3) + '<p>Ogni street cred vale <b>1 punto</b>.</p>' });
-      if (!z.length) out.push({ t: 'Zone in palio', b: finalTable(e, cols, 4) + '<p>Nessuna zona è in palio: nessun punto.</p>' });
-      z.forEach((x, k) => out.push({ zone: x.r, t: `Zona ${REGIONS[x.r].name}`, b: finalTable(e, cols, 4, k) + (x.owner !== null
-        ? `<p>${who(s, x.owner)} controlla ${REGIONS[x.r].name}: i suoi ${x.pts} punti li ha già presi durante la partita.</p>`
+      if (!z.length) out.push({ t: 'Municipi', b: finalTable(e, cols, 4) + '<p>Nessun municipio è in palio: nessun punto.</p>' });
+      z.forEach((x, k) => out.push({ zone: x.r, t: `Municipio ${REGIONS[x.r].name}`, b: finalTable(e, cols, 4, k) + (x.owner !== null
+        ? `<p>${who(s, x.owner)} controlla ${REGIONS[x.r].name}: <b class="ptsup">+${x.pts} punti</b>.</p>`
         : x.half.length ? `<p>Nessuno la controlla: ${x.half.map(i => who(s, i)).join(', ')} ${x.half.length > 1 ? 'pareggiano' : 'ha'} per più quartieri e ${x.half.length > 1 ? 'prendono' : 'prende'} metà dei punti: <b class="ptsup">+${Math.floor(x.pts / 2)}</b>.</p>`
         : '<p>Nessuna fazione ha quartieri qui: nessun punto.</p>') }));
       out.push({ t: 'Presenza nelle zone', b: finalTable(e, cols, 5) + `<p>Punti per il numero di zone in cui hai almeno un quartiere:</p><table class="ptable regscore"><tr><td>Zone</td>${['1–2', '3–4', '5', '6', '7', '8'].map(x => `<td>${x}</td>`).join('')}</tr><tr><td>Punti</td>${[0, 1, 3, 5, 7, 10].map(x => `<td>${x}</td>`).join('')}</tr></table>` });
@@ -468,7 +470,7 @@ function steps(e) {
     }
     case 'uprising': return [
       { t: 'Uprising', b: e.flips.length ? `<p>Ora in palio: ${e.flips.map(r => `<b>${REGIONS[r].name}</b>`).join(', ')}.</p>` : '<p>Nessuna nuova zona in palio.</p>' },
-      { t: 'Controllo delle zone', b: e.changes.length ? `<ul class="plain">${list(e.changes.map(c => `<li><b>${REGIONS[c.r].name}</b>: ${c.owner === null ? 'nessuno la controlla' : `${who(s, c.owner)} <b class="ptsup">+${REGIONS[c.r].points} punti</b>`}${c.from != null ? ` · ${who(s, c.from)} <b>−${REGIONS[c.r].points} punti</b>` : ''}</li>`))}</ul><p class="note">I punti della zona si prendono subito e passano a chi la conquista dopo.</p>` : '<p>Nessun cambio di controllo.</p>' },
+      { t: 'Controllo delle zone', b: e.changes.length ? `<ul class="plain">${list(e.changes.map(c => `<li><b>${REGIONS[c.r].name}</b>: ${c.owner === null ? 'nessuno la controlla' : `${who(s, c.owner)}${c.from != null ? ` (la toglie a ${who(s, c.from)})` : ''} · vale <b class="ptsup">${REGIONS[c.r].points} punti</b>`}</li>`))}</ul><p class="note">I punti dei municipi sono provvisori: si vedono nella riga col pugno e si contano a fine partita, a chi li controlla in quel momento.</p>` : '<p>Nessun cambio di controllo.</p>' },
     ];
   }
   return [];
@@ -521,7 +523,7 @@ function render() {
   city.update({ towns: s.towns, activeTown: s.trick?.town ?? null, claims: s.claims, names: s.players.map(p => p.name) });
   // si illumina solo la scelta provvisoria di chi sta giocando: finito il suo turno, si spegne
   city.select(showing?.k === 'setup' ? showing.town : pd && pd.p === seat && !showing ? (ui.town ?? ui.expand ?? ui.viking ?? null) : null); // si vede il quartiere di partenza appena scelto
-  const wk = WKEYS[(s.round * 5 + s.start * 3) % WKEYS.length]; // meteo diverso a ogni round, uguale per tutti
+  const wk = meteo?.w[3] || WKEYS[(s.round * 5 + s.start * 3) % WKEYS.length]; // meteo vero di Milano; se non arriva, uno a round
   if (city.weather() !== wk) city.setWeather(wk);
   const picks = clickable(s, pd);
   city.setClickable(picks, onTown);
@@ -610,18 +612,20 @@ function renderBoard(s, pd) {
   // bande: griglia verticale, una colonna per banda e una riga per logo; accanto l'Hype in verticale.
   // Il tastino ingrandisce: compaiono i nomi (al massimo 7 caratteri, poi il punto) e i nomi dei loghi.
   $('b-players').classList.toggle('big', bigBoard); document.body.classList.toggle('board-big', bigBoard);
-  const lab = kind => `${logo(kind, 16)}${bigBoard ? `<span class="lname">${LOGO_NAMES[kind]}</span>` : ''}`;
+  const lab = (kind, k) => phaseNow === k && k ? `<span class="rowchev">${logo(kind, 16)}<span>${LOGO_NAMES[kind]}</span></span>` // riga della fase in corso: freccia rossa come nella barra
+    : `${logo(kind, 16)}${bigBoard ? `<span class="lname">${LOGO_NAMES[kind]}</span>` : ''}`;
   const fl = new Set(actionSyms(s, pd).map(x => FLASH_ROW[x]));
   const gotPts = showing?.k === 'party' && showing.winner !== null && step >= 1 ? showing.winner : -1; // party: i punti del personaggio lampeggiano sulla plancia
-  const row = (kind, key, k) => `<tr class="${phaseNow === k ? 'on' : ''}${fl.has(kind) ? ' flash' : ''}"><th scope="row">${lab(kind)}</th>${s.players.map((p, i) => `<td class="${key === 'points' ? 'pts' : ''}${key === 'points' && i === gotPts ? ' got' : ''}">${typeof key === 'function' ? key(p) : p[key]}</td>`).join('')}</tr>`;
+  const shown = bigBoard ? s.players.map((p, i) => i) : [Math.max(0, seat)]; // rimpicciolita: solo la tua colonna
+  const row = (kind, key, k) => `<tr class="${phaseNow === k ? 'on' : ''}${fl.has(kind) ? ' flash' : ''}"><th scope="row">${lab(kind, k)}</th>${shown.map(i => [s.players[i], i]).map(([p, i]) => `<td class="${key === 'points' ? 'pts' : ''}${key === 'points' && i === gotPts ? ' got' : ''}">${typeof key === 'function' ? key(p) : p[key]}</td>`).join('')}</tr>`;
   const tip = (p, i) => [p.name, isBot(i) ? 'bot' : i === seat && !local ? 'tu' : '', room.players[i]?.gang, `street cred ${p.renown}`, `${p.hand.length} carte in mano`,
     p.claims.length ? 'zone: ' + p.claims.map(r => REGIONS[r].name).join(', ') : '', p.marriages.length ? 'personaggi: ' + p.marriages.map(characterName).join(', ') : '',
     p.princess ? 'Estrid alleata' : '', i === s.active ? 'ha il segnalino del quartiere attivo' : ''].filter(Boolean).join(' · ');
   $('b-players').innerHTML = `<button class="zoom" type="button" aria-pressed="${bigBoard}" aria-label="${bigBoard ? 'Rimpicciolisci la plancia' : 'Ingrandisci la plancia'}">${bigBoard ? '−' : '+'}</button>
     <div class="vgrid"><table aria-label="Fazioni">
-    <thead><tr><td></td>${s.players.map((p, i) => `<th scope="col"><span class="ini${waiting.includes(i) ? ' turn' : ''}${i === s.active ? ' act' : ''}" style="--pc:${THEME.players[i]}" title="${esc(tip(p, i))}">${esc(bigBoard ? shortName(p.name) : initial(s, i))}</span></th>`).join('')}</tr></thead>
+    <thead><tr><td></td>${shown.map(i => [s.players[i], i]).map(([p, i]) => `<th scope="col"><span class="ini${waiting.includes(i) ? ' turn' : ''}${i === s.active ? ' act' : ''}" style="--pc:${THEME.players[i]}" title="${esc(tip(p, i))}">${esc(shortName(p.name))}</span></th>`).join('')}</tr></thead>
     <tbody>${row('punti', 'points')}${row('uprising', p => p.claims.reduce((a, r) => a + REGIONS[r].points, 0), 'uprising')}${row('crediti', 'coins')}${row('cred', 'renown')}${row('guerrilla', 'raiders', 'guerrilla')}${row('community', 'church', 'community')}</tbody>
-    <tfoot><tr${phaseNow === 'guerrilla' ? ' class="on"' : ''}><th scope="row">${lab('polizia')}</th><td colspan="${s.players.length}">${s.area}</td></tr></tfoot>
+    <tfoot><tr${phaseNow === 'guerrilla' ? ' class="on"' : ''}><th scope="row">${lab('polizia', 'guerrilla')}</th><td colspan="${shown.length}">${s.area}</td></tr></tfoot>
     </table>
     </div>
     <div class="htrack${phaseNow === 'party' ? ' on' : ''}${actionSyms(s, pd).includes('M') ? ' flash' : ''}" role="img" aria-label="Hype: ${s.players.map(p => `${esc(p.name)} casella ${p.mar + 1}`).join(', ')}">${MARRIAGE_TRACK.map((b, c) =>
@@ -632,7 +636,7 @@ function renderBoard(s, pd) {
   // uprising: zone sbloccate e chi le tiene
   on('b-uprising', 'uprising');
   const up = Object.entries(s.claims).filter(([, c]) => c.up).sort(([, a], [, b]) => (a.owner ?? 99) - (b.owner ?? 99)); // zone raggruppate per banda, contese in fondo
-  $('b-uprising').innerHTML = `<h3>${logo('uprising')}Uprising <em>zone in palio</em></h3>${up.length ? `<ul>${up.map(([r, c]) =>
+  $('b-uprising').innerHTML = `<h3>${logo('uprising')}Uprising</h3>${up.length ? `<ul>${up.map(([r, c]) =>
     `<li><i class="rz" style="--rc:${c.owner === null ? THEME.region[r] : THEME.players[c.owner]}"></i><b>${REGIONS[r].name}</b><span class="own">${c.owner === null ? 'contesa' : pname(s, c.owner)}</span></li>`).join('')}</ul>` : ''}`;
 }
 

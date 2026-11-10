@@ -679,9 +679,16 @@ tr:nth-child(2n) .logo { animation-delay: -3s; }
 .rp .trickrow.discards { display: flex; gap: 6px; flex-wrap: wrap; }
 @media (prefers-reduced-motion: reduce) { .chev .lasttag { animation: none; } }
 /* meteo vero di Milano, sopra le statistiche */
-.box.meteo { display: flex; align-items: center; gap: 8px; padding: 6px 10px; font: 600 13px var(--font); white-space: nowrap; }
+.box.meteo { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; padding: 6px 10px; font: 600 13px var(--font); white-space: nowrap; }
 .meteo .city { font: 400 11px var(--pix); text-transform: uppercase; letter-spacing: .06em; }
 .meteo .time { color: var(--rp-muted); font-variant-numeric: tabular-nums; }
 .meteo .ico { margin-left: auto; font-size: 16px; line-height: 1; }
 .meteo .temp { font: 800 16px var(--num); color: #fff; }
 .meteo .cond { color: var(--rp-muted); font-size: 12px; overflow: hidden; text-overflow: ellipsis; }
+/* riga della fase in corso nella plancia: freccia rossa come nella barra delle fasi, in grassetto */
+.vgrid .rowchev { display: inline-flex; align-items: center; gap: 6px; background: var(--rp-red); color: #fff; padding: 3px 16px 3px 4px; font: 700 11px var(--pix); text-transform: uppercase; letter-spacing: .04em;
+  clip-path: polygon(0 0, calc(100% - 9px) 0, 100% 50%, calc(100% - 9px) 100%, 0 100%); white-space: nowrap; }
+.vgrid tr.on { background: rgba(214, 35, 42, .18); box-shadow: none; }
+/* loghi sempre sul quadratino bianco */
+.htrack .hc .g .logo, .vhype .vc.top .logo { background: #eef1f3 !important; width: 15px !important; height: 15px !important; display: inline-grid !important; place-items: center; }
+.htrack .hc .g .logo svg { width: 11px; height: 11px; }
