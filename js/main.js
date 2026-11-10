@@ -1,6 +1,6 @@
 // Brian Boru · Milano 2077: accesso, lobby, amici e partita (online o locale).
 import { botMove } from './game/bot.js';
-import { estridPreview, zoneControl, move as applyMove, current, emptyTowns, leadTowns, ownTowns, expandTargets, vikingTowns, newGame } from './game/engine.js';
+import { estridPreview, zoneControl, draftDir, move as applyMove, current, emptyTowns, leadTowns, ownTowns, expandTargets, vikingTowns, newGame } from './game/engine.js';
 import { CARDS, MARRIAGES, TOWNS, REGIONS, MARRIAGE_TRACK } from './game/data.js';
 import { THEME, THEME_REPLACED, PIXEL_SCALE } from './milano/theme.js';
 import { cardSVG, characterSVG, characterArt, cardLabel } from './milano/card.js';
@@ -212,7 +212,7 @@ function botTurn(s, pd) {
   clearTimeout(botTimer);
   if (!pd || showing || !isBot(actorOf(s, pd))) return;
   // online i bot li muove il computer di chi ha creato la partita; se lui non c'è, dopo un po' li muove un altro giocatore
-  const delay = pd.type === 'draft' ? 300 : 1100, backup = !local && room?.host !== net?.uid();
+  const delay = pd.type === 'draft' ? 800 : 1100, backup = !local && room?.host !== net?.uid();
   botTimer = setTimeout(async () => {
     const r = botMove(state); if (!r) return;
     if (!local) { try { await net.act(roomCode, r[1], r[0], state.moveN || 0); } catch (e) { if (e.message !== 'stale') console.error('bot', e); } return; }
@@ -455,7 +455,7 @@ function steps(e) {
     case 'discard': return [{ t: 'Fine delle azioni', b: `<p>Ognuno scarta la carta che gli è rimasta in mano.</p><div class="trickrow discards">${e.cards.map((cs, i) => cs.map(v => `<figure style="--pc:${THEME.players[i]}">${miniCard(v)}<figcaption>${esc(s.players[i].name)}</figcaption></figure>`).join('')).join('')}</div>` }];
     case 'setup': return [{ t: `${esc(s.players[e.p].name)} parte da ${esc(TOWNS[e.town].name)}`, b: `<p>${who(s, e.p)} sceglie ${townChip(e.town)} in <b>${REGIONS[TOWNS[e.town].region].name}</b>. <button class="btn ghost small goto" data-goto="${e.town}">Portami lì</button></p>` }];
     case 'prep': return [{ strip: true, card: e.character, t: `Round ${e.round}${e.final ? ' · ultimo' : ''}`, // una riga sola; la carta Hype sotto il riquadro
-      b: `<span class="pp" title="Polizia in arrivo (in allerta ${e.area})">${logo('polizia', 18)}<b>${e.police}</b></span><span class="pp"><b class="tag">Hype</b>${hypeSummary(s, e.character)}</span>` }];
+      b: `<span class="pp" title="Polizia in arrivo (in allerta ${e.area})">${logo('polizia', 18)}<b>${e.police}</b></span><span class="pp"><b class="tag">Hype</b>${hypeSummary(s, e.character)}</span><span class="pp"><b class="tag">Draft</b>${dirText(s, e.dir ?? draftDir(e.round))}</span>` }];
     case 'party': { // la track in orizzontale si avvicina; dal più avanti: usa la carta, torna all'inizio, gli altri prendono i bonus
       const c = e.card, W = e.winner, after = e.track.map((p, i) => (i === W ? 0 : p));
       if (W === null) return [{ t: 'Underground Party', b: partyTrack(e.track, { zoom: true }) + '<p>Nessuno ha hype: il personaggio se ne va.</p>' }];
@@ -665,7 +665,7 @@ function renderBoard(s, pd) {
     p.princess ? 'Estrid alleata' : '', i === s.active ? 'ha il segnalino del quartiere attivo' : ''].filter(Boolean).join(' · ');
   $('b-players').innerHTML = `<button class="zoom" type="button" aria-pressed="${bigBoard}" aria-label="${bigBoard ? 'Rimpicciolisci la plancia' : 'Ingrandisci la plancia'}">${bigBoard ? '−' : '+'}</button>
     <div class="vgrid"><table aria-label="Fazioni">
-    <thead><tr><td></td>${shown.map(i => [s.players[i], i]).map(([p, i]) => `<th scope="col"><span class="ini${waiting.includes(i) ? ' turn' : ''}${i === s.active ? ' act' : ''}" style="--pc:${THEME.players[i]}" title="${esc(tip(p, i))}">${esc(shortName(p.name))}</span></th>`).join('')}</tr></thead>
+    <thead><tr class="draftdir${['prep', 'draft'].includes(phaseNow) ? ' on' : ''}" title="${esc(dirTitle(s))}"><td>Draft</td><td colspan="${shown.length}">${dirArrow(s)}</td></tr><tr><td></td>${shown.map(i => [s.players[i], i]).map(([p, i]) => `<th scope="col"><span class="ini${waiting.includes(i) ? ' turn' : ''}${i === s.active ? ' act' : ''}" style="--pc:${THEME.players[i]}" title="${esc(tip(p, i))}">${esc(shortName(p.name))}</span></th>`).join('')}</tr></thead>
     <tbody>${row('punti', 'points')}${row('uprising', p => p.claims.reduce((a, r) => a + REGIONS[r].points, 0), 'uprising')}${row('crediti', 'coins')}${row('cred', 'renown')}${row('guerrilla', 'raiders', 'guerrilla')}${row('community', 'church', 'community')}</tbody>
     <tfoot><tr${phaseNow === 'guerrilla' ? ' class="on"' : ''}><th scope="row">${lab('polizia', 'guerrilla')}</th><td colspan="${shown.length}">${s.area}</td></tr></tfoot>
     </table>
@@ -693,16 +693,32 @@ function renderTurn(s, pd, wk) {
 const SUIT_WORD = { red: 'Guerrilla', blue: 'Community Projects', yellow: 'Underground Party' };
 const coarse = matchMedia('(pointer: coarse)').matches; // su touch la carta in presa va confermata
 
-let lastPacket = '';
+let lastPacket = '', dealtAt = 0, keptSeen = new Map(); // quando sono arrivate: l'animazione continua anche se la mano si ridisegna
+// senso del draft del round in corso (in preparazione, quello del round che arriva)
+const roundDir = s => s.draft?.dir ?? draftDir(s.stage === 'setup' ? 1 : s.round + (s.stage === 'prep' ? 1 : 0));
+function dirTitle(s) {
+  const n = s.players.length, d = roundDir(s), a = s.players[0].name, b = s.players[(n + d) % n].name;
+  return `Draft: le carte passano ${d > 0 ? 'al giocatore a destra' : 'al giocatore a sinistra'} (da ${a} a ${b})`;
+}
+const dirArrow = s => roundDir(s) > 0 ? '<span class="dar">Senso <b>→</b></span>' : '<span class="dar"><b>←</b> Senso</span>';
+const dirText = (s, d) => { const n = s.players.length; return `${d > 0 ? '→' : '←'} da ${esc(s.players[0].name)} a ${esc(s.players[(n + d) % n].name)}`; };
 function renderHand(s, pd) {
   const el = $('hand');
   if (seat < 0) { el.innerHTML = ''; return; }
   const card = (v, attrs = '', cls = '') => `<button class="card${cls}" data-c="${v}" ${attrs}>${cardSVG(v)}</button>`;
+  const keptBox = cards => { // carte tenute: quelle appena scelte arrivano da destra e si rimpiccioliscono
+    if (!s.players[seat].hand.length && !s.draft?.picks[seat]) keptSeen = new Map();
+    const now = performance.now(); cards.forEach(v => keptSeen.has(v) || keptSeen.set(v, now));
+    const anim = v => { const age = now - keptSeen.get(v); return age < 800 ? ` class="in" style="animation-delay:-${age}ms"` : ''; };
+    return cards.length ? `<div class="kept" aria-label="Carte già tenute"><span>Già tenute</span><div>${cards.map(v => `<figure${anim(v)}>${cardSVG(v)}</figure>`).join('')}</div></div>` : '';
+  };
   if (pd?.type === 'draft' && !s.draft.picks[seat] && !showing) {
-    const sel = ui.draft || [], kept = sorted(s.players[seat].hand), pk = s.draft.packets[seat].join(','), dealt = pk !== lastPacket; // mazzetto nuovo: le carte arrivano da sinistra
-    lastPacket = pk;
-    el.innerHTML = (kept.length ? `<div class="kept" aria-label="Carte già tenute"><span>Già tenute</span><div>${kept.map(v => `<figure>${cardSVG(v)}</figure>`).join('')}</div></div>` : '') +
-      sorted(s.draft.packets[seat]).map((v, i) => card(v, `aria-pressed="${sel.includes(v)}" aria-keyshortcuts="${i + 1}"${dealt ? ` style="animation-delay:${i * 70}ms"` : ''}`, dealt ? ' deal' : '')).join('');
+    const sel = ui.draft || [], kept = sorted(s.players[seat].hand), pk = s.draft.packets[seat].join(','), age = pk !== lastPacket ? 0 : performance.now() - dealtAt; // mazzetto nuovo: arriva dal lato di chi lo passa
+    if (pk !== lastPacket) { lastPacket = pk; dealtAt = performance.now(); }
+    const n = s.draft.packets[seat].length, dealt = age < 800 + n * 120;
+    el.style.setProperty('--from', (s.draft.dir ?? 1) > 0 ? -1 : 1);
+    el.innerHTML = keptBox(kept) +
+      sorted(s.draft.packets[seat]).map((v, i) => card(v, `aria-pressed="${sel.includes(v)}" aria-keyshortcuts="${i + 1}"${dealt ? ` style="animation-delay:${i * 120 - age}ms"` : ''}`, dealt ? ' deal' : '')).join('');
     el.querySelectorAll('[data-c]').forEach(b => (b.onclick = () => {
       const v = +b.dataset.c;
       if (sel.includes(v)) ui.draft = sel.filter(x => x !== v);
@@ -712,8 +728,9 @@ function renderHand(s, pd) {
     }));
     return;
   }
-  if (pd?.type === 'draft' && s.draft.picks[seat]) { // in attesa degli altri: si vedono tutte le carte tenute finora, anche le 2 appena scelte
-    el.innerHTML = sorted([...s.players[seat].hand, ...s.draft.picks[seat]]).map(v => card(v, 'aria-disabled="true"')).join('');
+  if (pd?.type === 'draft' && s.draft.picks[seat]) { // in attesa degli altri: le 2 scelte vanno tra le tenute, il resto del mazzetto aspetta di partire
+    const rest = s.draft.packets[seat].filter(v => !s.draft.picks[seat].includes(v));
+    el.innerHTML = keptBox(sorted([...s.players[seat].hand, ...s.draft.picks[seat]])) + sorted(rest).map(v => card(v, 'aria-disabled="true"', ' leaving')).join('');
     el.querySelectorAll('[data-c]').forEach(b => (b.onclick = () => toast('Aspetta che gli altri scelgano le loro carte')));
     return;
   }
@@ -845,7 +862,7 @@ function renderStage(s = state, pd = current(state)) {
     if (seat >= 0 && !s.draft.picks[seat]) {
       const n = (ui.draft || []).length;
       el.innerHTML = head('Scegli 2 carte', `Draft · ${mine}`,
-        `<p>Tieni 2 carte dal mazzetto: le altre passano alla fazione successiva. In basso a sinistra trovi quelle già tenute.</p>
+        `<p>Tieni 2 carte dal mazzetto: le altre passano a ${who(s, (seat + (s.draft.dir ?? 1) + s.players.length) % s.players.length)} (${(s.draft.dir ?? 1) > 0 ? '→' : '←'}). In basso a sinistra trovi quelle già tenute.</p>
          <button id="ok" class="btn wide" ${n === 2 ? '' : 'disabled'} aria-keyshortcuts="Enter">${n === 2 ? 'Tieni queste 2' : n === 1 ? 'Scegli ancora 1 carta' : 'Scegli 2 carte'}</button>`);
       $('ok').onclick = () => act({ cards: ui.draft });
     } else el.innerHTML = head('In attesa del draft', 'Draft', `<p>Stanno scegliendo: ${s.draft.picks.flatMap((x, i) => (x ? [] : [who(s, i)])).join(', ')}</p>`);

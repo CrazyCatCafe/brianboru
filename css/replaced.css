@@ -755,8 +755,17 @@ body.phasefly #stage h2 { visibility: hidden; }
 #game .rp-stage.turnin { animation: turnin .5s cubic-bezier(.2, .8, .2, 1); }
 @keyframes turnin { 30% { transform: translateY(-8px); box-shadow: 0 0 0 3px var(--rp-red); } }
 #game .hand.mine .card:not(.off):not([aria-disabled="true"]) { translate: 0 -6px; transition: translate .25s; }
-#game .hand .card.deal { animation: deal .4s cubic-bezier(.2, .8, .2, 1) both; }
-@keyframes deal { from { opacity: 0; transform: translateX(-120px) rotate(-8deg); } }
+#game .hand .card.deal { animation: deal .8s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes deal { from { opacity: 0; transform: translateX(calc(var(--from, -1) * 260px)) rotate(calc(var(--from, -1) * 10deg)); } }
+#game .kept figure.in { animation: keepin .8s cubic-bezier(.2, .8, .2, 1) both; transform-origin: left bottom; }
+@keyframes keepin { from { opacity: .4; transform: translateX(220px) scale(1.8); } }
+#game .hand .card.leaving { opacity: .45; filter: grayscale(.6); transition: opacity .4s; }
+/* riga DRAFT sopra i nomi: senso del passaggio delle carte nel round */
+.vgrid tr.draftdir td { font: 400 10px var(--pix); text-transform: uppercase; letter-spacing: .08em; color: var(--rp-muted); text-align: center; padding: 2px 0; }
+.vgrid tr.draftdir td:first-child { text-align: left; }
+.vgrid tr.draftdir .dar b { font: 800 14px var(--num); color: #fff; }
+.vgrid tr.draftdir.on td { color: #fff; }
+.vgrid tr.draftdir.on .dar b { color: var(--rp-red); }
 .rp .rlabel.flipin { animation: flipin .8s ease-out; }
 @keyframes flipin { 0% { transform: rotateY(90deg); } 60% { transform: rotateY(-15deg); box-shadow: 0 0 0 3px #ffd400; } 100% { transform: none; } }
 .rp .rlabel.ownin { animation: ownin 1.2s ease-out; }
@@ -764,4 +773,4 @@ body.phasefly #stage h2 { visibility: hidden; }
 .confetti { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
 .confetti i { position: absolute; top: -10px; left: var(--x); width: 7px; height: 11px; background: var(--c); rotate: var(--r); animation: fall 2.4s var(--d) ease-in infinite; }
 @keyframes fall { to { transform: translateY(420px) rotate(540deg); opacity: .2; } }
-@media (prefers-reduced-motion: reduce) { #game .rp-stage.turnin, #game .hand .card.deal, .rp .rlabel.flipin, .rp .rlabel.ownin { animation: none; } .confetti { display: none; } }
+@media (prefers-reduced-motion: reduce) { #game .rp-stage.turnin, #game .hand .card.deal, #game .kept figure.in, .rp .rlabel.flipin, .rp .rlabel.ownin { animation: none; } .confetti { display: none; } }

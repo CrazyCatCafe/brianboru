@@ -173,4 +173,13 @@ for (const [setup, want] of [
   assert.equal(zoneControl(b, 'MUN', 1).owner, 1, 'con lo Scudo i 2 presidi danno a B 3 contro 2');
   assert.equal(zoneControl(b, 'MUN', 2).owner, 0, 'parità 2-2: resta al padrone di prima');
 }
+// draft: il senso si inverte a ogni round (dispari: al giocatore dopo; pari: a quello prima)
+for (const round of [1, 2]) {
+  let b = newGame(['A', 'B', 'C'], 11);
+  while (b.stage !== 'draft' || b.round !== round) { const r = smartBot(b); b = move(b, r[0], r[1]); }
+  const before = b.draft.packets.map(pk => [...pk]);
+  for (let p = 0; p < 3; p++) b = move(b, p, { cards: before[p].slice(0, 2) });
+  const from = round === 1 ? 2 : 1; // A riceve da C nel primo round, da B nel secondo
+  assert.deepEqual(b.draft.packets[0], before[from].slice(2), `round ${round}`);
+}
 console.log('ok: 600 partite simulate, 60 partite tra bot');

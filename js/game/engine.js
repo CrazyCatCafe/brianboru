@@ -33,6 +33,8 @@ export const ownTowns = (s, p) => TOWNS.filter(t => s.towns[t.id].owner === p &&
 export const expandTargets = (s, p) => [...new Set(ownTowns(s, p).flatMap(neighbours))].filter(id => s.towns[id].owner === null && id !== s.trick?.town); // il quartiere della presa va a chi la vince
 export const vikingTowns = s => TOWNS.filter(t => s.towns[t.id].viking).map(t => t.id);
 export const current = s => s.pending[0] || null;
+// senso del draft: nei round dispari le carte passano al giocatore dopo (colonna a destra), nei pari a quello prima
+export const draftDir = round => (Math.max(1, round) % 2 ? 1 : -1);
 
 export function newGame(names, seed = Date.now()) {
   const n = names.length;
@@ -73,11 +75,11 @@ const STAGES = {
     s.marriage = s.marriageDeck.pop();
     s.final = s.marriageDeck.length === 0;
     log(s, `Round ${s.round}: arrivano ${v} unità di polizia.${s.final ? ' Ultimo round!' : ''}`);
-    event(s, { k: 'prep', round: s.round, police: v, area: s.area, character: s.marriage, final: s.final });
+    event(s, { k: 'prep', round: s.round, police: v, area: s.area, character: s.marriage, final: s.final, dir: draftDir(s.round) });
     const n = s.players.length, per = { 3: 8, 4: 6, 5: 5 }[n];
     s.playedRound = [];
     const deck = shuffle(s, Object.keys(CARDS).map(Number));
-    s.draft = { packets: s.players.map((_, i) => deck.slice(i * per, (i + 1) * per)), picks: s.players.map(() => null) };
+    s.draft = { packets: s.players.map((_, i) => deck.slice(i * per, (i + 1) * per)), picks: s.players.map(() => null), dir: draftDir(s.round) };
     s.players.forEach(pl => (pl.hand = []));
     s.stage = 'draft';
   },
@@ -309,7 +311,7 @@ function draftPick(s, p, m) {
   const n = s.players.length;
   d.packets = d.packets.map((pk, i) => pk.filter(c => !d.picks[i].includes(c)));
   d.picks.forEach((pk, i) => s.players[i].hand.push(...pk));
-  d.packets = d.packets.map((_, i) => d.packets[(i - 1 + n) % n]); // passa a sinistra
+  const dir = d.dir ?? 1; d.packets = d.packets.map((_, i) => d.packets[(i - dir + n) % n]); // dir 1: da ognuno al successivo; -1: al precedente
   d.picks = d.picks.map(() => null);
   s.pending.shift();
 }
