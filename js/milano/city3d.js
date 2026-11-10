@@ -128,20 +128,6 @@ function buildingMeshes(buf, octs = []) {
   return meshes;
 }
 
-// Stemma della polizia: faccia con casco, disegnata su canvas
-function policeBadge() {
-  const c = document.createElement('canvas'); c.width = c.height = 128;
-  const g = c.getContext('2d');
-  g.fillStyle = '#10151c'; g.beginPath(); g.arc(64, 64, 60, 0, 7); g.fill();
-  g.lineWidth = 6; g.strokeStyle = '#fff'; g.stroke();
-  g.fillStyle = '#e8c7a8'; g.beginPath(); g.ellipse(64, 76, 26, 30, 0, 0, 7); g.fill();                                   // volto
-  g.fillStyle = '#2b3a4f'; g.beginPath(); g.arc(64, 64, 36, Math.PI, 0); g.lineTo(100, 72); g.lineTo(28, 72); g.fill(); // casco
-  g.fillStyle = '#0b0e12'; g.fillRect(32, 64, 64, 14);                                                                  // visiera
-  g.fillStyle = T.accent; g.fillRect(36, 68, 26, 5); g.fillStyle = T.suit.blue.fill; g.fillRect(66, 68, 26, 5);
-  g.fillStyle = '#c9a43a'; g.beginPath(); g.moveTo(64, 32); g.lineTo(71, 43); g.lineTo(64, 52); g.lineTo(57, 43); g.fill(); // fregio
-  g.strokeStyle = '#2b3a4f'; g.lineWidth = 5; g.beginPath(); g.moveTo(38, 80); g.quadraticCurveTo(64, 116, 90, 80); g.stroke(); // sottogola
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t;
-}
 
 // --- meteo ---
 const WEATHER = {
@@ -347,7 +333,12 @@ export async function createCity(container, overlay, view = {}) {
   // --- pedine ---
   const mats = {};
   const mat = (c, o = {}) => (mats[c + JSON.stringify(o)] ??= new THREE.MeshLambertMaterial({ color: c, ...o }));
-  const badgeMat = new THREE.SpriteMaterial({ map: policeBadge(), depthTest: false, depthWrite: false, transparent: true });
+  // scudo della polizia: sagoma estrusa blu con la stella bianca davanti (coordinate dell'icona 40x40, y in su)
+  const shieldShape = new THREE.Shape(); { const P = [[20, 3], [34, 8], [34, 19], [30, 31], [20, 38], [10, 31], [6, 19], [6, 8]]; P.forEach(([x, y], i) => (i ? shieldShape.lineTo : shieldShape.moveTo).call(shieldShape, x - 20, 20 - y)); }
+  const shieldGeo = new THREE.ExtrudeGeometry(shieldShape, { depth: 4, bevelEnabled: false }).translate(0, 0, -2);
+  const starShape = new THREE.Shape(); for (let k = 0; k < 10; k++) { const a = k / 10 * Math.PI * 2 - Math.PI / 2, r = k % 2 ? 3 : 7; (k ? starShape.lineTo : starShape.moveTo).call(starShape, Math.cos(a) * r, -Math.sin(a) * r + 1); }
+  const starGeo = new THREE.ExtrudeGeometry(starShape, { depth: 5, bevelEnabled: false }).translate(0, 0, -2.5);
+  const shieldMat = new THREE.MeshLambertMaterial({ color: '#1f5fbf', emissive: '#0b2a60' }), starMat = new THREE.MeshBasicMaterial({ color: '#ffffff' });
   const droneProto = new THREE.Group(); // drone piccolo: corpo, 4 rotori, luce
   droneProto.add(new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.012, 0.03), mat('#1b2330')));
   for (const [x, z] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
@@ -401,8 +392,9 @@ export async function createCity(container, overlay, view = {}) {
         const orbit = new THREE.Group();
         for (let k = 0; k < 3; k++) { const d = droneProto.clone(); d.position.set(Math.cos(k * 2.09) * 0.24, (k % 2) * 0.03, Math.sin(k * 2.09) * 0.24); orbit.add(d); }
         spinners.push(put(orbit, OV + 0.14, 7));
-        const badge = new THREE.Sprite(badgeMat); badge.scale.setScalar(0.24); badge.renderOrder = 8; badge.position.y = 0.34;
-        parent.add(badge); badge.position.x += p.x; badge.position.z += p.z; badge.position.y += OV;
+        // scudo della polizia 3D che gira sopra il quartiere presidiato
+        const shield = new THREE.Group(); shield.add(new THREE.Mesh(shieldGeo, shieldMat), new THREE.Mesh(starGeo, starMat));
+        shield.scale.setScalar(0.009); shield.renderOrder = 8; put(shield, OV + 0.34, 8); spinners.push(shield);
       }
     });
     active = s.activeTown ?? null;

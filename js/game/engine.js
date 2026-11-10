@@ -299,7 +299,7 @@ const MOVES = {
   setupTown(s, p, { town }) {
     needTown(s, town, (st, t) => st.owner === null &&
       !TOWNS.some(o => o.region === t.region && s.towns[o.id].owner !== null && s.towns[o.id].owner !== p),
-    'Scegli un quartiere libero in una zona senza altre bande');
+    'Scegli un quartiere libero in una zona senza altre fazioni');
     s.towns[town].owner = p;
     s.setupDone++;
     log(s, `${name(s, p)} parte da ${TOWNS[town].name} (${REGIONS[TOWNS[town].region].name}).`);

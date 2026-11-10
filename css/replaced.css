@@ -601,3 +601,70 @@ tr:nth-child(2n) .logo { animation-delay: -3s; }
 /* cronaca */
 .log b.lc { text-shadow: 0 0 2px #000; }
 .rp .rlabel .frac { display: inline-flex; gap: 1px; } /* 4/7 con la barra equidistante */
+/* chi ha il segnalino del quartiere attivo: contorno giallo lampeggiante, come la carta selezionata */
+.vgrid .ini.act { outline: 3px solid #ffd400; outline-offset: 2px; animation: actblink 1s steps(2, start) infinite; }
+@keyframes actblink { 50% { outline-color: transparent; } }
+@media (prefers-reduced-motion: reduce) { .vgrid .ini.act { animation: none; } }
+/* track dell'Hype orizzontale sotto le statistiche: logo del bonus in alto, pedine in basso */
+.vgrid thead th, .vgrid thead td { height: auto; }
+.htrack { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 2px; margin-top: 8px; }
+.htrack .hc { display: grid; grid-template-rows: 15px 12px; justify-items: center; align-items: center; padding: 2px 0; border: 1px solid var(--rp-line); background: rgba(255, 255, 255, .04); min-width: 0; }
+.htrack .hc.bonus { background: rgba(255, 255, 255, .1); }
+.htrack .hc .g { display: flex; align-items: center; line-height: 0; }
+.htrack .hc .g .logo { width: auto; height: auto; background: none; box-shadow: none; }
+.htrack .hc .g .logo svg { width: 12px; height: 12px; }
+.htrack .hc .pw { display: flex; flex-wrap: wrap; justify-content: center; gap: 1px; }
+.htrack .hc .pw .pd { width: 7px; height: 7px; }
+.htrack .hc:first-child .pw .pd { width: 5px; height: 5px; }
+.htrack.on { outline: 2px solid var(--rp-red); outline-offset: 2px; }
+.htrack.flash { animation: flashrow 1s ease-in-out infinite; }
+.hstrip { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 6px; font: 700 12px var(--font); }
+.hstrip .tag { font: 400 11px var(--pix); text-transform: uppercase; background: #ffd400; color: #111; padding: 2px 6px; }
+.hstrip .hs { display: inline-flex; align-items: center; gap: 4px; text-transform: uppercase; }
+.hstrip .hs em { font-style: normal; text-transform: none; color: var(--rp-muted); }
+.hstrip .hs .logo { width: 16px; height: 16px; display: inline-grid; place-items: center; background: #eef1f3; }
+.hstrip .hs .logo svg { width: 12px; height: 12px; }
+.hstrip .peek { margin-left: auto; padding: 3px 8px; font-size: 11px; width: auto; border: 1px solid var(--rp-line); }
+.hstrip .peek svg { display: none; }
+@media (prefers-reduced-motion: reduce) { .htrack.flash { animation: none; } }
+/* finestra del round su una riga: Round N · polizia · Hype, Avanti a destra */
+#game .rp-stage.strip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; padding: 10px 14px; }
+#game .rp-stage.strip h2 { margin: 0; font-size: 20px; }
+#game .rp-stage.strip .pp { display: inline-flex; align-items: center; gap: 6px; font: 700 13px var(--font); }
+#game .rp-stage.strip .pp > b:not(.tag) { font: 800 22px var(--num); color: var(--rp-police); }
+#game .rp-stage.strip .pp .logo { width: 24px; height: 24px; display: inline-grid; place-items: center; background: #eef1f3; }
+#game .rp-stage.strip .tag { font: 400 11px var(--pix); text-transform: uppercase; background: #ffd400; color: #111; padding: 2px 6px; }
+#game .rp-stage.strip .hs { display: inline-flex; align-items: center; gap: 4px; text-transform: uppercase; }
+#game .rp-stage.strip .hs .logo { width: 16px; height: 16px; }
+#game .rp-stage.strip .hs em { font-style: normal; text-transform: none; color: var(--rp-muted); }
+#game .rp-stage.strip #next { margin-left: auto; }
+#game .rp-stage.strip .waitack { margin: 0 0 0 auto; }
+#game .rp-stage.strip > * { zoom: 1; }
+.peekcard { width: 150px; }
+/* presa in corso: riquadro basso e largo, carte compatte a sinistra, scelta a destra */
+#game .rp-stage:has(> .trickrow) { display: grid; grid-template-columns: auto minmax(240px, 1fr); column-gap: 18px; align-items: start; max-width: 980px; margin: 0; }
+#game .rp-stage:has(> .trickrow) > .trickrow { grid-column: 1; grid-row: 1 / span 30; display: flex; gap: 6px; margin: 0; padding: 0; border: 0; align-items: flex-start; }
+#game .rp-stage:has(> .trickrow) > :not(.trickrow) { grid-column: 2; }
+#game .rp-stage:has(> .trickrow) h2 { font-size: 17px; margin-top: 0; }
+.rp .trickrow figure { width: auto; margin: 0; }
+.rp .trickrow figure.win { transform: none; }
+.mc { width: 108px; background: #f4f1ea; color: #111; border: 2px solid #111; --hole: #f4f1ea; }
+.mc .n { display: block; background: var(--sc); color: var(--si); font: 800 16px var(--num); padding: 1px 6px; }
+.mc .r { display: flex; align-items: center; gap: 1px; padding: 2px 4px; border-top: 1px solid #d5d0c4; line-height: 0; }
+.mc .r small { font: 400 9px var(--pix); text-transform: uppercase; color: #5b6168; width: 42px; flex: none; line-height: 1; }
+.rp .trickrow figure.win .mc { outline: 2px solid #fff; outline-offset: 2px; }
+.rp .trickrow figure.now .mc { outline: 3px solid #ffd400; outline-offset: 2px; }
+.rp .trickrow figure.now { outline: 0; animation: none; }
+.rp .trickrow figcaption { font-size: 11px; margin-top: 3px; }
+@media (max-width: 899px) {
+  #game .rp-stage:has(> .trickrow) { grid-template-columns: 1fr; }
+  #game .rp-stage:has(> .trickrow) > .trickrow, #game .rp-stage:has(> .trickrow) > :not(.trickrow) { grid-column: 1; grid-row: auto; }
+  .mc { width: 82px; }
+}
+.rp .trickrow .mc svg { width: 13px !important; height: 13px !important; outline: 0 !important; }
+/* presa: opzioni più compatte, così il riquadro resta basso */
+#game .rp-stage:has(> .trickrow) .opt { padding: 6px 10px; min-height: 0; }
+#game .rp-stage:has(> .trickrow) .opt svg { width: 20px; height: 20px; }
+#game .rp-stage:has(> .trickrow) .explain { margin: 4px 0; font-size: 12px; }
+#game .rp-stage:has(> .trickrow) .meta { margin-bottom: 6px; }
+#game .rp-stage:has(> .trickrow) p { margin: 4px 0; }

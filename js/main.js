@@ -302,12 +302,13 @@ const townChip = id => { const t = TOWNS[id], su = THEME.suit[t.color]; return `
 // ---------- fasi del round ----------
 const PHASES = [['prep', 'Preparazione'], ['draft', 'Draft'], ['trick', 'Azioni'], ['party', 'Underground Party'], ['guerrilla', 'Guerrilla'], ['community', 'Community Projects'], ['uprising', 'Uprising']];
 let phaseNow = null;
-const PEND_PHASE = { setupTown: 'prep', draft: 'draft', activeTown: 'trick', play: 'trick', action: 'trick', princess: 'party', placeTown: 'party', loseTown: 'guerrilla', monastery: 'community' };
+const PEND_PHASE = { setupTown: 'setup', draft: 'draft', activeTown: 'trick', play: 'trick', action: 'trick', princess: 'party', placeTown: 'party', loseTown: 'guerrilla', monastery: 'community' };
 function renderPhases(s, pd) {
   const cur = showing ? SHOW_PHASE[showing.k] || showing.k : pd ? PEND_PHASE[pd.type] : 'uprising';
   phaseNow = cur;
   const SHORT = { party: 'Party', guerrilla: 'Guerrilla', community: 'Community', uprising: 'Uprising' }; // nomi brevi quando lo schermo è stretto
-  $('phases').innerHTML = PHASES.map(([k, l], i) => `<span class="chev${k === cur ? ' on' : ''}${i >= 3 ? ' up' : ''}" data-short="${SHORT[k] || l}"${k === cur ? ' aria-current="step"' : ''}>${l}<span class="pos"> · ${i + 1} di ${PHASES.length}</span></span>`).join('');
+  const list = cur === 'setup' ? [['setup', 'Setup'], ...PHASES] : PHASES; // il setup si vede solo a inizio partita
+  $('phases').innerHTML = list.map(([k, l], i) => `<span class="chev${k === cur ? ' on' : ''}${i >= list.length - 4 ? ' up' : ''}" data-short="${SHORT[k] || l}"${k === cur ? ' aria-current="step"' : ''}>${l}<span class="pos"> · ${i + 1} di ${list.length}</span></span>`).join('');
   $('phases').querySelector('.on')?.scrollIntoView({ inline: 'center', block: 'nearest' });
 }
 
@@ -337,7 +338,7 @@ function waitingAcks() {
   return room.players.map((p, i) => [p, i]).filter(([p]) => !p.bot && (room.acks?.[p.uid] ?? -1) < showing.n).map(([, i]) => i);
 }
 const ACK_ALL = new Set(['prep', 'party', 'final']);
-const SHOW_PHASE = { setup: 'prep', final: 'uprising', estrid: 'party' };
+const SHOW_PHASE = { setup: 'setup', final: 'uprising', estrid: 'party' };
 function checkAcks() { if (ACK_ALL.has(showing?.k) && acked === showing.n && !waitingAcks().length) { acked = null; nextEvent(); } }
 
 function hypeTrack(pos, { mark = null, note = '' } = {}) { // pos[i] = casella del giocatore i (0..9)
@@ -386,14 +387,14 @@ function steps(e) {
     case 'final': { // punteggio finale, una voce alla volta, con la tabella che si riempie
       const z = e.zones, cols = FINAL_COLS(e);
       const out = [{ t: 'Fine partita', b: finalTable(e, cols, 0) + '<p>Si contano i punti finali, una voce alla volta. Ognuno parte dai punti fatti in partita.</p>' }];
-      out.push({ t: 'Crediti', b: finalTable(e, cols, 1) + (e.coinsTie ? '<p>Più bande pareggiano per i crediti: nessuno prende il punto.</p>' : `<p>${who(s, e.coins.indexOf(1))} ha più crediti: <b class="ptsup">+1 punto</b>.</p>`) });
+      out.push({ t: 'Crediti', b: finalTable(e, cols, 1) + (e.coinsTie ? '<p>Più fazioni pareggiano per i crediti: nessuno prende il punto.</p>' : `<p>${who(s, e.coins.indexOf(1))} ha più crediti: <b class="ptsup">+1 punto</b>.</p>`) });
       out.push({ t: 'Quartiere attivo', b: finalTable(e, cols, 2) + `<p>${who(s, e.active.indexOf(1))} ha il segnalino del quartiere attivo: <b class="ptsup">+1 punto</b>.</p>` });
       out.push({ t: 'Street cred', b: finalTable(e, cols, 3) + '<p>Ogni street cred vale <b>1 punto</b>.</p>' });
       if (!z.length) out.push({ t: 'Zone in palio', b: finalTable(e, cols, 4) + '<p>Nessuna zona è in palio: nessun punto.</p>' });
       z.forEach((x, k) => out.push({ zone: x.r, t: `Zona ${REGIONS[x.r].name}`, b: finalTable(e, cols, 4, k) + (x.owner !== null
         ? `<p>${who(s, x.owner)} controlla ${REGIONS[x.r].name}: i suoi ${x.pts} punti li ha già presi durante la partita.</p>`
         : x.half.length ? `<p>Nessuno la controlla: ${x.half.map(i => who(s, i)).join(', ')} ${x.half.length > 1 ? 'pareggiano' : 'ha'} per più quartieri e ${x.half.length > 1 ? 'prendono' : 'prende'} metà dei punti: <b class="ptsup">+${Math.floor(x.pts / 2)}</b>.</p>`
-        : '<p>Nessuna banda ha quartieri qui: nessun punto.</p>') }));
+        : '<p>Nessuna fazione ha quartieri qui: nessun punto.</p>') }));
       out.push({ t: 'Presenza nelle zone', b: finalTable(e, cols, 5) + `<p>Punti per il numero di zone in cui hai almeno un quartiere:</p><table class="ptable regscore"><tr><td>Zone</td>${['1–2', '3–4', '5', '6', '7', '8'].map(x => `<td>${x}</td>`).join('')}</tr><tr><td>Punti</td>${[0, 1, 3, 5, 7, 10].map(x => `<td>${x}</td>`).join('')}</tr></table>` });
       out.push({ t: e.winner.length > 1 ? 'Pareggio!' : `Vince ${esc(s.players[e.winner[0]].name)}!`, b: finalTable(e, cols, 6) + (e.winner.length > 1 ? '<p>Pari punti, zone controllate e carte Hype: vittoria condivisa.</p>' : tieNote(e)) });
       return out;
@@ -403,8 +404,8 @@ function steps(e) {
       trade: 'Rete: a fine partita i quartieri presidiati dalla polizia contano come suoi per il numero di zone in cui è presente.',
       spurn: 'La lascia libera e prende subito <b class="ptsup">+4 punti</b>.' }[e.choice]}</p>` }];
     case 'setup': return [{ t: `${esc(s.players[e.p].name)} parte da ${esc(TOWNS[e.town].name)}`, b: `<p>${who(s, e.p)} sceglie ${townChip(e.town)} in <b>${REGIONS[TOWNS[e.town].region].name}</b>. <button class="btn ghost small goto" data-goto="${e.town}">Portami lì</button></p>` }];
-    case 'prep': return [{ t: `Round ${e.round}${e.final ? ' · ultimo' : ''}`, b: `<div class="prep"><div class="pol">${logo('polizia', 34)}<b>+${e.police}</b><span class="cap">polizia in arrivo · in allerta ${e.area}</span></div>
-      <div class="hy"><span class="cap">In Hype</span>${hypeCardHTML(e.character, s)}</div></div>` }];
+    case 'prep': return [{ strip: true, card: e.character, t: `Round ${e.round}${e.final ? ' · ultimo' : ''}`, // una riga sola; la carta Hype sotto il riquadro
+      b: `<span class="pp" title="Polizia in arrivo (in allerta ${e.area})">${logo('polizia', 18)}<b>${e.police}</b></span><span class="pp"><b class="tag">Hype</b>${hypeSummary(s, e.character)}</span>` }];
     case 'party': { // la track in orizzontale si avvicina; dal più avanti: usa la carta, torna all'inizio, gli altri prendono i bonus
       const c = e.card, W = e.winner, after = e.track.map((p, i) => (i === W ? 0 : p));
       if (W === null) return [{ t: 'Underground Party', b: partyTrack(e.track, { zoom: true }) + '<p>Nessuno ha hype: il personaggio se ne va.</p>' }];
@@ -541,33 +542,33 @@ function hypeMini(s) { // la carta Hype anche accanto al cartello del municipio 
   const lab = k && document.querySelector(`.rlabel[data-region="${k}"]`);
   if (lab) lab.insertAdjacentHTML('beforeend', `<span class="hymini" title="La carta Hype dà un quartiere qui">Hype</span>`);
 }
-function renderHypeCard(s) {
-  const el = $('hypecard'), c = s.marriage;
-  el.hidden = !c; document.body.classList.toggle('has-hype', !!c);
-  if (!c) { city?.highlight(null); return; }
-  const k = c.princess ? null : c.region;
-  el.innerHTML = hypeCardHTML(c, s);
-  el.setAttribute('aria-pressed', String(hypeLit && !!k));
-  el.title = k ? `Clic: illumina ${REGIONS[k].name} sulla mappa` : '';
-  el.onclick = () => { if (!k) return; hypeLit = !hypeLit; city.highlight(hypeLit ? k : null); renderHypeCard(state); };
-  city.highlight(hypeLit && k ? k : null);
-}
-function bindPeek(s) {
+function renderHypeCard() { $('hypecard').hidden = true; document.body.classList.remove('has-hype'); } // la carta Hype ora sta sotto la track della plancia
+function bindPeek(s) { // "Vedi carta": la carta Hype si apre accanto alla plancia e la sua zona si accende sulla mappa
   const b = $('b-players').querySelector('.peek'), card = $('peekcard');
-  card.hidden = true;
-  if (!b) return;
+  if (!b) { card.hidden = true; hypeLit = false; city?.highlight(null); return; }
+  const k = s.marriage.princess ? null : s.marriage.region;
   const show = on => {
+    hypeLit = on;
     if (on) {
       card.innerHTML = characterSVG(characterIndex(s.marriage));
       const r = $('b-players').getBoundingClientRect();
       card.style.left = `${Math.min(r.right + 8, innerWidth - 196)}px`;
       card.style.top = `${Math.max(8, Math.min(r.top, innerHeight - 290))}px`;
     }
-    card.hidden = !on;
+    card.hidden = !on; b.setAttribute('aria-pressed', String(on)); b.textContent = on ? 'Chiudi carta' : 'Vedi carta';
+    city?.highlight(on && k ? k : null);
   };
-  b.onmouseenter = b.onfocus = () => show(true);
-  b.onmouseleave = b.onblur = () => show(false);
   b.onclick = () => show(card.hidden);
+  show(hypeLit);
+}
+// track dell'hype: logo del bonus a colori in alto (la casella 1 è la partenza, la 10 ha il logo dell'Hype)
+const hypeBonus = (b, c) => c === 9 ? logo('hype', 12) : !b ? '' : b === 'CC' ? icon('C', 12, '#ffc20e', HOLE) + icon('C', 12, '#ffc20e', HOLE)
+  : icon(b, 12, { C: '#ffc20e', R: '#f2b100', T: '#ff3d3d' }[b], HOLE);
+// riassunto della carta Hype: punti con la coppa, zona col triangolo (o street cred, o IA libera)
+function hypeSummary(s, c) {
+  if (c.princess) return '<span class="hs">IA libera: tre scelte</span>';
+  const k = c.region, own = k ? s.claims[k]?.owner ?? null : null;
+  return `<span class="hs">+${c.points}${logo('punti', 13)}</span>${k ? `<span class="hs"><i class="tri" style="--rc:${THEME.region[k]}" aria-hidden="true"><i></i><i></i><i></i><i></i></i>${REGIONS[k].name}${own !== null ? ` <em>(${esc(s.players[own].name)})</em>` : ''}</span>` : ''}${c.renown ? '<span class="hs">+1 street cred</span>' : ''}`;
 }
 let bigBoard = (() => { try { return localStorage.getItem('bb-board') === 'big'; } catch { return false; } })();
 const shortName = n => ([...n].length > 7 ? [...n].slice(0, 6).join('') + '.' : n); // nomi lunghi: quello che ci sta, poi il punto
@@ -591,14 +592,15 @@ function renderBoard(s, pd) {
     p.claims.length ? 'zone: ' + p.claims.map(r => REGIONS[r].name).join(', ') : '', p.marriages.length ? 'personaggi: ' + p.marriages.map(characterName).join(', ') : '',
     p.princess ? 'Estrid alleata' : '', i === s.active ? 'ha il segnalino del quartiere attivo' : ''].filter(Boolean).join(' · ');
   $('b-players').innerHTML = `<button class="zoom" type="button" aria-pressed="${bigBoard}" aria-label="${bigBoard ? 'Rimpicciolisci la plancia' : 'Ingrandisci la plancia'}">${bigBoard ? '−' : '+'}</button>
-    <div class="vgrid"><table aria-label="Bande">
-    <thead><tr><td></td>${s.players.map((p, i) => `<th scope="col"><span class="ini${waiting.includes(i) ? ' turn' : ''}" style="--pc:${THEME.players[i]}" title="${esc(tip(p, i))}">${esc(bigBoard ? shortName(p.name) : initial(s, i))}</span>${i === s.active ? `<i class="mk" title="Segnalino quartiere attivo">${icon('T', 11, 'currentColor', HOLE)}</i>` : ''}</th>`).join('')}</tr></thead>
+    <div class="vgrid"><table aria-label="Fazioni">
+    <thead><tr><td></td>${s.players.map((p, i) => `<th scope="col"><span class="ini${waiting.includes(i) ? ' turn' : ''}${i === s.active ? ' act' : ''}" style="--pc:${THEME.players[i]}" title="${esc(tip(p, i))}">${esc(bigBoard ? shortName(p.name) : initial(s, i))}</span></th>`).join('')}</tr></thead>
     <tbody>${row('punti', 'points')}${row('uprising', p => p.claims.reduce((a, r) => a + REGIONS[r].points, 0), 'uprising')}${row('crediti', 'coins')}${row('cred', 'renown')}${row('guerrilla', 'raiders', 'guerrilla')}${row('community', 'church', 'community')}</tbody>
     <tfoot><tr${phaseNow === 'guerrilla' ? ' class="on"' : ''}><th scope="row">${lab('polizia')}</th><td colspan="${s.players.length}">${s.area}</td></tr></tfoot>
     </table>
-    <div class="vhype${phaseNow === 'party' ? ' on' : ''}${actionSyms(s, pd).includes('M') ? ' flash' : ''}" style="--np:${s.players.length}" role="img" aria-label="Hype: ${s.players.map(p => `${esc(p.name)} casella ${p.mar + 1}`).join(', ')}">${MARRIAGE_TRACK.map((b, c) => [b, c]).reverse().map(([b, c]) =>
-      `<span class="vc${b ? ' bonus' : ''}${c === 9 ? ' top' : ''}" title="Hype ${c + 1}: ${b ? BONUS_TIP[b] : 'nessun bonus'}">${c === 9 ? logo('hype', 12) : ''}<span class="g">${b ? icon(b === 'CC' ? 'C' : b, 10, 'currentColor', HOLE) + (b === 'CC' ? '<sup>2</sup>' : '') : ''}</span>${s.players.map((p, i) => (p.mar === c ? pdot(i) : '')).join('')}</span>`).join('')}</div></div>
-    ${s.marriage ? `<p class="sub hypeline narrow-only">Hype: <b>${esc(characterName(s.marriage))}</b><button class="peek" type="button" aria-label="Vedi il personaggio: ${esc(characterName(s.marriage))}">${characterSVG(characterIndex(s.marriage))}</button></p>` : ''}`;
+    </div>
+    <div class="htrack${phaseNow === 'party' ? ' on' : ''}${actionSyms(s, pd).includes('M') ? ' flash' : ''}" role="img" aria-label="Hype: ${s.players.map(p => `${esc(p.name)} casella ${p.mar + 1}`).join(', ')}">${MARRIAGE_TRACK.map((b, c) =>
+      `<span class="hc${b ? ' bonus' : ''}" title="Hype ${c + 1}: ${c ? (b ? BONUS_TIP[b] : 'nessun bonus') : 'partenza delle fazioni'}"><span class="g">${hypeBonus(b, c)}</span><span class="pw">${s.players.map((p, i) => (p.mar === c ? pdot(i) : '')).join('')}</span></span>`).join('')}</div>
+    ${s.marriage ? `<div class="hstrip"><b class="tag">Hype</b>${hypeSummary(s, s.marriage)}<button class="peek btn ghost small" type="button">Vedi carta</button></div>` : ''}`;
   $('b-players').querySelector('.zoom').onclick = () => { bigBoard = !bigBoard; try { localStorage.setItem('bb-board', bigBoard ? 'big' : 'small'); } catch {} render(); };
   bindPeek(s); renderHypeCard(s); hypeMini(s); renderRef();
   // uprising: zone sbloccate e chi le tiene
@@ -632,6 +634,11 @@ function renderHand(s, pd) {
       else return toast('Hai già 2 carte: togline una per cambiarla');
       render();
     }));
+    return;
+  }
+  if (pd?.type === 'draft' && s.draft.picks[seat]) { // in attesa degli altri: si vedono tutte le carte tenute finora, anche le 2 appena scelte
+    el.innerHTML = sorted([...s.players[seat].hand, ...s.draft.picks[seat]]).map(v => card(v, 'aria-disabled="true"')).join('');
+    el.querySelectorAll('[data-c]').forEach(b => (b.onclick = () => toast('Aspetta che gli altri scelgano le loro carte')));
     return;
   }
   const hand = sorted(s.players[seat].hand), mine = pd && pd.p === seat && !showing;
@@ -672,11 +679,17 @@ function resultsList(s) {
   const list = s.trick?.results?.length ? s.trick.results : !s.trick?.plays?.length ? s.lastTrick?.results : null;
   return list?.length ? `<ul class="results">${list.map(r => `<li>${resultText(s, r)}</li>`).join('')}</ul>` : '';
 }
+// carta in versione compatta (presa in corso): numero nel colore del seme, poi Vinci / Perdi / Oppure coi simboli, senza illustrazione
+function miniCard(v) {
+  const k = CARDS[v], su = k.color === 'white' ? { fill: '#111', ink: '#fff' } : THEME.suit[k.color];
+  const row = (lab, sy) => `<span class="r"><small>${lab}</small>${sy.map(x => icon(x, 13, '#111', '#f4f1ea')).join('')}</span>`;
+  return `<div class="mc" style="--sc:${su.fill};--si:${su.ink}"><b class="n">${v}</b>${row('Vinci', k.primary)}${k.secondary.map((x, i) => row(i ? 'Oppure' : 'Perdi', x)).join('')}</div>`;
+}
 function trickRow(s) {
   const t = s.trick;
   if (!t?.plays.length) return '';
   const now = current(s), acting = now?.type === 'action' || now?.type === 'play' ? now.p : null;
-  return `<div class="trickrow">${t.plays.map(x => `<figure class="${t.winner === x.p ? 'win' : ''}${x.p === acting && now.type === 'action' && x.card === now.card ? ' now' : ''}" style="--pc:${THEME.players[x.p]}">${cardSVG(x.card)}<figcaption>${esc(s.players[x.p].name)}${t.winner === x.p ? '<em>vince la presa</em>' : ''}</figcaption></figure>`).join('')}</div>`;
+  return `<div class="trickrow">${t.plays.map(x => `<figure class="${t.winner === x.p ? 'win' : ''}${x.p === acting && now.type === 'action' && x.card === now.card ? ' now' : ''}" style="--pc:${THEME.players[x.p]}">${miniCard(x.card)}<figcaption>${esc(s.players[x.p].name)}${t.winner === x.p ? '<em>vince la presa</em>' : ''}</figcaption></figure>`).join('')}</div>`;
 }
 
 function hypePreview(s, pl, syms, extra) { // dove arriva il disco sulla track, con la regola delle caselle occupate
@@ -709,8 +722,19 @@ function renderStage(s = state, pd = current(state)) {
   const mineTurn = pd && pd.p === seat && !showing && !(pd.type === 'draft' && s.draft.picks[seat]);
   el.classList.toggle('mine', !!mineTurn || (pd?.type === 'draft' && seat >= 0 && !s.draft.picks[seat] && !showing));
   el.classList.toggle('compact', !!mapPicking);
+  el.classList.remove('strip');
   if (showing) {
     const st = steps(showing), cur = st[Math.min(step, st.length - 1)];
+    if (cur.strip) { // finestra del round: una striscia bassa, con la carta Hype appena sotto
+      el.classList.add('strip');
+      el.innerHTML = `<h2>${cur.t}</h2>${cur.b}` + (waitingAcks().length && acked === showing.n ? `<p class="waitack">Aspettano: ${waitingAcks().map(i => `<span class="blink">${who(s, i)}</span>`).join(' ')}</p>`
+        : '<button class="btn small" id="next" aria-keyshortcuts="Space">Avanti</button>');
+      $('next') && ($('next').onclick = advance);
+      const card = $('peekcard'), r = el.getBoundingClientRect();
+      card.innerHTML = characterSVG(characterIndex(cur.card)); card.hidden = false;
+      card.style.left = `${r.left}px`; card.style.top = `${r.bottom + 8}px`;
+      return;
+    }
     el.innerHTML = head(cur.t, `${showing.k === 'final' ? 'Punteggio finale' : PHASES.find(p => p[0] === (SHOW_PHASE[showing.k] || showing.k))?.[1] || ''} · passo ${step + 1} di ${st.length}`, cur.b) +
       (waitingAcks().length && acked === showing.n ? `<p class="waitack">In attesa che clicchino Avanti: ${waitingAcks().map(i => `<span class="blink">${who(s, i)}</span>`).join(' ')}</p>`
         : `<div class="row end"><button class="btn small" id="next" aria-keyshortcuts="Space">Avanti</button></div>`);
@@ -729,7 +753,7 @@ function renderStage(s = state, pd = current(state)) {
     if (seat >= 0 && !s.draft.picks[seat]) {
       const n = (ui.draft || []).length;
       el.innerHTML = head('Scegli 2 carte', `Draft · ${mine}`,
-        `<p>Tieni 2 carte dal mazzetto: le altre passano alla banda successiva. In basso a sinistra trovi quelle già tenute.</p>
+        `<p>Tieni 2 carte dal mazzetto: le altre passano alla fazione successiva. In basso a sinistra trovi quelle già tenute.</p>
          <button id="ok" class="btn wide" ${n === 2 ? '' : 'disabled'} aria-keyshortcuts="Enter">${n === 2 ? 'Tieni queste 2' : n === 1 ? 'Scegli ancora 1 carta' : 'Scegli 2 carte'}</button>`);
       $('ok').onclick = () => act({ cards: ui.draft });
     } else el.innerHTML = head('In attesa del draft', 'Draft', `<p>Stanno scegliendo: ${s.draft.picks.flatMap((x, i) => (x ? [] : [who(s, i)])).join(', ')}</p>`);
@@ -749,7 +773,7 @@ function renderStage(s = state, pd = current(state)) {
     $('ok').onclick = () => act({ town: ui.town });
   };
   switch (pd.type) {
-    case 'setupTown': return confirmTown('Quartiere di partenza', 'Uno spot libero in una zona senza altre bande. Puoi cambiare idea fino a Conferma.');
+    case 'setupTown': return confirmTown('Quartiere di partenza', 'Uno spot libero in una zona senza altre fazioni. Puoi cambiare idea fino a Conferma.');
     case 'placeTown': return confirmTown(`Prendi un quartiere${pd.region ? ' in ' + REGIONS[pd.region].name : ''}`, 'Uno spot libero tra quelli evidenziati.');
     case 'loseTown': return confirmTown('Retata: un quartiere passa alla polizia', pd.victim === seat
       ? 'Scegli quale dei tuoi quartieri lasciare. Resta tuo sotto il presidio: lo riprendi rimuovendo il presidio con una carta di Briano Borro.'
@@ -785,7 +809,7 @@ function renderStage(s = state, pd = current(state)) {
   ui.extra = Math.min(ui.extra || 0, maxExtra);
   const count = k => syms.filter(x => x === k).length;
   const after = Math.max(0, pl.coins + count('C') - count('P')) - (buy ? ui.extra * 2 : 0) - (ui.expand != null ? 5 : 0); // il "paga" senza crediti costa punti, non blocca
-  const title = pd.won ? `Presa vinta con ${pd.card}` : `Mossa di riserva con ${pd.card}`;
+  const title = pd.won ? `Vinci la presa con la ${pd.card}` : `Scegli l'azione della ${pd.card}`;
   if (mapPicking) { // scelta sulla mappa in corso: pannello ridotto a una striscia
     el.innerHTML = head(ui.pick === 'expand' ? 'Dove ti espandi?' : 'Quale presidio rimuovi?', `${title} · gli spot validi sono evidenziati`,
       `<div class="row end"><button class="btn ghost small" id="nopick">Annulla</button></div>`);
@@ -797,7 +821,7 @@ function renderStage(s = state, pd = current(state)) {
     <ul class="explain">${[...new Set(syms)].map(x => `<li>${icon(x, 16, 'currentColor', HOLE)} ${exactText(x, count(x), pl)}</li>`).join('')}</ul>
     ${buy ? `<div class="stepper"><span>Passi extra, 2 crediti l'uno</span><button class="btn small" data-x="-1" aria-label="Un passo in meno">−</button><b>${ui.extra}</b><button class="btn small" data-x="1" aria-label="Un passo in più" ${ui.extra >= maxExtra ? 'disabled' : ''}>+</button></div>` : ''}
     ${hypePreview(s, pl, syms, buy === 'M' ? ui.extra : 0)}
-    ${syms.includes('E') ? `<p><button class="btn ghost small" id="pick-e">${ui.expand != null ? 'Espansione: ' + esc(TOWNS[ui.expand].name) + ' (cambia)' : 'Scegli dove espanderti (facoltativo, 5 crediti)'}</button>${ui.expand != null ? ' <button class="link" id="no-e">annulla</button>' : ''}</p>` : ''}
+    ${syms.includes('E') && ui.expand != null ? `<p>Espansione: ${townChip(ui.expand)} <button class="link" id="no-e">annulla</button></p>` : syms.includes('E') && after >= 5 ? '<p class="note">Per espanderti tocca uno dei quartieri coi fuochi d\'artificio (5 crediti).</p>' : ''}
     ${syms.includes('V') && vikingTowns(s).length ? `<p><button class="btn ghost small" id="pick-v">${ui.viking != null ? 'Presidio: ' + esc(TOWNS[ui.viking].name) + ' (cambia)' : 'Scegli il presidio da rimuovere'}</button></p>` : ''}
     <p class="balance">Crediti: <b>${pl.coins}</b> → <b class="${after < 0 ? 'neg' : ''}">${Math.max(0, after)}</b>${after < 0 ? ' · non bastano' : ''}</p>
     ${ui.opt == null ? '<p class="note">Scegli una delle opzioni: sulla plancia e sulla mappa lampeggia quello che cambia.</p>' : ''}

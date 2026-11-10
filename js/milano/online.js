@@ -138,7 +138,7 @@ export async function connect(config) {
     startGame: code => gameTx(code, g => {
       const players = Object.values(g.players || {});
       if (g.host !== uid()) throw new Error('Solo chi ha creato la partita può avviarla');
-      if (players.length < 3) throw new Error('Servono almeno 3 bande');
+      if (players.length < 3) throw new Error('Servono almeno 3 fazioni');
       return { ...g, status: 'play', state: JSON.stringify(newGame(players.map(p => p.nick))) };
     }),
     act: (code, m, seat = null) => gameTx(code, g => {
