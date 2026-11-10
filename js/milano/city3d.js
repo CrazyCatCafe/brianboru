@@ -354,7 +354,7 @@ export async function createCity(container, overlay, view = {}) {
   const raveGeo = { box: new THREE.BoxGeometry(0.05, 0.04, 0.04), cone: new THREE.CircleGeometry(0.013, 10), body: new THREE.BoxGeometry(0.016, 0.03, 0.012), head: new THREE.BoxGeometry(0.013, 0.013, 0.013) };
   const raveMat = { cone: new THREE.MeshBasicMaterial({ color: '#ff2d87' }) };
   const RAVE_COLORS = ['#ff2d87', '#00e5ff', '#ffd400', '#7cff4f', '#a34dff'];
-  let selected = null, active = null, lit = null; // lit: zona illuminata a richiesta (carta Hype)
+  let selected = null, active = null, lit = null, pickRegions = new Set(); // lit: zona illuminata a richiesta (carta Hype); pickRegions: zone dove si può scegliere sulla mappa
 
   function update(s) {
     for (const r of Object.values(regions)) r.pieces.clear();
@@ -554,7 +554,7 @@ export async function createCity(container, overlay, view = {}) {
     // municipio del quartiere selezionato: si alza e si colora
     const selRegion = selected !== null ? spots[selected].region : null, actRegion = active !== null ? spots[active].region : null; // anche la zona del quartiere in palio, per tutti
     for (const [k, r] of Object.entries(regions)) {
-      const on = k === selRegion || k === actRegion || k === lit, focus = selRegion !== null || actRegion !== null || lit !== null;
+      const on = k === selRegion || k === actRegion || k === lit || pickRegions.has(k), focus = selRegion !== null || actRegion !== null || lit !== null || pickRegions.size > 0;
       r.lift += ((on ? 1 : 0) - r.lift) * Math.min(1, dt * 6);
       r.dim += ((focus && !on ? 1 : 0) - r.dim) * Math.min(1, dt * 4); // le altre zone si spengono, quella in gioco risalta
       r.g.position.y = r.lift * LIFT;
@@ -659,7 +659,7 @@ export async function createCity(container, overlay, view = {}) {
       goal.target.set(c.x, 0, c.z + 0.35); goal.camera.copy(goal.target).addScaledVector(dir, Math.min(13, Math.max(3.2, spread * 2.6)));
       homing = 1;
     },
-    setClickable: (ids, cb) => { clickable = new Set(ids); onPick = cb || (() => {}); },
+    setClickable: (ids, cb) => { clickable = new Set(ids); onPick = cb || (() => {}); pickRegions = new Set(ids.length && ids.length < spots.length / 2 ? ids.map(i => spots[i].region) : []); }, // scelte sulla mappa: si illuminano le loro zone
     setFireworks: ids => { fwTowns = ids || []; },
     setWeather, weather: () => weatherKey,
     // pixel art accesa/spenta: solo la mappa, l'interfaccia resta nitida

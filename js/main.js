@@ -344,7 +344,7 @@ function phaseBanner(k) {
 }
 function renderPhases(s, pd) {
   const cur = showing ? SHOW_PHASE[showing.k] || showing.k : pd ? PEND_PHASE[pd.type] : 'uprising';
-  if (cur !== phaseNow && phaseNow !== null) phaseBanner(cur); // cambio di fase: cartello grande al centro
+  if (cur !== phaseNow && phaseNow !== null) { phaseBanner(cur); hypeLit = false; city?.highlight(null); $('peekcard').hidden = true; } // cambio di fase: cartello grande, e si spegne l'illuminazione della fase prima
   phaseNow = cur;
   const SHORT = { party: 'Party', guerrilla: 'Guerrilla', community: 'Community', uprising: 'Uprising' }; // nomi brevi quando lo schermo è stretto
   const list = cur === 'setup' ? [['setup', 'Setup'], ...PHASES] : PHASES; // il setup si vede solo a inizio partita
@@ -553,7 +553,7 @@ function render() {
   mapPicking = picks.length > 0 && (pd.type !== 'action' || !!ui.pick);
   document.body.classList.toggle('map-pick', mapPicking);
   const pk = picks.length ? JSON.stringify([pd?.type, ui.pick, picks.length]) : null;
-  if (pk && pk !== framedKey && picks.length < 30 && pd?.type !== 'action') city.frame(picks); // espansione: si segnalano gli spot, niente zoom
+  // niente zoom: la mappa resta com'è, si illuminano le zone dove si può scegliere
   framedKey = pk;
   document.querySelectorAll('[data-sort]').forEach(b => b.setAttribute('aria-pressed', b.dataset.sort === handSort));
   renderPhases(s, pd); renderBoard(s, pd); renderTurn(s, pd, wk); renderStage(s, pd); renderHand(s, pd);
@@ -577,9 +577,9 @@ function hypeCardHTML(c, s) { // carta Hype senza nome: illustrazione, punti con
     ${m ? `<span class="rw"><span>+${m.points}${logo('punti', 13)}</span>${m.renown ? `<span>+1 street cred</span>` : ''}</span>` : '<span class="rw">IA libera: tre scelte</span>'}
     ${k ? `<span class="zone"><i class="tri" style="--rc:${THEME.region[k]}" aria-hidden="true"><i></i><i></i><i></i><i></i></i>${REGIONS[k].name}${own !== null ? ` <em>(${esc(s.players[own].name)})</em>` : ''}</span>` : ''}`;
 }
-function hypeMini(s) { // la carta Hype anche accanto al cartello del municipio che influenzerà
+function hypeMini(s, card = s.marriage) { // la carta Hype anche accanto al cartello del municipio che influenzerà
   document.querySelectorAll('.rlabel .hymini').forEach(x => x.remove());
-  const k = s.marriage && !s.marriage.princess ? s.marriage.region : null;
+  const k = card && !card.princess ? card.region : null;
   const lab = k && document.querySelector(`.rlabel[data-region="${k}"]`);
   if (lab) lab.insertAdjacentHTML('beforeend', `<span class="hymini" title="La carta Hype dà un quartiere qui">Hype</span>`);
 }
@@ -794,6 +794,8 @@ function renderStage(s = state, pd = current(state)) {
       el.innerHTML = `<h2>${cur.t}</h2>${cur.b}` + (waitingAcks().length && acked === showing.n ? `<p class="waitack">Aspettano: ${waitingAcks().map(i => `<span class="blink">${who(s, i)}</span>`).join(' ')}</p>`
         : '<button class="btn small" id="next" aria-keyshortcuts="Space">Avanti</button>');
       $('next') && ($('next').onclick = advance);
+      const k = cur.card && !cur.card.princess ? cur.card.region : null; // preparazione: si illumina la zona della carta Hype e il suo municipio ha già la linguetta HYPE
+      city.highlight(k); hypeMini(s, cur.card);
       const card = $('peekcard'), r = el.getBoundingClientRect();
       card.innerHTML = characterSVG(characterIndex(cur.card)); card.hidden = false;
       card.style.left = `${r.left}px`; card.style.top = `${r.bottom + 8}px`;
