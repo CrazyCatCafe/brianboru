@@ -339,8 +339,17 @@ function phaseBanner(k) {
   const name = [['setup', 'Setup'], ...PHASES].find(p => p[0] === k)?.[1];
   if (!name || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const el = $('phasebanner');
-  el.innerHTML = `${PHASE_LOGO[k] ? logo(PHASE_LOGO[k], 34) : ''}<b>${name}</b>`;
+  el.innerHTML = `<div class="pb">${PHASE_LOGO[k] ? logo(PHASE_LOGO[k], 34) : ''}<b>${name}</b></div>`;
   el.classList.remove('go'); void el.offsetWidth; el.classList.add('go');
+  document.body.classList.add('phasefly'); // finché il cartello non arriva, il box non ha titolo
+  clearTimeout(phaseBanner.t); phaseBanner.t = setTimeout(() => document.body.classList.remove('phasefly'), 1700);
+  requestAnimationFrame(() => { // il box viene disegnato dopo: si legge dove sta il suo titolo e ci si vola sopra
+    const pb = el.querySelector('.pb'), h = document.querySelector('#stage h2'), a = pb.getBoundingClientRect(), t = h?.getBoundingClientRect();
+    const end = t && t.width ? `translate(${t.left - a.left}px, ${t.top + t.height / 2 - (a.top + a.height / 2)}px) scale(${Math.min(1, t.height / a.height * 1.4)})` : 'translateY(-140px) scale(.5)';
+    const ease = 'cubic-bezier(.2, .8, .2, 1)';
+    pb.animate([{ opacity: 0, transform: 'translateX(-40vw)', easing: ease }, { opacity: 1, transform: 'none', offset: .2 }, { opacity: 1, transform: 'none', offset: .62, easing: 'cubic-bezier(.6, 0, .3, 1)' }, { opacity: 1, transform: end, offset: .95 }, { opacity: 0, transform: end }],
+      { duration: 1700, fill: 'both' });
+  });
 }
 function renderPhases(s, pd) {
   const cur = showing ? SHOW_PHASE[showing.k] || showing.k : pd ? PEND_PHASE[pd.type] : 'uprising';
@@ -349,7 +358,6 @@ function renderPhases(s, pd) {
   const SHORT = { party: 'Party', guerrilla: 'Guerrilla', community: 'Community', uprising: 'Uprising' }; // nomi brevi quando lo schermo è stretto
   const list = cur === 'setup' ? [['setup', 'Setup'], ...PHASES] : PHASES; // il setup si vede solo a inizio partita
   $('phases').innerHTML = list.map(([k, l], i) => `<span class="chev${k === cur ? ' on' : ''}${i >= list.length - 4 ? ' up' : ''}" data-short="${SHORT[k] || l}"${k === cur ? ' aria-current="step"' : ''}>${k === 'trick' && s.trick && s.stage === 'trick' ? (s.trick.last ? '<b class="lasttag">Ultima presa</b>' : `<small class="tn">presa ${s.trickNo} di ${s.tricksTotal}</small>`) : ''}${l}<span class="pos"> · ${i + 1} di ${list.length}</span></span>`).join('');
-  $('phases').querySelector('.on')?.scrollIntoView({ inline: 'center', block: 'nearest' });
 }
 
 // ---------- racconto dell'upkeep: un evento alla volta, a passi ----------
@@ -455,7 +463,7 @@ function steps(e) {
       const bonusOf = i => e.bonuses.find(x => x.p === i)?.b;
       const res = (upto, cardHi) => `<div class="partyres"><figure class="${cardHi ? 'hi' : ''}">${characterSVG(characterIndex(c))}</figure><table class="ptable">
         <tr class="win${upto >= 0 ? ' on' : ''}"><td>${who(s, W)}</td><td>${upto >= 0 ? `ingaggia il personaggio: ${eff}${e.before && !c.princess ? ` · <b class="ptsup">punti ${e.before[W]} → ${e.before[W] + c.points}</b>` : ''}${upto >= 1 ? ' · torna alla casella 1' : ''}` : 'ottiene più hype'}</td></tr>
-        ${order.map((i, k) => `<tr class="${upto >= 2 + k ? 'on' : 'dim'}"><td>${who(s, i)}</td><td>${upto >= 2 + k ? (bonusOf(i) ? BONUS[bonusOf(i)] : 'nessun bonus') + ' · resta dov\'è' : ''}</td></tr>`).join('')}</table></div>`;
+        ${order.map((i, k) => `<tr class="${upto >= 2 + k ? 'on' : 'dim'}"><td>${who(s, i)}</td><td>${upto >= 2 + k ? (bonusOf(i) ? BONUS[bonusOf(i)] : 'nessun bonus') : ''}</td></tr>`).join('')}</table></div>`;
       const out = [
         { t: 'Underground Party', b: partyTrack(e.track, { zoom: true }) + '<p>Chi è più avanti nell\'hype ingaggia il personaggio.</p>' },
         { t: `${esc(s.players[W].name)} ottiene più hype`, b: partyTrack(e.track, { hi: W }) + res(0, true) },
@@ -493,7 +501,7 @@ function steps(e) {
       { t: 'Uprising', b: e.flips.length ? `<p>Ora in palio: ${e.flips.map(r => `<b>${REGIONS[r].name}</b>`).join(', ')}.</p>` : '<p>Nessuna nuova zona in palio.</p>' },
       ...(e.values && Object.keys(e.values).length ? [{ t: 'Valore nelle zone in palio', b: `<ul class="plain">${list(Object.entries(e.values).map(([r, v]) => {
         const max = Math.max(0, ...Object.values(v)), top = Object.keys(v).filter(k => v[k] === max), own = s.claims[r].owner;
-        const res = max === 0 ? 'nessuna fazione' : top.length > 1 ? (own !== null ? `contesa: resta a ${who(s, own)}` : 'contesa') : `controlla ${who(s, Number(top[0]))}`;
+        const res = max === 0 ? 'nessuna fazione' : top.length > 1 ? (own !== null ? `resta a ${who(s, own)}` : 'contesa') : `controlla ${who(s, Number(top[0]))}`;
         return `<li><b>${REGIONS[r].name}</b>: ${Object.entries(v).sort(([, a], [, b]) => b - a).map(([i, x]) => `${pname(s, Number(i))} ${x}`).join(' · ') || '—'} → ${res}</li>`;
       }))}</ul><p class="note">Quartiere libero 1, con community project 2, presidiato dalla polizia 0.</p>` }] : []),
       { t: 'Controllo delle zone', b: e.changes.length ? `<ul class="plain">${list(e.changes.map(c => `<li><b>${REGIONS[c.r].name}</b>: ${c.owner === null ? 'nessuno la controlla' : `${who(s, c.owner)}${c.from != null ? ` (la toglie a ${who(s, c.from)})` : ''} · vale <b class="ptsup">${REGIONS[c.r].points} punti</b>`}</li>`))}</ul><p class="note">I punti dei municipi sono provvisori: si vedono nella riga col pugno e si contano a fine partita, a chi li controlla in quel momento.</p>` : '<p>Nessun cambio di controllo.</p>' },
@@ -965,4 +973,5 @@ window.__ui = () => ui;
 window.__until = pred => { for (let k = 0; k < 3000 && local && state.stage !== 'end' && !pred(state, current(state)); k++) { const r = botMove(state); state = applyMove(state, r[0], r[1]); } seenN = state.eventN; queue = []; showing = null; render(); };
 window.__fw = ids => city.setFireworks(ids); // solo per le prove
 // solo per le prove: gioca da solo con i bot fino alla fine della partita (in locale)
+window.__phase = phaseBanner; // test: fa partire il cartello di fase
 window.__autoplay = () => { while (local && state.stage !== 'end') { const r = botMove(state); state = applyMove(state, r[0], r[1]); } ingestEvents(state); render(); };

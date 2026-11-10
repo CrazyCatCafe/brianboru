@@ -415,7 +415,7 @@ body.has-hype #game .rp-stage { left: calc(var(--board-w) + var(--hype-w) + 3 * 
 
 /* fase in corso: freccia un po' più grande e testo in grassetto */
 .rp-phases .chev.on { font-weight: 700; font-size: 13px; padding-top: 10px; padding-bottom: 10px; margin-top: -2px; margin-bottom: -2px; z-index: 1; }
-.rp-phases { align-items: center; }
+.rp-phases { align-items: center; overflow: visible !important; }
 /* chi vince la presa non si ingrandisce: c'è già la scritta */
 .rp .trickrow figure.win { transform: none; }
 
@@ -697,13 +697,17 @@ tr:nth-child(2n) .logo { animation-delay: -3s; }
 .htrack .hc .g .logo, .vhype .vc.top .logo { background: #eef1f3 !important; width: 15px !important; height: 15px !important; display: inline-grid !important; place-items: center; }
 .htrack .hc .g .logo svg { width: 11px; height: 11px; }
 /* animazioni: cambio di fase, valori che cambiano, carta che arriva nella presa */
-.phasebanner { position: fixed; left: 50%; top: 38%; translate: -50% -50%; z-index: 20; display: flex; align-items: center; gap: 14px; padding: 14px 30px 14px 18px; background: var(--rp-red); color: #fff;
-  clip-path: polygon(0 0, calc(100% - 22px) 0, 100% 50%, calc(100% - 22px) 100%, 0 100%); opacity: 0; pointer-events: none; }
+.phasebanner { position: fixed; left: 0; right: 0; top: 50%; translate: 0 -50%; z-index: 20; height: 84px; display: flex; align-items: center; justify-content: center; pointer-events: none; opacity: 0; }
+.phasebanner::before { content: ''; position: absolute; inset: 0; background: var(--rp-red); box-shadow: 0 6px 24px rgba(0, 0, 0, .45); transform-origin: left; }
+.phasebanner .pb { position: relative; display: flex; align-items: center; gap: 14px; color: #fff; transform-origin: left center; }
 .phasebanner b { font: 700 30px var(--pix); text-transform: uppercase; letter-spacing: .06em; }
 .phasebanner .logo { width: 46px; height: 46px; display: grid; place-items: center; background: #eef1f3; }
 .phasebanner .logo svg { width: 34px; height: 34px; }
-.phasebanner.go { animation: phasein 1.3s cubic-bezier(.2, .8, .2, 1) both; }
-@keyframes phasein { 0% { opacity: 0; transform: translateX(-60px) scale(.9); } 18% { opacity: 1; transform: none; } 75% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-140px) scale(.5); } }
+.phasebanner.go { opacity: 1; animation: phaseoff 0s 1.7s both; }
+.phasebanner.go::before { animation: phasebar 1.7s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes phasebar { 0% { transform: scaleX(0); } 18% { transform: scaleX(1); opacity: 1; } 60% { opacity: 1; } 75% { opacity: 0; transform: scaleX(1); } 100% { opacity: 0; } }
+@keyframes phaseoff { to { opacity: 0; } }
+body.phasefly #stage h2 { visibility: hidden; }
 .vgrid td { position: relative; }
 .vgrid .bump { display: inline-block; animation: bump .5s ease-out; }
 @keyframes bump { 40% { transform: scale(1.5); color: #ffd400; } }
