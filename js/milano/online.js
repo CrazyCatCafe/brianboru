@@ -124,7 +124,13 @@ export async function connect(config) {
         emit();
       });
     },
-    closeGame: code => gameTx(code, g => { if (g.host !== uid()) throw new Error('Solo chi ha creato la partita può cancellarla'); return { ...g, status: 'chiusa' }; }),
+    async closeGame(code) { // via subito dal mio elenco, poi la partita si chiude per tutti (si scrive solo lo stato, non tutta la partita)
+      const g = (await D.get(ref('games/' + code))).val();
+      await api.hideGame(code);
+      if (!g) return;
+      if (g.host !== uid()) throw new Error('Solo chi ha creato la partita può cancellarla');
+      await D.update(ref('games/' + code), { status: 'chiusa' });
+    },
     hideGame: code => D.set(ref(`users/${uid()}/hidden/${code}`), true),
     async joinGame(code, gang) {
       const nick = (await api.profile()).nick;

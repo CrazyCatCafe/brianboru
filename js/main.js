@@ -170,7 +170,7 @@ function renderMyGames(list) {
   $('mygames').innerHTML = list.length ? list.map(g => `<li><span><b>${g.code}</b> · ${STATUS[g.status] || g.status} · ${g.players.map(p => esc(p.nick)).join(', ')}</span>
     <span><button class="btn small" data-open="${g.code}">Apri</button> <button class="btn ghost small" data-${mine(g) ? 'del' : 'out'}="${g.code}">${mine(g) ? 'Cancella' : 'Esci'}</button></span></li>`).join('') : '<li class="empty">Nessuna partita.</li>';
   $('mygames').querySelectorAll('[data-open]').forEach(b => (b.onclick = guard(() => openRoom(b.dataset.open))));
-  $('mygames').querySelectorAll('[data-del]').forEach(b => (b.onclick = guard(async () => { if (confirm(`Cancellare la partita ${b.dataset.del} per tutti?`)) await net.closeGame(b.dataset.del); })));
+  $('mygames').querySelectorAll('[data-del]').forEach(b => (b.onclick = guard(async () => { if (!confirm(`Cancellare la partita ${b.dataset.del} per tutti?`)) return; b.closest('li')?.remove(); await net.closeGame(b.dataset.del); toast('Partita cancellata'); })));
   $('mygames').querySelectorAll('[data-out]').forEach(b => (b.onclick = guard(async () => {
     const g = list.find(x => x.code === b.dataset.out);
     if (!confirm(`Uscire dalla partita ${g.code}?`)) return;
