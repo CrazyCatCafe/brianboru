@@ -363,7 +363,7 @@ export async function createCity(container, overlay, view = {}) {
       const sp = spots[i], c = st.owner === null ? null : T.players[st.owner]; // libero: palazzi normali; preso: colore della banda
       if (sp.color !== c) { sp.color = c; if (c) { sp.fill.material.color.set('#2b3036'); sp.thick.material.color.set(c); } } // preso: piazza scura col bordino del giocatore
       sp.sinkTo = c ? 0 : 1; // i palazzi del quartiere preso sprofondano, quelli dei quartieri liberi restano
-      sp.thin.visible = !c; sp.thick.visible = sp.fill.visible = !!c;
+      sp.thin.visible = !c; sp.thick.visible = sp.fill.visible = false; // preso: resta solo la pedina, niente piazza né bordino
       // pedina della fazione al centro del quartiere preso; quando arriva cade dall'alto e rimbalza
       const fac = st.owner === null ? null : s.factions?.[st.owner], key = st.owner === null ? null : `${st.owner}:${fac}`;
       if (sp.pawnKey !== key) {
