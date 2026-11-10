@@ -1253,3 +1253,19 @@ body #game nav.rp-phases { right: calc(var(--right-w) + 24px) !important; }
 #game .actdock > .btn { max-width: none; }
 #game .rp-stage.onlylog:not(:has(.results)) { display: none !important; }
 #game .rp-stage.onlylog > :not(.results):not(.lastbanner) { display: none !important; }
+/* riga fissa sopra le carte: testo breve a sinistra, Conferma in fondo a destra; uguale per tutte le scelte */
+#game .actdock { flex-direction: row !important; align-items: center !important; justify-content: space-between; gap: 12px !important; width: 620px !important; height: 52px; box-sizing: border-box; padding: 0 8px 0 16px !important; }
+#game .actdock .dtx { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font: 700 15px var(--num); color: #fff; display: inline-flex; align-items: center; gap: 8px; }
+#game .actdock .dok, .pcard .actbox .dok { flex: none; width: 150px; margin: 0; }
+.btn.dok:not(:disabled) { background: var(--rp-red) !important; border-color: var(--rp-red) !important; color: #fff !important; animation: okglow 1.2s ease-in-out infinite; }
+@keyframes okglow { 50% { box-shadow: 0 0 0 3px rgba(255, 212, 0, .8); } }
+.pcard .actbox { display: flex !important; flex-direction: row !important; align-items: center; gap: 8px !important; width: 420px !important; height: 52px; box-sizing: border-box; padding: 0 8px 0 14px !important; }
+.pcard .actbox .dtx { flex: 1; display: inline-flex; align-items: center; gap: 6px; font: 700 14px var(--num); white-space: nowrap; }
+.pcard .actbox .dtx b { font: 800 18px var(--num); min-width: 18px; text-align: center; }
+.pcard .actbox:has(> h2) { height: auto; flex-direction: column !important; align-items: stretch; padding: 10px 12px !important; }
+/* track Hype: niente giallo acceso; il tuo logo avanza a passi */
+#game .topbar #b-players.on, #game .topbar .htrack.flash { outline: none !important; animation: none !important; }
+#game .topbar .htrack { position: relative; }
+.hygo { position: absolute; top: 28px; width: calc(100% / 9); display: grid; place-items: center; left: calc((var(--to) - 1) * 100% / 9); animation-name: hygo; animation-fill-mode: both; z-index: 2; }
+.hygo .flogo { width: 26px !important; height: 26px !important; box-shadow: 0 0 0 3px var(--pc), 0 0 10px #ffd400 !important; }
+@keyframes hygo { from { left: calc((var(--from) - 1) * 100% / 9); } }

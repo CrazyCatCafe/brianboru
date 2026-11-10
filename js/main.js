@@ -452,7 +452,7 @@ let seenN = null, queue = [], showing = null, step = 0, timer = null;
 function ingestEvents(s) {
   const n = s.eventN || 0;
   if (seenN === null) { seenN = s.round <= 1 && !s.trick && !s.players.some(p => p.hand.length) ? 0 : n; if (seenN === n) return; } // a inizio partita si vede tutto; entrando a partita in corso non si rivede il passato
-  queue.push(...(s.events || []).filter(e => e.n > seenN)); seenN = n;
+  queue.push(...(s.events || []).filter(e => e.n > seenN && e.k !== 'discard')); seenN = n; // la fine delle azioni non ha più un box
   if (!showing) nextEvent();
 }
 function tick() { clearTimeout(timer); } // niente avanza da solo: serve sempre Avanti
@@ -471,7 +471,7 @@ function advance() {
 let loadDone = false, allReady = false;
 function endEvent() {
   if (showing?.k !== 'pregame') return nextEvent();
-  allReady = true; if (loadDone) goGame(); else render();
+  allReady = true; goGame(); // tutti pronti: sgretolamento in pixel e si entra
 }
 // un secondo e mezzo prima di entrare: Panoramica e caricamento si sgretolano in pixel sempre più grossi
 let crashing = false;
@@ -502,7 +502,7 @@ function startLoading() {
   if (loading) return; loading = true; const id = ++loadId; // uscendo dalla partita il caricamento si ferma
   startSong(); song.currentTime = 0; audioWake(); // la canzone parte da capo con il caricamento
   const el = $('loadscreen'), line = el.querySelector('.lsline'), bar = el.querySelector('.lsbar'), fill = bar.querySelector('i'), pct = el.querySelector('.lspct');
-  el.hidden = false;
+  el.hidden = true; // niente più barra di caricamento: resta solo la canzone
   const t0 = performance.now(); let shown = -1, best = 0;
   (function tickLoad() {
     if (id !== loadId || !loading) return; // in gioco (o uscendo) il caricamento si ferma
@@ -511,10 +511,9 @@ function startLoading() {
     if (t >= 2.5 && i !== shown) { shown = i; line.textContent = LOAD_LINES[i]; line.classList.remove('in'); void line.offsetWidth; line.classList.add('in'); if (i === LOAD_LINES.length - 1) el.classList.add('last'); }
     const x = Math.min(1, t / DROP), fake = Math.min(99, Math.round(100 * (x + 0.04 * Math.sin(t * 2.3) * (1 - x)))); // finto caricamento: avanza a strappi
     best = Math.max(best, fake); fill.style.width = best + '%'; pct.textContent = best + '%'; bar.setAttribute('aria-valuenow', best);
-    if (allReady && t >= DROP - 1.5) goGame(); // tutti pronti: il crash finisce proprio allo stacco
     if (t < DROP) return requestAnimationFrame(tickLoad);
     fill.style.width = '100%'; pct.textContent = '100%'; bar.setAttribute('aria-valuenow', 100);
-    loadDone = true; if (allReady) goGame(); else render(); // chi non ha cliccato Pronto fa aspettare tutti
+    loadDone = true;
   })();
 }
 // chi deve ancora cliccare Avanti alla fine del party (in locale lo schermo è uno solo: basta un clic)
@@ -544,7 +543,7 @@ function guerBoard(e, order, vals, { grow = false, lose = new Set(), raid = fals
 // track dell'hype in orizzontale con le pedine posizionate: si possono animare (zoom d'ingresso, pedina che torna indietro)
 // tabella del punteggio finale: colonne svelate fino a "upto", la colonna corrente accesa, totale che sale
 const FINAL_COLS = e => [
-  ['start', 'Punti in partita', i => e.start[i]], ['coins', 'Crediti', i => e.coins[i]], ['active', 'Fazione Attiva', i => e.active[i]],
+  ['start', 'Punti in partita', i => e.start[i]], ['coins', 'Crediti', i => e.coins[i]], ['active', 'First Player', i => e.active[i]],
   ['renown', 'Street cred', i => e.renown[i]], ['zones', 'Municipi', i => e.zonePts[i]], ['presence', 'Presenza', i => e.presence[i]],
 ];
 function finalTable(e, cols, upto, zoneK = null) {
@@ -562,7 +561,8 @@ function tieNote(e) {
   const t = e.total, w = e.winner[0], second = e.rank[1];
   return t[second] === t[w] ? `<p>Pari punti con ${who(state, second)}: vince chi controlla più zone, poi chi ha più carte Hype.</p>` : `<p>${who(state, w)} vince con <b>${t[w]} punti</b>.</p>`;
 }
-function partyTrack(pos, { zoom = false, hi = null, from = {}, bonus = null } = {}) {
+function partyTrack() { return ''; } // il racconto dell'Hype usa la track in alto (vedi hypePos)
+function partyTrackOld(pos, { zoom = false, hi = null, from = {}, bonus = null } = {}) {
   const cells = MARRIAGE_TRACK.map((b, c) => `<div class="pc${b ? ' bonus' : ''}${bonus !== null && pos[bonus] === c ? ' got' : ''}"><span class="n">${c || 'Via'}</span><span class="b">${b === 'CC' ? icon('C', 12) + icon('C', 12) : b ? icon(b, 13) : ''}</span></div>`).join('');
   const stack = {};
   const toks = pos.map((p, i) => { const k = stack[p] = (stack[p] ?? -1) + 1; return `<i class="pt${i === hi ? ' hi' : ''}" style="--pc:${THEME.players[i]};--x:${p};--y:${k};${from[i] != null ? `--fx:${from[i]};` : ''}"${from[i] != null ? ' data-move' : ''} title="${esc(state.players[i].name)}">${factionLogo(gangOf(i), 10)}</i>`; }).join('');
@@ -576,7 +576,7 @@ function steps(e) {
       const z = e.zones, cols = FINAL_COLS(e);
       const out = [{ t: 'Fine partita', b: finalTable(e, cols, 0) + '<p>Si contano i punti finali, una voce alla volta. Ognuno parte dai punti fatti in partita.</p>' }];
       out.push({ t: 'Crediti', b: finalTable(e, cols, 1) + (e.coinsTie ? '<p>Più fazioni pareggiano per i crediti: nessuno prende il punto.</p>' : `<p>${who(s, e.coins.indexOf(1))} ha più crediti: <b class="ptsup">+1 punto</b>.</p>`) });
-      out.push({ t: 'Fazione Attiva', b: finalTable(e, cols, 2) + `<p>${who(s, e.active.indexOf(1))} è la Fazione Attiva: <b class="ptsup">+1 punto</b>.</p>` });
+      out.push({ t: 'First Player', b: finalTable(e, cols, 2) + `<p>${who(s, e.active.indexOf(1))} è First Player: <b class="ptsup">+1 punto</b>.</p>` });
       out.push({ t: 'Street cred', b: finalTable(e, cols, 3) + '<p>Ogni street cred vale <b>1 punto</b>.</p>' });
       if (!z.length) out.push({ t: 'Municipi', b: finalTable(e, cols, 4) + '<p>Nessun municipio è in palio: nessun punto.</p>' });
       z.forEach((x, k) => out.push({ zone: x.r, t: `Municipio ${REGIONS[x.r].name}`, b: finalTable(e, cols, 4, k) + (x.owner !== null
@@ -639,7 +639,7 @@ function steps(e) {
     case 'community': {
       if (e.church.every(c => c === 0)) return [{ t: 'Community', b: '<p>Nessuno ha punti community: nessun progetto urbano in questo round.</p>' }];
       const out = [{ t: 'Community', b: `<ul class="plain">${list(e.church.map((c, i) => `<li>${who(s, i)} ${c} di comunità</li>`))}</ul>` }];
-      if (e.first !== null) out.push({ t: `${who(s, e.first)} guida la comunità`, b: '<p>Avvia un progetto urbano e diventa la Fazione Attiva.</p>' });
+      if (e.first !== null) out.push({ t: `${who(s, e.first)} guida la comunità`, b: '<p>Avvia un progetto urbano e diventa First Player.</p>' });
       else out[0].b += '<p><b>Pareggio</b>: niente progetto principale.</p>'; // pareggio: nello stesso passo
       if (e.ties.length) out.push({ t: '+1 punto', b: `<p>${e.ties.map(i => who(s, i)).join(', ')}</p>` });
       if (e.fours.length) out.push({ t: 'Progetti con 4 o più', b: `<p>${e.fours.map(i => who(s, i)).join(', ')} avviano un progetto urbano.</p>` });
@@ -734,14 +734,31 @@ function render() {
   // scelta dell'azione: conferme, passi extra, espansione e "ti espandi?" stanno sopra la tua carta; nel box centrale resta cosa fanno i giocatori
   const myCard = document.body.classList.contains('cardpick') && $('myplate').querySelector('.pcard');
   if (myCard) {
-    const box = document.createElement('div'); box.className = 'actbox';
-    [...$('stage').children].filter(c => !c.matches('.results, .trickrow, .lastbanner')).forEach(c => box.appendChild(c));
+    const box = document.createElement('div'), st = $('stage'); box.className = 'actbox';
+    if (ui.expandAsk || ui.review) [...st.children].filter(c => !c.matches('.results, .trickrow, .lastbanner')).forEach(c => box.appendChild(c)); // domande rare: il pannello com'è
+    else {
+      const real = st.querySelector('#ok'), ex = st.querySelector('.stepper b')?.textContent;
+      box.innerHTML = `${ex != null ? `<span class="dtx">Passi extra <button class="btn small" data-px="-1">−</button><b>${ex}</b><button class="btn small" data-px="1">+</button> ${logo('crediti', 18)}</span>` : `<span class="dtx">${ui.opt == null ? 'Scegli l’azione sulla carta' : ''}</span>`}
+        ${st.querySelector('#pick-e') ? '<button class="btn ghost small" data-pe>Espanditi</button>' : ''}${st.querySelector('#pick-v') ? '<button class="btn ghost small" data-pv>Presidio</button>' : ''}
+        <button class="btn dok" type="button" ${real && !real.disabled ? '' : 'disabled'}>Conferma</button>`;
+      box.querySelectorAll('[data-px]').forEach(b => (b.onclick = () => st.querySelector(`[data-x="${b.dataset.px}"]`)?.click()));
+      box.querySelector('[data-pe]')?.addEventListener('click', () => st.querySelector('#pick-e')?.click());
+      box.querySelector('[data-pv]')?.addEventListener('click', () => st.querySelector('#pick-v')?.click());
+      box.querySelector('.dok').onclick = () => st.querySelector('#ok')?.click();
+    }
     myCard.appendChild(box);
   }
-  // le altre decisioni tue (draft, quartiere in gioco, scelte sulla mappa...): sopra le tue carte, centrate
+  // le tue decisioni: una riga fissa sopra le carte, testo breve e Conferma in fondo a destra (inoltra al pulsante del pannello, che resta nascosto)
   const dock = $('actdock'), mineNow = !showing && pd && (pd.type === 'draft' ? seat >= 0 && !s.draft.picks[seat] : pd.p === seat) && !myCard;
-  dock.innerHTML = '';
-  if (mineNow) [...$('stage').children].filter(c => !c.matches('.results, .trickrow, .lastbanner')).forEach(c => dock.appendChild(c));
+  const n2 = s.players.length, nextP = (seat + (s.draft?.dir ?? 1) + n2) % n2;
+  const TXT = { draft: () => `Scegli 2 carte: passa a ${who(s, nextP)}`, setupTown: () => 'Scegli il quartiere di partenza', activeTown: () => ui.town == null ? 'Scegli il quartiere in gioco' : `${townChip(ui.town)} · scegli la carta`,
+    play: () => `Gioca una carta · ${townChip(s.trick.town)}`, placeTown: () => 'Scegli un quartiere libero', loseTown: () => 'Scegli il quartiere che va alla polizia', monastery: () => 'Scegli dove avviare il progetto' };
+  if (mineNow && TXT[pd.type]) {
+    const real = $('stage').querySelector('#ok, #playarmed'), on = real && !real.disabled;
+    dock.innerHTML = `<span class="dtx">${TXT[pd.type]()}</span><button class="btn dok" type="button" ${on ? '' : 'disabled'}>Conferma</button>`;
+    dock.querySelector('.dok').onclick = () => $('stage').querySelector('#ok, #playarmed')?.click();
+  } else if (mineNow) { dock.innerHTML = ''; [...$('stage').children].filter(c => !c.matches('.results, .trickrow, .lastbanner')).forEach(c => dock.appendChild(c)); } // scelte rare (Estrid, retata...): il pannello com'è
+  else dock.innerHTML = '';
   dock.hidden = !dock.children.length;
   $('stage').classList.toggle('onlylog', !!myCard || mineNow);
   fitAll();
@@ -853,7 +870,7 @@ function renderBoard(s, pd) {
   };
   const tip = (p, i) => [p.name, isBot(i) ? 'bot' : i === seat && !local ? 'tu' : '', gangOf(i), `${p.hand.length} carte in mano`,
     p.claims.length ? 'municipi: ' + p.claims.map(r => REGIONS[r].name).join(', ') : '', p.marriages.length ? 'personaggi: ' + p.marriages.map(characterName).join(', ') : '',
-    p.princess ? 'Estrid alleata' : '', i === s.active ? 'Fazione Attiva' : ''].filter(Boolean).join(' · ');
+    p.princess ? 'Estrid alleata' : '', i === s.active ? 'First Player' : ''].filter(Boolean).join(' · ');
   const me = Math.max(0, seat);
   const picking = pd?.type === 'action' && pd.p === seat && !showing; document.body.classList.toggle('cardpick', picking); // l'azione si sceglie sulla tua carta
   function playedCard(i) { // carta giocata nella presa, accanto alla targa di chi l'ha giocata
@@ -870,11 +887,17 @@ function renderBoard(s, pd) {
     r.onclick = () => { ui = { opt: key }; render(); };
   });
   // in alto: senso del draft, track Hype con i segnalini delle fazioni, carta Hype; accanto la polizia
-  $('b-players').className = `box${phaseNow === 'party' ? ' on' : ''}`;
+  $('b-players').className = 'box';
+  const partyEv = showing?.k === 'party' ? showing : queue.find(e => e.k === 'party');
+  const hypePos = !partyEv ? s.players.map(p => p.mar) : partyEv === showing && step >= 2 && partyEv.winner !== null ? partyEv.track.map((p, i) => (i === partyEv.winner ? 0 : p)) : partyEv.track;
+  // azione Hype: dove arrivi, col tuo logo che avanza a passi
+  const hy = actionSyms(s, pd).filter(x => x === 'M').length; let hyGo = '';
+  if (hy) { const others = s.players.filter((_, i) => i !== seat).map(p => p.mar); let to = Math.min(9, s.players[seat].mar + hy + (ui.extra || 0)); while (to > 0 && others.includes(to)) to--;
+    const from = s.players[seat].mar, n = Math.max(1, to - from); hyGo = `<span class="hygo" style="--to:${to};--from:${from};animation-duration:${n * .3}s;animation-timing-function:steps(${n}, end)">${ftok(seat)}</span>`; }
   const hc = s.marriage, hyText = !hc ? '' : hc.princess ? 'Regina Estrid: tre scelte' : [`+${hc.points} punti`, hc.renown ? '+1 street cred' : '', hc.region ? REGIONS[hc.region].name : ''].filter(Boolean).join(' – ');
   $('b-players').innerHTML = `<div class="hyhead"><b class="tag">Hype</b><span class="hytx">${hyText}</span>${hc ? '<span class="hstrip"><button class="peek btn ghost small" type="button">Vedi carta</button></span>' : ''}</div>
-    <div class="htrack${actionSyms(s, pd).includes('M') ? ' flash' : ''}" role="img" aria-label="Hype: ${s.players.map(p => `${esc(p.name)} ${p.mar ? 'casella ' + p.mar : 'alla partenza'}`).join(', ')}">${MARRIAGE_TRACK.map((b, c) => (c === 0 ? '' :
-      `<span class="hc${b ? ' bonus' : ''}" title="Hype ${c}: ${b ? BONUS_TIP[b] : 'nessun bonus'}"><span class="g">${c === 9 ? '' : hypeBonus(b, c, 24)}</span><span class="pw">${s.players.map((p, i) => (p.mar === c ? ftok(i) : '')).join('')}</span></span>`)).join('')}</div>`;
+    <div class="htrack" role="img" aria-label="Hype: ${s.players.map(p => `${esc(p.name)} ${p.mar ? 'casella ' + p.mar : 'alla partenza'}`).join(', ')}">${MARRIAGE_TRACK.map((b, c) => (c === 0 ? '' :
+      `<span class="hc${b ? ' bonus' : ''}" title="Hype ${c}: ${b ? BONUS_TIP[b] : 'nessun bonus'}"><span class="g">${c === 9 ? '' : hypeBonus(b, c, 24)}</span><span class="pw">${s.players.map((p, i) => (hypePos[i] === c && !(hyGo && i === seat) ? ftok(i) : '')).join('')}</span></span>`)).join('')}${hyGo}</div>`;
   $('b-pol').className = `box${phaseNow === 'guerrilla' ? ' on' : ''}`;
   $('b-pol').innerHTML = `${logo('polizia', 30)}<b>${s.area}</b>`; $('b-pol').title = `Polizia in allerta: ${s.area}`;
   bindPeek(s); renderHypeCard(s); hypeMini(s); renderRef();
@@ -1048,7 +1071,7 @@ function renderStage(s = state, pd = current(state)) {
       const isReady = i => isBot(i) || (local ? acked === showing.n : (room.acks?.[room.players[i]?.uid] ?? -1) >= showing.n);
       const first = showing.k === 'pregame' ? showing.start : s.active, round = showing.k === 'prep';
       const cards = s.players.map((p, i) => `<div class="vscard" style="--pc:${THEME.players[i] === '#1b1b1b' ? '#cfd6dc' : THEME.players[i]};--d:${i * 0.18}s">
-        ${i === first ? '<em class="first">Fazione Attiva</em>' : ''}
+        ${i === first ? '<em class="first">First Player</em>' : ''}
         <span class="vslogo">${factionLogo(gangOf(i), 84)}</span><b class="vsname">${esc(p.name)}</b><span class="vsfac">${esc(gangOf(i))}</span>
         ${round ? `<span class="vspts"><b>${p.points}</b> punti${p.claims.length ? ` <small>+${p.claims.reduce((a, r) => a + REGIONS[r].points, 0)} municipi</small>` : ''}</span>` : ''}
         <span class="vsready${isReady(i) ? ' ok' : ''}">${isReady(i) ? 'Pronto' : 'In attesa'}</span></div>`).join('');
@@ -1067,7 +1090,6 @@ function renderStage(s = state, pd = current(state)) {
       const info = `<div class="vsinfo" style="--d0:${n * 0.18 + 0.45}s">${lines}</div>`; // prima entrano i giocatori, poi le informazioni
       el.innerHTML = `<h2>${round ? `Round ${showing.round} di ${total}${showing.final ? ' · ultimo' : ''}` : 'Panoramica di gioco'}</h2><div class="vsrow">${cards}</div>${info}
         <div class="vsgo" style="--d0:${n * 0.18 + 0.9}s">${acked === showing.n && waitingAcks().length ? `<p class="waitack">Aspettiamo: ${waitingAcks().map(i => `<span class="blink">${who(s, i)}</span>`).join(' ')}</p>`
-          : !round && acked === showing.n ? '<p class="waitack">Tutti pronti: si parte al 100%</p>'
           : `<button class="btn" id="next" aria-keyshortcuts="Space">Pronto</button>`}</div>`;
       if (!round) { renderQuality(); renderAudio(); startLoading(); }
       if (round) { const k = showing.character && !showing.character.princess ? showing.character.region : null; city.highlight(k); hypeMini(s, showing.character); }
