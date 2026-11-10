@@ -4,7 +4,7 @@ import { newGame, move, current, emptyTowns, leadTowns, ownTowns, expandTargets,
 import { TOWNS, CARDS, REGIONS, ROADS } from './data.js';
 import { botMove as smartBot } from './bot.js';
 
-let leadFit = 0, leadMiss = 0;
+let leadFit = 0, leadMiss = 0, leadFallback = false;
 const pick = a => a[Math.floor(Math.random() * a.length)];
 
 function botMove(s) {
@@ -17,11 +17,15 @@ function botMove(s) {
     }
     case 'setupTown': return [pd.p, town(emptyTowns(s).filter(id =>
       !TOWNS.some(o => o.region === TOWNS[id].region && s.towns[o.id].owner !== null)))];
-    case 'activeTown': return [pd.p, town(leadTowns(s, pd.p))];
+    case 'activeTown': { // nessun quartiere libero del suo colore: il motore gli lascia scegliere qualsiasi quartiere (non è un errore se poi non ha carte giocabili)
+      const cs = new Set(s.players[pd.p].hand.map(c => CARDS[c].color));
+      leadFallback = !cs.has('white') && !emptyTowns(s).some(id => cs.has(TOWNS[id].color));
+      return [pd.p, town(leadTowns(s, pd.p))];
+    }
     case 'play': {
       const hand = s.players[pd.p].hand, color = TOWNS[s.trick.town].color;
       const fits = hand.filter(c => CARDS[c].color === color || CARDS[c].color === 'white');
-      if (pd.p === s.trick.leader && fits.length) leadFit++; else if (pd.p === s.trick.leader) leadMiss++;
+      if (pd.p === s.trick.leader && fits.length) leadFit++; else if (pd.p === s.trick.leader && !leadFallback) leadMiss++;
       return [pd.p, { card: pick(pd.p === s.trick.leader && fits.length ? fits : hand) }];
     }
     case 'action': {

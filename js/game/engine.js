@@ -173,6 +173,7 @@ const STAGES = {
     const pls = s.players, n = pls.length, ev = { k: 'community', church: pls.map(pl => pl.church), fours: [] };
     Object.assign(ev, spoils(s, 'church', p => {
       if (ownTowns(s, p).some(id => !s.towns[id].monastery)) s.pending.push({ type: 'monastery', p });
+      if (s.active !== p) log(s, `${name(s, p)} diventa la Fazione Attiva.`);
       s.active = p;
       pls[p].church = 0;
     }));
@@ -356,7 +357,7 @@ const MOVES = {
     const was = { coins: pl.coins, points: pl.points, mar: pl.mar, raiders: pl.raiders, church: pl.church };
     syms.forEach((sym, i) => {
       const last = syms.lastIndexOf(sym) === i, buy = n => { if (pl.coins < 2 * n) fail('Crediti insufficienti'); pl.coins -= 2 * n; return n; };
-      if (sym === 'T') { s.towns[s.trick.town].owner = p; s.active = p; }
+      if (sym === 'T') { s.towns[s.trick.town].owner = p; if (s.active !== p) log(s, `${name(s, p)} diventa la Fazione Attiva.`); s.active = p; }
       if (sym === 'C') pl.coins++;
       if (sym === 'P') { if (pl.coins) pl.coins--; else pl.points = Math.max(0, pl.points - 2); }
       if (sym === 'X') pl.church += 1;

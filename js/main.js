@@ -16,7 +16,7 @@ setIconSet('pixel'); // tutto in pixel art: simboli delle carte e loghi
 const $ = id => document.getElementById(id);
 const esc = t => String(t ?? '').replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
 const SCREENS = ['auth', 'nick', 'lobby', 'game'];
-let actx = null, music = null, sfx = null, phaseNow = null; // audio e fase mostrata (servono già a show)
+let actx = null, music = null, sfx = null, phaseNow = null;  // audio e fase mostrata (servono già a show)
 const show = name => { SCREENS.forEach(s => ($(s).hidden = s !== name)); $('loading').hidden = true; if (name !== 'game') { music?.setPhase('lobby'); phaseNow = null; } }; // fuori dalla partita: musica della lobby
 function toast(msg) { const t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => (t.hidden = true), 4500); }
 const guard = fn => async (...a) => { try { await fn(...a); } catch (e) { console.error(e); toast(friendly(e)); } };
@@ -72,14 +72,7 @@ $('nick-form').onsubmit = guard(async e => {
 $('logout').onclick = $('nick-out').onclick = guard(() => net.signOut());
 
 // ---------- lobby ----------
-// telefono: una sezione alla volta, scelta dal menu (niente pagina lunga da scorrere)
-const TABS = ['p-create', 'p-mine', 'p-solo', 'p-profile', 'p-friends'];
-function showTab(id) {
-  TABS.forEach(t => $(t)?.classList.toggle('tab-on', t === id));
-  document.querySelectorAll('.dash-nav a').forEach(a => a.setAttribute('aria-current', String(a.getAttribute('href') === '#' + id)));
-}
-document.querySelectorAll('.dash-nav a').forEach(a => (a.onclick = e => { e.preventDefault(); showTab(a.getAttribute('href').slice(1)); }));
-showTab(net ? 'p-create' : 'p-solo');
+document.querySelectorAll('.dash-nav a').forEach(a => (a.onclick = e => { e.preventDefault(); $(a.getAttribute('href').slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' }); })); // tutte le sezioni sono in colonna: il menu porta alla sezione
 let lobbyReady = false, friends = [];
 function enterLobby() {
   show('lobby');
@@ -264,18 +257,36 @@ const pixelScale = () => (innerWidth < 900 ? Math.min(1, PIXEL_SCALE * 1.5) : PI
 // ---------- audio: musica e effetti, ognuno con il suo Sì/No (la scelta resta sul dispositivo) ----------
 const audioOn = k => { try { return localStorage.getItem('bb-' + k) !== 'no'; } catch { return true; } };
 function audioWake() { // i browser non suonano prima di un clic: tutto parte al primo tocco
-  if (!actx) { try { actx = new AudioContext(); } catch { return; } music = createMusic(actx, actx.destination, 'nebbia'); sfx = createSfx(actx, actx.destination); music.setPhase(phaseNow || 'lobby'); }
+  if (!actx) {
+    try { actx = new AudioContext(); } catch { return; }
+    outGain = actx.createGain(); outGain.connect(actx.destination); // volume generale (musica ed effetti)
+    music = createMusic(actx, outGain, 'nebbia'); sfx = createSfx(actx, outGain); music.setPhase(phaseNow || 'lobby');
+  }
   if (actx.state === 'suspended') actx.resume();
-  music.master.gain.setTargetAtTime(audioOn('music') ? 0.4 : 0, actx.currentTime, 0.3);
-  audioOn('music') ? music.start() : setTimeout(() => !audioOn('music') && music.stop(), 1500);
+  outGain.gain.setTargetAtTime(volume() / 100, actx.currentTime, 0.05);
+  const playing = song && !song.paused; // mentre suona la canzone, la musica generata tace
+  music.master.gain.setTargetAtTime(audioOn('music') && !playing ? 0.4 : 0, actx.currentTime, playing ? 0.05 : 1.2);
+  audioOn('music') && !playing ? music.start() : setTimeout(() => (!audioOn('music') || (song && !song.paused)) && music.stop(), 1500);
+  if (song) { song.volume = volume() / 100; if (!audioOn('music')) song.pause(); else if (songOn && song.paused && !song.ended) song.play().catch(() => {}); }
+}
+// volume generale 0-100, resta sul dispositivo
+const volume = () => { try { const v = +localStorage.getItem('bb-vol'); return localStorage.getItem('bb-vol') === null ? 80 : Math.max(0, Math.min(100, v)); } catch { return 80; } };
+// canzone d'apertura: parte con la Panoramica di gioco; quando finisce entra la musica generata, che segue le fasi
+let song = null, songOn = false, outGain = null;
+function startSong() {
+  if (songOn) return; songOn = true;
+  song = new Audio('assets/milano/audio/i-like-the-night.mp3'); song.preload = 'auto';
+  song.onended = () => { songOn = false; audioWake(); };
+  audioWake();
 }
 const sound = name => { if (sfx && audioOn('sfx')) sfx.play(name); };
 addEventListener('pointerdown', e => { audioWake(); if (e.target.closest?.('button, .btn, summary')) sound('ui'); }, true);
-function renderAudio() {
-  [['music', 'aud-music'], ['sfx', 'aud-sfx']].forEach(([k, id]) => $(id).querySelectorAll('[data-on]').forEach(b => {
-    b.setAttribute('aria-pressed', String(+b.dataset.on === +audioOn(k)));
+function renderAudio() { // interruttori nel pannello "Grafica e audio" e nella Panoramica di gioco
+  document.querySelectorAll('[data-aud]').forEach(g => g.querySelectorAll('[data-on]').forEach(b => {
+    const k = g.dataset.aud; b.setAttribute('aria-pressed', String(+b.dataset.on === +audioOn(k)));
     b.onclick = () => { try { localStorage.setItem('bb-' + k, +b.dataset.on ? 'si' : 'no'); } catch {} audioWake(); renderAudio(); };
   }));
+  document.querySelectorAll('[data-vol]').forEach(r => { r.value = volume(); r.oninput = () => { try { localStorage.setItem('bb-vol', r.value); } catch {} audioWake(); document.querySelectorAll('[data-vol]').forEach(o => o !== r && (o.value = r.value)); }; });
 }
 renderAudio();
 function renderPixel() {
@@ -288,11 +299,13 @@ function renderPixel() {
 }
 function renderQuality() { // grafica: Auto scende da sola se il computer fatica
   const q = city.quality();
-  $('quality').innerHTML = Object.keys(QUALITY).map(k => `<button data-q="${k}" aria-pressed="${k === q.level}">${QUALITY[k].label}</button>`).join(''); // in automatico si accende il livello in uso
-  $('quality').querySelectorAll('[data-q]').forEach(b => (b.onclick = () => { city.setQuality(b.dataset.q); try { localStorage.setItem('bb-quality', b.dataset.q); } catch {} renderQuality(); }));
+  document.querySelectorAll('[data-quality]').forEach(el => {
+    el.innerHTML = Object.keys(QUALITY).map(k => `<button data-q="${k}" aria-pressed="${k === q.level}">${QUALITY[k].label}</button>`).join(''); // in automatico si accende il livello in uso
+    el.querySelectorAll('[data-q]').forEach(b => (b.onclick = () => { city.setQuality(b.dataset.q); try { localStorage.setItem('bb-quality', b.dataset.q); } catch {} renderQuality(); }));
+  });
 }
 
-async function act(...moves) { // più mosse di fila (es. quartiere attivo + carta)
+async function act(...moves) { // più mosse di fila (es. quartiere in gioco + carta)
   try {
     for (const m of moves) {
       if (local) state = applyMove(state, seat, m);
@@ -427,7 +440,7 @@ function guerBoard(e, order, vals, { grow = false, lose = new Set(), raid = fals
 // track dell'hype in orizzontale con le pedine posizionate: si possono animare (zoom d'ingresso, pedina che torna indietro)
 // tabella del punteggio finale: colonne svelate fino a "upto", la colonna corrente accesa, totale che sale
 const FINAL_COLS = e => [
-  ['start', 'In partita', i => e.start[i]], ['coins', 'Crediti', i => e.coins[i]], ['active', 'Q. att.', i => e.active[i]],
+  ['start', 'In partita', i => e.start[i]], ['coins', 'Crediti', i => e.coins[i]], ['active', 'F. att.', i => e.active[i]],
   ['renown', 'Street cred', i => e.renown[i]], ['zones', 'Municipi', i => e.zonePts[i]], ['presence', 'Presenza', i => e.presence[i]],
 ];
 function finalTable(e, cols, upto, zoneK = null) {
@@ -435,7 +448,7 @@ function finalTable(e, cols, upto, zoneK = null) {
   const val = (c, i) => (c[0] === 'zones' ? zonePart(i) : c[2](i));
   const tot = i => cols.slice(0, Math.min(upto, 5) + 1).reduce((a, c) => a + val(c, i), 0);
   const order = s.players.map((p, i) => i).sort((a, b) => (upto >= 6 ? e.rank.indexOf(a) - e.rank.indexOf(b) : 0));
-  return `<table class="ftable"><thead><tr><th></th>${cols.map((c, k) => `<th class="${k === upto ? 'cur' : ''}"${c[0] === 'active' ? ' title="Quartiere attivo"' : ''}>${c[1]}</th>`).join('')}<th>Totale</th></tr></thead>
+  return `<table class="ftable"><thead><tr><th></th>${cols.map((c, k) => `<th class="${k === upto ? 'cur' : ''}"${c[0] === 'active' ? ' title="Fazione Attiva"' : ''}>${c[1]}</th>`).join('')}<th>Totale</th></tr></thead>
     <tbody>${order.map(i => `<tr class="${upto >= 6 && e.winner.includes(i) ? 'champ' : ''}"><td>${who(s, i)}${upto >= 6 && e.winner.includes(i) ? ' 🏆' : ''}</td>${cols.map((c, k) => {
       const v = k > upto ? '' : val(c, i);
       return `<td class="${k === upto ? 'cur' : ''}${k === upto && v > 0 && k ? ' got' : ''}">${v === '' ? '' : k ? (v ? '+' + v : '·') : v}${k === 5 && k <= upto ? `<small> (${e.regions[i]} zone)</small>` : ''}</td>`;
@@ -459,7 +472,7 @@ function steps(e) {
       const z = e.zones, cols = FINAL_COLS(e);
       const out = [{ t: 'Fine partita', b: finalTable(e, cols, 0) + '<p>Si contano i punti finali, una voce alla volta. Ognuno parte dai punti fatti in partita.</p>' }];
       out.push({ t: 'Crediti', b: finalTable(e, cols, 1) + (e.coinsTie ? '<p>Più fazioni pareggiano per i crediti: nessuno prende il punto.</p>' : `<p>${who(s, e.coins.indexOf(1))} ha più crediti: <b class="ptsup">+1 punto</b>.</p>`) });
-      out.push({ t: 'Quartiere attivo', b: finalTable(e, cols, 2) + `<p>${who(s, e.active.indexOf(1))} ha il segnalino del quartiere attivo: <b class="ptsup">+1 punto</b>.</p>` });
+      out.push({ t: 'Fazione Attiva', b: finalTable(e, cols, 2) + `<p>${who(s, e.active.indexOf(1))} è la Fazione Attiva: <b class="ptsup">+1 punto</b>.</p>` });
       out.push({ t: 'Street cred', b: finalTable(e, cols, 3) + '<p>Ogni street cred vale <b>1 punto</b>.</p>' });
       if (!z.length) out.push({ t: 'Municipi', b: finalTable(e, cols, 4) + '<p>Nessun municipio è in palio: nessun punto.</p>' });
       z.forEach((x, k) => out.push({ zone: x.r, t: `Municipio ${REGIONS[x.r].name}`, b: finalTable(e, cols, 4, k) + (x.owner !== null
@@ -475,10 +488,9 @@ function steps(e) {
       trade: 'Rete: a fine partita i quartieri presidiati dalla polizia contano come suoi per il numero di zone in cui è presente.',
       spurn: 'La lascia libera e prende subito <b class="ptsup">+4 punti</b>.' }[e.choice]}</p>` }];
     case 'discard': return [{ t: 'Fine delle azioni', b: `<p>Ognuno scarta la carta che gli è rimasta in mano.</p><div class="trickrow discards">${e.cards.map((cs, i) => cs.map(v => `<figure style="--pc:${THEME.players[i]}">${miniCard(v)}<figcaption>${pmark(i)}${esc(s.players[i].name)}</figcaption></figure>`).join('')).join('')}</div>` }];
-    case 'pregame': return [{ vs: true, t: 'Si scende in strada', b: '' }];
+    case 'pregame': return [{ vs: true, t: 'Panoramica di gioco', b: '' }];
     case 'setup': return [{ t: `${esc(s.players[e.p].name)} parte da ${esc(TOWNS[e.town].name)}`, b: `<p>${who(s, e.p)} sceglie ${townChip(e.town)} in <b>${REGIONS[TOWNS[e.town].region].name}</b>. <button class="btn ghost small goto" data-goto="${e.town}">Portami lì</button></p>` }];
-    case 'prep': return [{ strip: true, card: e.character, t: `Round ${e.round}${e.final ? ' · ultimo' : ''}`, // una riga sola; la carta Hype sotto il riquadro
-      b: `<span class="pp" title="Polizia in arrivo (in allerta ${e.area})">${logo('polizia', 18)}<b>${e.police}</b></span><span class="pp"><b class="tag">Hype</b>${hypeSummary(s, e.character)}</span><span class="pp"><b class="tag">Draft</b>${dirText(s, e.dir ?? draftDir(e.round))}</span>` }];
+    case 'prep': return [{ vs: true, t: `Round ${e.round}`, b: '' }]; // tra un round e l'altro: punteggi provvisori, Fazione Attiva, polizia e Hype
     case 'party': { // la track in orizzontale si avvicina; dal più avanti: usa la carta, torna all'inizio, gli altri prendono i bonus
       const c = e.card, W = e.winner, after = e.track.map((p, i) => (i === W ? 0 : p));
       if (W === null) return [{ t: 'Underground Party', b: partyTrack(e.track, { zoom: true }) + '<p>Nessuno ha hype: il personaggio se ne va.</p>' }];
@@ -516,7 +528,7 @@ function steps(e) {
     }
     case 'community': {
       const out = [{ t: 'Community Projects', b: `<ul class="plain">${list(e.church.map((c, i) => `<li>${who(s, i)} ${c} di comunità</li>`))}</ul>` }];
-      out.push(e.first !== null ? { t: `${who(s, e.first)} guida la comunità`, b: '<p>Avvia un progetto urbano e prende il segnalino quartiere attivo.</p>' } : { t: 'Nessun capo', b: '<p>Pareggio o nessuno: niente progetto principale.</p>' });
+      out.push(e.first !== null ? { t: `${who(s, e.first)} guida la comunità`, b: '<p>Avvia un progetto urbano e diventa la Fazione Attiva.</p>' } : { t: 'Nessun capo', b: '<p>Pareggio o nessuno: niente progetto principale.</p>' });
       if (e.ties.length) out.push({ t: '+1 punto', b: `<p>${e.ties.map(i => who(s, i)).join(', ')}</p>` });
       if (e.fours.length) out.push({ t: 'Progetti con 4 o più', b: `<p>${e.fours.map(i => who(s, i)).join(', ')} avviano un progetto urbano.</p>` });
       return out;
@@ -699,10 +711,10 @@ function renderBoard(s, pd) {
   const row = (kind, key, k) => `<tr class="${phaseNow === k ? 'on' : ''}${fl.has(kind) ? ' flash' : ''}"><th scope="row">${lab(kind, k)}</th>${shown.map(i => [s.players[i], i]).map(([p, i]) => `<td class="${key === 'points' ? 'pts' : ''}${key === 'points' && i === gotPts ? ' got' : ''}">${cell(kind, p, i, key)}</td>`).join('')}</tr>`;
   const tip = (p, i) => [p.name, isBot(i) ? 'bot' : i === seat && !local ? 'tu' : '', room.players[i]?.gang, `street cred ${p.renown}`, `${p.hand.length} carte in mano`,
     p.claims.length ? 'zone: ' + p.claims.map(r => REGIONS[r].name).join(', ') : '', p.marriages.length ? 'personaggi: ' + p.marriages.map(characterName).join(', ') : '',
-    p.princess ? 'Estrid alleata' : '', i === s.active ? 'ha il segnalino del quartiere attivo' : ''].filter(Boolean).join(' · ');
+    p.princess ? 'Estrid alleata' : '', i === s.active ? 'Fazione Attiva' : ''].filter(Boolean).join(' · ');
   $('b-players').innerHTML = `<button class="zoom" type="button" aria-pressed="${bigBoard}" aria-label="${bigBoard ? 'Rimpicciolisci la plancia' : 'Ingrandisci la plancia'}">${bigBoard ? '−' : '+'}</button>
     <div class="vgrid"><table aria-label="Fazioni">
-    <thead><tr class="draftdir${['prep', 'draft'].includes(phaseNow) ? ' on' : ''}" title="${esc(dirTitle(s))}"><td></td><td colspan="${shown.length}"><span class="dl">Draft</span> ${dirArrow(s)}</td></tr><tr><td></td>${shown.map(i => [s.players[i], i]).map(([p, i]) => `<th scope="col"><span class="ini${waiting.includes(i) ? ' turn' : ''}${i === s.active ? ' act' : ''}" style="--pc:${THEME.players[i]}" title="${esc(tip(p, i))}">${factionLogo(gangOf(i), 12)}${esc(shortName(p.name))}</span></th>`).join('')}</tr></thead>
+    <thead><tr class="draftdir${['prep', 'draft'].includes(phaseNow) ? ' on' : ''}" title="${esc(dirTitle(s))}"><td></td><td colspan="${shown.length}"><span class="dl">Draft</span> ${dirArrow(s)}</td></tr><tr><td></td>${shown.map(i => [s.players[i], i]).map(([p, i]) => `<th scope="col"><span class="ini${waiting.includes(i) ? ' turn' : ''}${i === s.active ? ' act' : ''}" style="--pc:${THEME.players[i]}" title="${esc(tip(p, i))}">${factionLogo(gangOf(i), 12)}${esc(shortName(p.name))}</span>${i === s.active ? '<small class="actlbl">Attiva</small>' : ''}</th>`).join('')}</tr></thead>
     <tbody>${row('punti', 'points')}${row('uprising', p => p.claims.reduce((a, r) => a + REGIONS[r].points, 0), 'uprising')}${row('crediti', 'coins')}${row('cred', 'renown')}${row('guerrilla', 'raiders', 'guerrilla')}${row('community', 'church', 'community')}</tbody>
     <tfoot><tr${phaseNow === 'guerrilla' ? ' class="on"' : ''}><th scope="row">${lab('polizia', 'guerrilla')}</th><td colspan="${shown.length}">${s.area}</td></tr></tfoot>
     </table>
@@ -793,7 +805,7 @@ function renderHand(s, pd) {
   el.querySelectorAll('[data-c]').forEach(b => (b.onclick = () => playCard(+b.dataset.c, ok, choosingTown)));
 }
 function playCard(v, ok, choosingTown) {
-  if (!ok(v)) return choosingTown && ui.town == null ? toast('Prima scegli il quartiere attivo sulla mappa o dall\'elenco') : toast('Questa carta non si può giocare adesso');
+  if (!ok(v)) return choosingTown && ui.town == null ? toast('Prima scegli il quartiere in gioco sulla mappa o dall\'elenco') : toast('Questa carta non si può giocare adesso');
   if (ui.armed !== v) { ui.armed = v; return render(); } // ogni scelta va confermata: il clic seleziona, il pulsante gioca
   if (choosingTown) act({ town: ui.town }, { card: v }); else act({ card: v });
 }
@@ -876,38 +888,33 @@ function renderStage(s = state, pd = current(state)) {
   el.classList.remove('strip', 'vs');
   if (showing) {
     const st = steps(showing), cur = st[Math.min(step, st.length - 1)];
-    if (cur.vs) { // prepartita: le fazioni in campo stile VS, la striscia con la partita, Pronto
+    if (cur.vs) { // Panoramica di gioco (inizio partita) e schermata tra un round e l'altro: box dei giocatori, Pronto
       el.classList.add('vs');
       const isReady = i => isBot(i) || (local ? acked === showing.n : (room.acks?.[room.players[i]?.uid] ?? -1) >= showing.n);
-      const n = s.players.length, dir = draftDir(1);
+      const first = showing.k === 'pregame' ? showing.start : s.active, round = showing.k === 'prep';
       const cards = s.players.map((p, i) => `${i ? '<b class="vsx">VS</b>' : ''}<div class="vscard" style="--pc:${THEME.players[i] === '#1b1b1b' ? '#cfd6dc' : THEME.players[i]};--d:${i * 0.18}s">
-        ${i === showing.start ? '<em class="first">Parte per primo</em>' : ''}
-        <span class="vslogo">${factionLogo(gangOf(i), 84)}</span><b class="vsname">${esc(p.name)}</b>
-        <span class="vsfac">${esc(gangOf(i))}${isBot(i) ? ' · bot' : i === seat ? ' · tu' : ''}</span>
-        <q>${esc(FACTION_MOTTO[gangOf(i)] || '')}</q>
-        <span class="vsready${isReady(i) ? ' ok' : ''}">${isReady(i) ? 'Pronto' : 'Si prepara…'}</span></div>`).join('');
-      const pol = showing.police || [], rounds = showing.rounds || 3;
-      const zones = Object.entries(REGIONS).map(([, r]) => `<span class="vszone"><b>${r.name}</b> ${r.threshold} quartieri · ${r.points} pt</span>`).join('');
-      el.innerHTML = `<h2>${cur.t}</h2><div class="vsrow">${cards}</div>
-        <p class="vsdraft">Draft del primo round: le carte passano ${dir > 0 ? 'al giocatore a destra <b>→</b>' : '<b>←</b> al giocatore a sinistra'}</p>
-        <div class="vsstrip"><span class="vsi"><b>${rounds}</b> round</span><span class="vsi">${logo('polizia', 18)}<b>${rounds}</b> retate da <b>${Math.min(...pol)}</b> a <b>${Math.max(...pol)}</b> unità</span>
-          <span class="vsi">${logo('hype', 18)}<b>${rounds}</b> personaggi da ingaggiare, nell'ultimo round la Regina Estrid</span>
-          <span class="vsi vsz">${logo('uprising', 18)}<span>Municipi: per metterli in palio servono i quartieri occupati; valgono punti a fine partita</span></span><div class="vszones">${zones}</div></div>
-        ${acked === showing.n && waitingAcks().length ? `<p class="waitack">Aspettiamo: ${waitingAcks().map(i => `<span class="blink">${who(s, i)}</span>`).join(' ')}</p>`
-          : `<button class="btn" id="next" aria-keyshortcuts="Space">Pronto</button>`}`;
+        ${i === first ? '<em class="first">Fazione Attiva</em>' : ''}
+        <span class="vslogo">${factionLogo(gangOf(i), 84)}</span><b class="vsname">${esc(p.name)}</b><span class="vsfac">${esc(gangOf(i))}</span>
+        ${round ? `<span class="vspts"><b>${p.points}</b> punti${p.claims.length ? ` <small>+${p.claims.reduce((a, r) => a + REGIONS[r].points, 0)} municipi</small>` : ''}</span>` : ''}
+        <span class="vsready${isReady(i) ? ' ok' : ''}">${isReady(i) ? 'Pronto' : 'Non pronto'}</span></div>`).join('');
+      const total = s.players.length === 3 ? 3 : 4, n = s.players.length, dir = draftDir(round ? showing.round : 1);
+      const chain = Array.from({ length: n + 1 }, (_, k) => ((k * dir) % n + n) % n).map((i, k) => `${k ? '<b class="dch">→</b>' : ''}<span class="dnm">${pmark(i)}${esc(s.players[i].name)}</span>`);
+      const draftTile = `<div class="vtile wide"><span class="vlab">Senso del draft${round ? '' : ' · round 1'}</span><div class="dchain">${chain.join('')}</div>
+        <span class="vsub">Tieni 2 carte e passa le altre ${dir > 0 ? 'alla fazione a destra' : 'alla fazione a sinistra'}; nel round dopo si gira al contrario</span></div>`;
+      const tiles = round
+        ? `<div class="vtile"><span class="vlab">Polizia in arrivo</span><b class="vbig pol">${logo('polizia', 26)}${showing.police}</b><span class="vsub">in allerta: ${showing.area}</span></div>
+           <div class="vtile"><span class="vlab">Carta Hype del round</span><div class="vthype">${(c => c.princess ? '<b>Regina Estrid</b> · IA libera, tre scelte' : `<b>+${c.points}</b> punti${c.renown ? ' · <b>+1</b> street cred' : ''}${c.region ? ` · un quartiere in <span class="rzn" style="--rc:${THEME.region[c.region]}">${REGIONS[c.region].name}</span>` : ''}`)(showing.character)}</div><span class="vsub">la ingaggia chi è più avanti nell'hype</span></div>${draftTile}`
+        : `<div class="vtile"><span class="vlab">Round</span><b class="vbig">${total}</b><span class="vsub">nell'ultimo arriva la Regina Estrid</span></div>
+           <div class="vtile"><span class="vlab">Setup</span><b class="vmid">Scegli un quartiere di partenza</b><span class="vsub">in una zona dove non c'è nessun'altra fazione</span></div>${draftTile}
+           <div class="vtile wide vset"><span class="vlab">Impostazioni</span><div class="vsset"><span>Grafica <b class="seg" data-quality></b></span><span>Musica <b class="seg" data-aud="music"><button data-on="1">Sì</button><button data-on="0">No</button></b></span>
+            <span>Effetti <b class="seg" data-aud="sfx"><button data-on="1">Sì</button><button data-on="0">No</button></b></span><label>Volume <input type="range" min="0" max="100" data-vol aria-label="Volume"></label></div></div>`;
+      const info = `<div class="vsinfo" style="--d0:${n * 0.18 + 0.45}s">${tiles}</div>`; // prima entrano i giocatori, poi le informazioni
+      el.innerHTML = `<h2>${round ? `Round ${showing.round} di ${total}${showing.final ? ' · ultimo' : ''}` : 'Panoramica di gioco'}</h2><div class="vsrow">${cards}</div>${info}
+        <div class="vsgo" style="--d0:${n * 0.18 + 0.9}s">${acked === showing.n && waitingAcks().length ? `<p class="waitack">Aspettiamo: ${waitingAcks().map(i => `<span class="blink">${who(s, i)}</span>`).join(' ')}</p>`
+          : `<button class="btn" id="next" aria-keyshortcuts="Space">Pronto</button>`}</div>`;
+      if (!round) { startSong(); renderQuality(); renderAudio(); }
+      if (round) { const k = showing.character && !showing.character.princess ? showing.character.region : null; city.highlight(k); hypeMini(s, showing.character); }
       $('next') && ($('next').onclick = advance);
-      return;
-    }
-    if (cur.strip) { // finestra del round: una striscia bassa, con la carta Hype appena sotto
-      el.classList.add('strip');
-      el.innerHTML = `<h2>${cur.t}</h2>${cur.b}` + (waitingAcks().length && acked === showing.n ? `<p class="waitack">Aspettano: ${waitingAcks().map(i => `<span class="blink">${who(s, i)}</span>`).join(' ')}</p>`
-        : '<button class="btn small" id="next" aria-keyshortcuts="Space">Avanti</button>');
-      $('next') && ($('next').onclick = advance);
-      const k = cur.card && !cur.card.princess ? cur.card.region : null; // preparazione: si illumina la zona della carta Hype e il suo municipio ha già la linguetta HYPE
-      city.highlight(k); hypeMini(s, cur.card);
-      const card = $('peekcard'), r = el.getBoundingClientRect();
-      card.innerHTML = characterSVG(characterIndex(cur.card)); card.hidden = false;
-      card.style.left = `${r.left}px`; card.style.top = `${r.bottom + 8}px`;
       return;
     }
     el.innerHTML = head(cur.t, `${showing.k === 'final' ? 'Punteggio finale' : PHASES.find(p => p[0] === (SHOW_PHASE[showing.k] || showing.k))?.[1] || ''} · passo ${step + 1} di ${st.length}`, cur.b) +
@@ -941,7 +948,7 @@ function renderStage(s = state, pd = current(state)) {
   if (pd.p !== seat) {
     const w = s.trick?.winner;
     el.innerHTML = trick + head(w != null && s.trick.plays.length === s.players.length ? `Presa a ${esc(s.players[w].name)}` : `Turno di ${esc(s.players[pd.p].name)}`,
-      town != null ? `Quartiere attivo: ${townChip(town)} · ${REGIONS[TOWNS[town].region].name} <button class="btn ghost small goto" data-goto="${town}">Portami lì</button>` : '');
+      town != null ? `Quartiere in gioco: ${townChip(town)} · ${REGIONS[TOWNS[town].region].name} <button class="btn ghost small goto" data-goto="${town}">Portami lì</button>` : '');
     return;
   }
   const picks = clickable(s, pd);
@@ -958,13 +965,13 @@ function renderStage(s = state, pd = current(state)) {
       : `Scegli quale quartiere di ${esc(s.players[pd.victim].name)} viene presidiato.`);
     case 'monastery': return confirmTown('Avvia un progetto urbano', 'Scegli un tuo quartiere: conterà doppio per il controllo della zona.');
     case 'activeTown':
-      el.innerHTML = (s.trick?.last ? '<div class="lastbanner">Ultima presa del round: la carta che non giochi viene scartata.</div>' : '') + resultsList(s) + head('Scegli il quartiere attivo', mine, `<p>Clicca uno spot libero di un colore che hai in mano (qualsiasi, se hai una carta di Briano Borro), poi <b>gioca una carta</b> di quel colore o di Briano Borro per confermare.</p>
+      el.innerHTML = (s.trick?.last ? '<div class="lastbanner">Ultima presa del round: la carta che non giochi viene scartata.</div>' : '') + resultsList(s) + head('Scegli il quartiere in gioco', mine, `<p>Clicca uno spot libero di un colore che hai in mano (qualsiasi, se hai una carta di Briano Borro), poi <b>gioca una carta</b> di quel colore o di Briano Borro per confermare.</p>
         <p class="pickline">Scelta: ${ui.town != null ? `${townChip(ui.town)} · ${REGIONS[TOWNS[ui.town].region].name}` : '<em>nessuna</em>'}</p>
         ${ui.armed != null && ui.town != null ? `<button id="playarmed" class="btn wide">Gioca la carta ${ui.armed}</button>` : ''}`);
       bindArmed(true); return;
     case 'play': {
       const word = SUIT_WORD[TOWNS[town].color];
-      el.innerHTML = trick + head('Gioca una carta', `${mine} · Quartiere attivo: ${townChip(town)} <button class="btn ghost small goto" data-goto="${town}">Portami lì</button>`,
+      el.innerHTML = trick + head('Gioca una carta', `${mine} · Quartiere in gioco: ${townChip(town)} <button class="btn ghost small goto" data-goto="${town}">Portami lì</button>`,
         `${seat === s.trick.leader ? `<p>Apri tu: gioca ${word} o Briano Borro.</p>` : ''}
         ${ui.armed != null ? `<button id="playarmed" class="btn wide">Gioca la carta ${ui.armed}</button>` : ''}`);
       bindArmed(false); return;

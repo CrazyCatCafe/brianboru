@@ -85,9 +85,15 @@
       <p class="note offline-only">Server online non raggiungibile: puoi giocare in solitario.</p>
     </header>
     <nav class="dash-nav online-only" aria-label="Menu principale">
-      <a href="#p-create">Crea partita online</a><a href="#p-mine">Le mie partite</a><a href="#p-solo">Gioca in solitario</a><a href="#p-profile">Profilo</a><a href="#p-friends">Amici</a>
+      <a href="#p-profile">Profilo</a><a href="#p-create">Crea partita online</a><a href="#p-solo">Gioca con i bot</a><a href="#p-friends">Amici</a><a href="#p-mine">Le mie partite</a>
     </nav>
     <div class="lobby-grid">
+      <section class="panel online-only" id="p-profile">
+        <h2>Profilo</h2>
+        <dl class="profile"><dt>Nickname</dt><dd id="pf-nick"></dd><dt>Account</dt><dd id="pf-mail"></dd></dl>
+        <p class="note">La fazione scelta in "Crea partita online" resta salvata su questo dispositivo.</p>
+        <button id="logout" class="btn ghost wide">Esci dall'account</button>
+      </section>
       <section class="panel online-only" id="p-create">
         <h2>Crea partita online</h2>
         <fieldset class="gang">
@@ -103,25 +109,12 @@
         <button id="create" class="btn wide">Crea partita</button>
         <div id="room" class="room" hidden></div>
       </section>
-      <section class="panel online-only" id="p-mine">
-        <h2>Le mie partite</h2>
-        <h3>Inviti</h3>
-        <ul id="invites" class="list"><li class="empty">Nessun invito.</li></ul>
-        <h3>Partite</h3>
-        <ul id="mygames" class="list"><li class="empty">Nessuna partita.</li></ul>
-      </section>
       <section class="panel" id="p-solo">
-        <h2>Gioca in solitario</h2>
+        <h2>Gioca con i bot</h2>
         <p class="note">Tu contro i bot, su questo dispositivo.</p>
         <label class="field">Il tuo nome <input id="solo-name" maxlength="16" value="Tu"></label>
         <label class="field">Bot <select id="local-bots"><option>2</option><option>3</option><option>4</option></select></label>
         <button id="local" class="btn wide">Gioca</button>
-      </section>
-      <section class="panel online-only" id="p-profile">
-        <h2>Profilo</h2>
-        <dl class="profile"><dt>Nickname</dt><dd id="pf-nick"></dd><dt>Account</dt><dd id="pf-mail"></dd></dl>
-        <p class="note">La fazione scelta in "Crea partita online" resta salvata su questo dispositivo.</p>
-        <button id="logout" class="btn ghost wide">Esci dall'account</button>
       </section>
       <section class="panel online-only" id="p-friends">
         <h2>Amici</h2>
@@ -131,6 +124,13 @@
         </form>
         <p id="friend-msg" class="msg" role="alert"></p>
         <ul id="friends" class="list"><li class="empty">Ancora nessun amico.</li></ul>
+      </section>
+      <section class="panel online-only" id="p-mine">
+        <h2>Le mie partite</h2>
+        <h3>Inviti</h3>
+        <ul id="invites" class="list"><li class="empty">Nessun invito.</li></ul>
+        <h3>Partite</h3>
+        <ul id="mygames" class="list"><li class="empty">Nessuna partita.</li></ul>
       </section>
     </div>
   </main>
@@ -151,10 +151,11 @@
       <details class="box tools" id="tools">
         <summary title="Grafica, audio e partita" aria-label="Grafica, audio e partita">⚙<span>Grafica e audio</span></summary>
         <span id="code"></span>
-        <div class="sets"><span>Grafica</span><b id="quality" role="group" aria-label="Qualità grafica"></b></div>
+        <div class="sets"><span>Grafica</span><b id="quality" data-quality role="group" aria-label="Qualità grafica"></b></div>
         <div class="sets"><span>Pixel</span><b id="pixel" role="group" aria-label="Mappa in pixel art"><button data-px="1">Sì</button><button data-px="0">No</button></b></div>
-        <div class="sets"><span>Musica</span><b id="aud-music" role="group" aria-label="Musica"><button data-on="1">Sì</button><button data-on="0">No</button></b></div>
-        <div class="sets"><span>Effetti</span><b id="aud-sfx" role="group" aria-label="Effetti sonori"><button data-on="1">Sì</button><button data-on="0">No</button></b></div>
+        <div class="sets"><span>Musica</span><b id="aud-music" data-aud="music" role="group" aria-label="Musica"><button data-on="1">Sì</button><button data-on="0">No</button></b></div>
+        <div class="sets"><span>Effetti</span><b id="aud-sfx" data-aud="sfx" role="group" aria-label="Effetti sonori"><button data-on="1">Sì</button><button data-on="0">No</button></b></div>
+        <div class="sets"><span>Volume</span><input type="range" min="0" max="100" data-vol aria-label="Volume"></div>
       </details>
       <button id="to-lobby" class="btn ghost small exit">Esci</button>
       </div>

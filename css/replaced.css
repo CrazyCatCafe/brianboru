@@ -544,7 +544,7 @@ tr:nth-child(2n) .logo { animation-delay: -3s; }
 .rp .gang { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px 12px; }
 .rp .field select { font: 400 16px var(--font); color: var(--rp-ink); background: rgba(255, 255, 255, .06); border: 1px solid var(--rp-line); padding: 8px 10px; width: 100%; border-radius: 0; }
 .rp .field select option { background: #1b1f24; }
-@media (min-width: 1100px) { #lobby .lobby-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
 /* copertina: sagoma del rivoluzionario davanti all'illustrazione */
 .cover { position: relative; }
 .cover img { filter: brightness(.85) contrast(1.05); }
@@ -563,9 +563,7 @@ tr:nth-child(2n) .logo { animation-delay: -3s; }
 @media (max-width: 899px) { #game .rp-stage { max-height: calc(100vh - var(--card-w) * 1.45 - 72px) !important; } }
 /* telefono: menu principale a schede, una sezione alla volta */
 @media (max-width: 899px) {
-  #lobby .lobby-grid > .panel:not(.tab-on) { display: none; }
   .offline #lobby #p-solo { display: block; }
-  .dash-nav a[aria-current="true"] { background: var(--rp-red); color: #fff; border-color: var(--rp-red); }
 }
 
 /* carta riassuntiva nella plancia, sopra gli strumenti */
@@ -841,3 +839,37 @@ label > .flogo { width: 24px; height: 24px; margin: 0 6px 0 4px; }
   .vscard .first { font-size: 11px; padding: 2px 5px; }
   .vsstrip { gap: 6px 12px; padding: 10px 8px; } .vsi { font-size: 13px; } .vszone { font-size: 12px; }
 }
+/* Panoramica di gioco e schermata tra i round: punti provvisori, impostazioni */
+.vspts { font: 600 14px var(--num); color: #dfe4e8; } .vspts b { font: 800 26px var(--num); color: #fff; } .vspts small { color: #ffd400; font-weight: 700; }
+.vsset { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px 22px; font: 400 12px var(--pix); text-transform: uppercase; letter-spacing: .06em; color: var(--rp-muted); }
+.vsset > * { display: inline-flex; align-items: center; gap: 8px; }
+.vsset .seg { display: inline-flex; } .vsset .seg button { font: 700 12px var(--num); padding: 6px 10px; background: none; color: #dfe4e8; border: 1px solid var(--rp-line); margin-left: -1px; cursor: pointer; }
+.vsset .seg button[aria-pressed="true"] { background: #eef1f3; color: #111; }
+.vsset input[type=range], .tools input[type=range] { accent-color: var(--rp-red); width: 140px; }
+.vgrid th .actlbl { display: block; margin-top: 2px; font: 700 11px var(--pix); text-transform: uppercase; color: #ffd400; letter-spacing: .04em; }
+.vsstrip .hs { display: inline-flex; align-items: center; gap: 4px; margin-left: 6px; }
+@media (max-width: 700px) { .vsset { gap: 8px 12px; } .vspts b { font-size: 20px; } }
+/* riquadri delle informazioni: entrano dopo i giocatori */
+.vsinfo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; width: min(1000px, 100%); animation: vsinfo .6s var(--d0) cubic-bezier(.2, .8, .2, 1) both; }
+.vsgo { animation: vsinfo .5s var(--d0) ease-out both; }
+@keyframes vsinfo { from { opacity: 0; transform: translateY(24px); } }
+.vtile { display: flex; flex-direction: column; gap: 6px; padding: 12px 16px; background: #1b1f24; border: 1px solid var(--rp-line); border-left: 4px solid var(--rp-red); text-align: left; }
+.vtile.wide { grid-column: 1 / -1; }
+.vlab { font: 400 11px var(--pix); text-transform: uppercase; letter-spacing: .1em; color: var(--rp-muted); }
+.vsub { font: 600 12px var(--num); color: var(--rp-muted); }
+.vbig { font: 800 40px/1 var(--num); color: #fff; display: inline-flex; align-items: center; gap: 10px; } .vbig.pol { color: #7fb6ff; }
+.vbig .logo { width: 32px; height: 32px; display: inline-grid; place-items: center; background: #eef1f3; }
+.vmid { font: 800 20px var(--num); color: #fff; }
+.dchain { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; } .dnm { display: inline-flex; align-items: center; font: 700 15px var(--num); color: #fff; }
+.dch { font: 800 22px var(--num); color: var(--rp-red); }
+.vset .vsset { justify-content: flex-start; }
+#game .rp-stage.vs .vsstrip { display: none; }
+@media (max-width: 700px) { .vsinfo { grid-template-columns: 1fr; gap: 8px; } .vtile { padding: 8px 10px; } .vbig { font-size: 28px; } .vsub { display: none; } .dnm { font-size: 13px; } }
+@media (prefers-reduced-motion: reduce) { .vsinfo, .vsgo { animation: none; } }
+/* pagina principale: le sezioni una sotto l'altra, ognuna larga quanto lo schermo */
+#lobby .lobby-grid { display: flex; flex-direction: column; gap: 16px; }
+#lobby .lobby-grid > .panel { width: 100%; max-width: none; margin: 0; box-sizing: border-box; }
+.vthype { font: 600 16px var(--num); color: #dfe4e8; } .vthype b { font: 800 22px var(--num); color: #fff; }
+.vthype .rzn { font: 700 14px var(--pix); text-transform: uppercase; color: #fff; border-left: 6px solid var(--rc); padding-left: 6px; }
+#lobby .gang { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+#lobby .gang label { display: flex; align-items: center; gap: 6px; white-space: nowrap; }

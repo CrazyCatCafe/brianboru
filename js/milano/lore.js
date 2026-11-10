@@ -59,7 +59,7 @@ export const PROJECT = { name: 'Progetto urbano', who: 'Orti in cassetta, un gaz
 
 // Glossario dei simboli (uguale per tutti i set di icone)
 export const SYMBOLS = {
-  T: 'Conquista il quartiere attivo',
+  T: 'Conquista il quartiere in gioco',
   C: '+1 credito',
   P: 'Paga 1 credito (o perdi 2 punti)',
   M: 'Sali di 1 nell\'hype (2 crediti per ogni passo in più)',

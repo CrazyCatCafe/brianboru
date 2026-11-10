@@ -289,7 +289,7 @@ export async function createCity(container, overlay, view = {}) {
   }
   scene.add(dashMesh);
 
-  // segnalino del quartiere attivo (anello pulsante)
+  // segnalino del quartiere in gioco (anello pulsante)
   // fuochi d'artificio sui quartieri dove ci si può espandere: un razzo sale, esplode in scintille colorate che ricadono
   let fwTowns = [];
   const FW_MAX = 16, FW_N = 28, fwPos = new Float32Array(FW_MAX * (FW_N + 1) * 3), fwCol = new Float32Array(FW_MAX * (FW_N + 1) * 3);
