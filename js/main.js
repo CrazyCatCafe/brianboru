@@ -7,7 +7,7 @@ import { cardSVG, characterSVG, characterArt, cardLabel } from './milano/card.js
 import { icon, setIconSet, logo, LOGO_NAMES } from './milano/icons.js';
 import { ESTRID, SYMBOLS } from './milano/lore.js';
 import { createCity, WEATHER_TYPES, QUALITY } from './milano/city3d.js';
-import { connect } from './milano/online.js';
+import { connect, BOT_NAMES } from './milano/online.js';
 
 setIconSet('pieno');
 const $ = id => document.getElementById(id);
@@ -165,7 +165,7 @@ $('friend-form').onsubmit = guard(async e => {
 // ---------- partita locale ----------
 $('local').onclick = guard(() => {
   const humans = [$('solo-name').value.trim() || 'Tu'], bots = +$('local-bots').value;
-  const names = [...humans, ...Array.from({ length: bots }, (_, i) => `Bot ${i + 1}`)];
+  const names = [...humans, ...Array.from({ length: bots }, (_, i) => BOT_NAMES[i])];
   local = true; roomCode = null; human = 0;
   room = { players: names.map((nick, i) => ({ nick, gang: FACTION_NAMES[i % FACTION_NAMES.length], bot: i >= humans.length })) };
   seenN = null; enterGame(newGame(names));
@@ -665,7 +665,7 @@ function renderBoard(s, pd) {
     p.princess ? 'Estrid alleata' : '', i === s.active ? 'ha il segnalino del quartiere attivo' : ''].filter(Boolean).join(' · ');
   $('b-players').innerHTML = `<button class="zoom" type="button" aria-pressed="${bigBoard}" aria-label="${bigBoard ? 'Rimpicciolisci la plancia' : 'Ingrandisci la plancia'}">${bigBoard ? '−' : '+'}</button>
     <div class="vgrid"><table aria-label="Fazioni">
-    <thead><tr class="draftdir${['prep', 'draft'].includes(phaseNow) ? ' on' : ''}" title="${esc(dirTitle(s))}"><td>Draft</td><td colspan="${shown.length}">${dirArrow(s)}</td></tr><tr><td></td>${shown.map(i => [s.players[i], i]).map(([p, i]) => `<th scope="col"><span class="ini${waiting.includes(i) ? ' turn' : ''}${i === s.active ? ' act' : ''}" style="--pc:${THEME.players[i]}" title="${esc(tip(p, i))}">${esc(shortName(p.name))}</span></th>`).join('')}</tr></thead>
+    <thead><tr class="draftdir${['prep', 'draft'].includes(phaseNow) ? ' on' : ''}" title="${esc(dirTitle(s))}"><td></td><td colspan="${shown.length}"><span class="dl">Draft</span> ${dirArrow(s)}</td></tr><tr><td></td>${shown.map(i => [s.players[i], i]).map(([p, i]) => `<th scope="col"><span class="ini${waiting.includes(i) ? ' turn' : ''}${i === s.active ? ' act' : ''}" style="--pc:${THEME.players[i]}" title="${esc(tip(p, i))}">${esc(shortName(p.name))}</span></th>`).join('')}</tr></thead>
     <tbody>${row('punti', 'points')}${row('uprising', p => p.claims.reduce((a, r) => a + REGIONS[r].points, 0), 'uprising')}${row('crediti', 'coins')}${row('cred', 'renown')}${row('guerrilla', 'raiders', 'guerrilla')}${row('community', 'church', 'community')}</tbody>
     <tfoot><tr${phaseNow === 'guerrilla' ? ' class="on"' : ''}><th scope="row">${lab('polizia', 'guerrilla')}</th><td colspan="${shown.length}">${s.area}</td></tr></tfoot>
     </table>
@@ -673,7 +673,15 @@ function renderBoard(s, pd) {
     <div class="htrack${phaseNow === 'party' ? ' on' : ''}${actionSyms(s, pd).includes('M') ? ' flash' : ''}" role="img" aria-label="Hype: ${s.players.map(p => `${esc(p.name)} casella ${p.mar + 1}`).join(', ')}">${MARRIAGE_TRACK.map((b, c) =>
       `<span class="hc${b ? ' bonus' : ''}" title="Hype ${c + 1}: ${c ? (b ? BONUS_TIP[b] : 'nessun bonus') : 'partenza delle fazioni'}"><span class="g">${hypeBonus(b, c)}</span><span class="pw">${s.players.map((p, i) => (p.mar === c ? pdot(i) : '')).join('')}</span></span>`).join('')}</div>
     ${s.marriage ? `<div class="hstrip"><b class="tag">Hype</b>${hypeSummary(s, s.marriage)}<button class="peek btn ghost small" type="button">Vedi carta</button></div>` : ''}`;
-  $('b-players').querySelector('.zoom').onclick = () => { bigBoard = !bigBoard; try { localStorage.setItem('bb-board', bigBoard ? 'big' : 'small'); } catch {} render(); };
+  $('b-players').querySelector('.zoom').onclick = () => { // si allarga (o stringe) con un'animazione; allargando, le colonne degli altri entrano una alla volta
+    const box = $('b-players'), w0 = box.offsetWidth;
+    bigBoard = !bigBoard; try { localStorage.setItem('bb-board', bigBoard ? 'big' : 'small'); } catch {} render();
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const w1 = $('b-players').offsetWidth;
+    $('b-players').animate([{ width: w0 + 'px', overflow: 'hidden' }, { width: w1 + 'px', overflow: 'hidden' }], { duration: 500, easing: 'cubic-bezier(.2, .8, .2, 1)' });
+    if (bigBoard) $('b-players').querySelectorAll('.vgrid tr').forEach(tr => [...tr.children].slice(1).forEach((c, k) =>
+      c.animate([{ opacity: 0, transform: 'translateX(-12px)' }, { opacity: 1, transform: 'none' }], { duration: 350, delay: 120 + k * 90, fill: 'backwards' })));
+  };
   bindPeek(s); renderHypeCard(s); hypeMini(s); renderRef();
   // uprising: zone sbloccate e chi le tiene
   on('b-uprising', 'uprising');
@@ -700,7 +708,7 @@ function dirTitle(s) {
   const n = s.players.length, d = roundDir(s), a = s.players[0].name, b = s.players[(n + d) % n].name;
   return `Draft: le carte passano ${d > 0 ? 'al giocatore a destra' : 'al giocatore a sinistra'} (da ${a} a ${b})`;
 }
-const dirArrow = s => roundDir(s) > 0 ? '<span class="dar">Senso <b>→</b></span>' : '<span class="dar"><b>←</b> Senso</span>';
+const dirArrow = s => `<span class="dar">senso <b>${roundDir(s) > 0 ? '→' : '←'}</b></span>`;
 const dirText = (s, d) => { const n = s.players.length; return `${d > 0 ? '→' : '←'} da ${esc(s.players[0].name)} a ${esc(s.players[(n + d) % n].name)}`; };
 function renderHand(s, pd) {
   const el = $('hand');

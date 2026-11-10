@@ -4,6 +4,7 @@ import { newGame, move } from '../game/engine.js';
 
 const BASE = 'https://www.gstatic.com/firebasejs/10.12.2/';
 const MAX = 5;
+export const BOT_NAMES = ['Jack', 'Amber', 'Holly', 'Rob', 'Nina'];
 
 export async function connect(config) {
   const [{ initializeApp }, A, D] = await Promise.all(['firebase-app.js', 'firebase-auth.js', 'firebase-database.js'].map(f => import(BASE + f)));
@@ -87,7 +88,7 @@ export async function connect(config) {
     async createGame(gang, bots = 0, botGangs = []) {
       const nick = (await api.profile()).nick;
       const code = Array.from({ length: 5 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random() * 24)]).join('');
-      const players = [{ uid: uid(), nick, gang }, ...Array.from({ length: Math.min(bots, MAX - 1) }, (_, i) => ({ uid: `bot-${i + 1}`, nick: `Bot ${i + 1}`, gang: botGangs[i] || '', bot: true }))];
+      const players = [{ uid: uid(), nick, gang }, ...Array.from({ length: Math.min(bots, MAX - 1) }, (_, i) => ({ uid: `bot-${i + 1}`, nick: BOT_NAMES[i], gang: botGangs[i] || '', bot: true }))];
       await D.set(ref('games/' + code), { host: uid(), status: 'lobby', created: D.serverTimestamp(), uids: { [uid()]: true }, players });
       await D.set(ref(`users/${uid()}/games/${code}`), true); // elenco delle mie partite, senza interrogare tutte le partite
       return code;
@@ -98,7 +99,7 @@ export async function connect(config) {
       if (g.host !== uid() || g.status !== 'lobby') throw new Error('Solo chi ha creato la partita può aggiungere bot');
       if (players.length >= MAX) throw new Error('Partita piena');
       let n = 1; while (players.some(p => p.uid === `bot-${n}`)) n++;
-      return { ...g, players: [...players, { uid: `bot-${n}`, nick: `Bot ${n}`, gang, bot: true }] };
+      return { ...g, players: [...players, { uid: `bot-${n}`, nick: BOT_NAMES[n - 1], gang, bot: true }] };
     }),
     removeBot: (code, botUid) => gameTx(code, g => {
       if (g.host !== uid() || g.status !== 'lobby') return null;

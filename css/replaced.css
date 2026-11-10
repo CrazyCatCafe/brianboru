@@ -774,3 +774,7 @@ body.phasefly #stage h2 { visibility: hidden; }
 .confetti i { position: absolute; top: -10px; left: var(--x); width: 7px; height: 11px; background: var(--c); rotate: var(--r); animation: fall 2.4s var(--d) ease-in infinite; }
 @keyframes fall { to { transform: translateY(420px) rotate(540deg); opacity: .2; } }
 @media (prefers-reduced-motion: reduce) { #game .rp-stage.turnin, #game .hand .card.deal, #game .kept figure.in, .rp .rlabel.flipin, .rp .rlabel.ownin { animation: none; } .confetti { display: none; } }
+/* box stat: il + sta sopra la tabella; rimpicciolita, il nome sta al centro dello spazio libero */
+#b-players .zoom { z-index: 3; }
+.vgrid tbody th, .vgrid tfoot th, .vgrid thead tr > td:first-child { width: 1%; }
+.vgrid tr.draftdir .dl { margin-right: 4px; }
