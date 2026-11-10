@@ -837,7 +837,7 @@ function renderBoard(s, pd) {
     const p = s.players[i], pc = THEME.players[i] === '#1b1b1b' ? '#cfd6dc' : THEME.players[i];
     const flags = p.claims.map(r => `<span class="tk tk-flag" title="${REGIONS[r].name}: ${REGIONS[r].points} punti a fine partita">${token('bandiera', REGIONS[r].points, `style="--fc:${THEME.region[r]}"`)}</span>`).join('');
     return `<div class="plate${waiting.includes(i) ? ' turn' : ''}${i === s.active ? ' act' : ''}${i === gotPts ? ' got' : ''}" style="--pc:${pc}" title="${esc(tip(p, i))}">
-      <div class="pav">${factionLogo(gangOf(i), 64)}${i === s.active ? '<i class="actmark" title="Fazione Attiva"></i>' : ''}</div>
+      <div class="pav">${factionLogo(gangOf(i), 64)}</div>
       <b class="pnm">${esc(p.name)}</b>
       <div class="phd">${tk('punti', i, p.points)}<span class="pflags">${flags}</span></div>
       <div class="pres">${tk('crediti', i, p.coins)}${tk('guerrilla', i, p.raiders)}${tk('cred', i, p.renown)}${tk('community', i, p.church)}</div>${playedCard(i)}</div>`;
@@ -862,11 +862,12 @@ function renderBoard(s, pd) {
   });
   // in alto: senso del draft, track Hype con i segnalini delle fazioni, carta Hype; accanto la polizia
   $('b-players').className = `box${phaseNow === 'party' ? ' on' : ''}`;
-  $('b-players').innerHTML = `<div class="hyhead"><b class="tag">Hype</b>${s.marriage ? `<span class="hstrip">${hypeSummary(s, s.marriage)}<button class="peek btn ghost small" type="button">Vedi carta</button></span>` : ''}</div>
+  const hc = s.marriage, hyText = !hc ? '' : hc.princess ? 'Regina Estrid: tre scelte' : [`+${hc.points} punti`, hc.renown ? '+1 street cred' : '', hc.region ? REGIONS[hc.region].name : ''].filter(Boolean).join(' – ');
+  $('b-players').innerHTML = `<div class="hyhead"><b class="tag">Hype</b><span class="hytx">${hyText}</span>${hc ? '<span class="hstrip"><button class="peek btn ghost small" type="button">Vedi carta</button></span>' : ''}</div>
     <div class="htrack${actionSyms(s, pd).includes('M') ? ' flash' : ''}" role="img" aria-label="Hype: ${s.players.map(p => `${esc(p.name)} ${p.mar ? 'casella ' + p.mar : 'alla partenza'}`).join(', ')}">${MARRIAGE_TRACK.map((b, c) => (c === 0 ? '' :
-      `<span class="hc${b ? ' bonus' : ''}" title="Hype ${c}: ${b ? BONUS_TIP[b] : 'nessun bonus'}"><i class="hn">${c}</i><span class="g">${hypeBonus(b, c, 15)}</span><span class="pw">${s.players.map((p, i) => (p.mar === c ? ftok(i) : '')).join('')}</span></span>`)).join('')}</div>`;
+      `<span class="hc${b ? ' bonus' : ''}" title="Hype ${c}: ${b ? BONUS_TIP[b] : 'nessun bonus'}"><span class="g">${c === 9 ? '' : hypeBonus(b, c, 24)}</span><span class="pw">${s.players.map((p, i) => (p.mar === c ? ftok(i) : '')).join('')}</span></span>`)).join('')}</div>`;
   $('b-pol').className = `box${phaseNow === 'guerrilla' ? ' on' : ''}`;
-  $('b-pol').innerHTML = `<span class="ptop">${logo('polizia', 24)}<b>${s.area}</b></span><span class="plab">Polizia in allerta</span>`;
+  $('b-pol').innerHTML = `${logo('polizia', 30)}<b>${s.area}</b>`; $('b-pol').title = `Polizia in allerta: ${s.area}`;
   bindPeek(s); renderHypeCard(s); hypeMini(s); renderRef();
   // uprising: zone sbloccate e chi le tiene
   on('b-uprising', 'uprising');
@@ -965,7 +966,7 @@ function resultText(s, r) {
   if (r.renown) parts.push(`+${r.renown} street cred`);
   if (r.expand != null) parts.push(`paga 5 crediti e si espande a ${townChip(r.expand)}`);
   if (r.viking != null) parts.push(`rimuove il presidio a ${townChip(r.viking)}`);
-  return `${who(s, r.p)} ${r.won ? 'vince la presa' : 'gioca'} con la ${r.card}: ${parts.join(' · ') || 'niente'}`;
+  return `${who(s, r.p)} gioca carta ${r.card}${r.won ? ' e vince la presa' : ''}: ${parts.join(', ') || 'niente'}`;
 }
 function resultsList(s) {
   if (showing || s.stage !== 'trick') return ''; // in upkeep il riepilogo della presa non serve più
