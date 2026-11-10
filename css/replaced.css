@@ -715,3 +715,35 @@ tr:nth-child(2n) .logo { animation-delay: -3s; }
 @keyframes cardin { from { opacity: 0; transform: translateY(-60px) rotate(-6deg) scale(.7); } }
 @keyframes cardinme { from { opacity: 0; transform: translateY(320px) scale(1.4); } }
 @media (prefers-reduced-motion: reduce) { .phasebanner.go, .vgrid .bump, .vgrid .delta, .rp .trickrow figure.arrive { animation: none; } .phasebanner.go { opacity: 0; } }
+/* plancia: la larghezza la decide solo la tabella (una colonna da rimpicciolita, tutte da ingrandita); track, striscia Hype e meteo si adattano */
+#b-players .htrack, #b-players .hstrip { width: 0; min-width: 100%; box-sizing: border-box; }
+.htrack .hc .g { transform: scale(.85); }
+/* plancia più bassa, così ci sta senza rimpicciolirsi: righe e carta riassuntiva compatte, Esci accanto a Grafica */
+.vgrid th, .vgrid td { padding-top: 2px; padding-bottom: 2px; }
+.vgrid th .logo { width: 19px; height: 19px; }
+.vgrid th .logo svg { width: 14px; height: 14px; }
+.vgrid td { font-size: 14px; }
+.vgrid td.pts { font-size: 17px; }
+.rc { height: 14px; font-size: 10.5px; border-width: 1px; }
+.refgrid { gap: 2px; padding: 4px; }
+.rrow { gap: 3px; }
+.toolrow { display: flex; gap: 8px; align-items: stretch; }
+.toolrow > #tools { flex: 1; min-width: 0 !important; width: auto !important; }
+.toolrow > #tools[open] { flex-basis: 100%; }
+.toolrow { flex-wrap: wrap; }
+.rp .toolrow > .exit { width: auto !important; min-width: 0 !important; flex: none; padding: 6px 12px; }
+.htrack { margin-top: 5px; }
+.htrack .hc { grid-template-rows: 13px 10px; padding: 1px 0; }
+#game .rp-left { gap: 6px; }
+#game .rp-left > .box, #game .rp-left .toolrow > .box { padding: 5px 8px; }
+#b-uprising h3 { margin: 0; }
+#b-uprising ul { margin-top: 4px; }
+.box.meteo { padding: 5px 8px; gap: 2px 8px; }
+.vgrid thead th { padding-bottom: 3px; }
+.vgrid .ini { height: 20px; min-width: 20px; font-size: 12px; }
+#b-players .zoom { width: 20px; height: 20px; font-size: 14px; top: 5px; }
+/* computer: la plancia usa tutta l'altezza dello schermo e la mano parte alla sua destra, così la plancia non si rimpicciolisce */
+@media (min-width: 900px) {
+  #game .rp-left, body.rp #game .rp-left { max-height: calc(100vh - 2 * var(--gap)) !important; }
+  #game .hand { padding-left: calc(var(--board-w) + 2 * var(--gap)); }
+}
