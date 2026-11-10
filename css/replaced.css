@@ -984,3 +984,4 @@ body.phasefly #stage h2 { visibility: visible; }
 #game .rp-stage.vs { padding-bottom: 170px !important; }
 @media (max-width: 700px) { #game .rp-stage.vs { padding-bottom: 150px !important; } .loadscreen { padding: 10px 12px 14px !important; } }
 #game .rp-stage.vs.still .vscard, #game .rp-stage.vs.still .vsinfo, #game .rp-stage.vs.still .vsgo { animation: none; } /* ridisegnata: niente rientro */
+#game .rp-stage .btn.nextstep[disabled] { opacity: 1; background: none; color: #ffd400; border: 2px dashed #ffd400; cursor: default; }

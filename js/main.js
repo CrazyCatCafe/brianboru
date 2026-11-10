@@ -1062,7 +1062,8 @@ function renderStage(s = state, pd = current(state)) {
     case 'activeTown':
       el.innerHTML = (s.trick?.last ? '<div class="lastbanner">Ultima presa del round: la carta che non giochi viene scartata.</div>' : '') + resultsList(s) + head('Scegli il quartiere in gioco', mine, `<p>Clicca uno spot libero di un colore che hai in mano (qualsiasi, se hai una carta di Briano Borro), poi <b>gioca una carta</b> di quel colore o di Briano Borro per confermare.</p>
         <p class="pickline">Scelta: ${ui.town != null ? `${townChip(ui.town)} · ${REGIONS[TOWNS[ui.town].region].name}` : '<em>nessuna</em>'}</p>
-        ${ui.armed != null && ui.town != null ? `<button id="playarmed" class="btn wide">Gioca la carta ${ui.armed}</button>` : ''}`);
+        ${ui.town == null ? '' : ui.armed != null ? `<button id="playarmed" class="btn wide">Gioca la carta ${ui.armed} in ${esc(TOWNS[ui.town].name)}</button>`
+          : '<button class="btn wide nextstep" disabled>Ora scegli la carta da giocare, qui sotto ↓</button>'}`); // scelto il quartiere: il passo dopo sempre visibile
       bindArmed(true); return;
     case 'play': {
       const word = SUIT_WORD[TOWNS[town].color];
