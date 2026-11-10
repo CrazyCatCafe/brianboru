@@ -183,15 +183,27 @@ const WMO = [[0, 'Sereno', '☀', 'sereno'], [1, 'Poco nuvoloso', '🌤', 'seren
 let meteo = null;
 async function loadMeteo() {
   try {
-    const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=45.4642&longitude=9.19&current=temperature_2m,weather_code&timezone=Europe%2FRome');
-    const c = (await r.json()).current; meteo = { t: Math.round(c.temperature_2m), w: WMO.find(([k]) => c.weather_code <= k) || WMO[0] };
+    const r = await fetch('https://api.open-meteo.com/v1/forecast?latitude=45.4642&longitude=9.19&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m&timezone=Europe%2FRome');
+    const c = (await r.json()).current; meteo = { t: Math.round(c.temperature_2m), h: Math.round(c.relative_humidity_2m), v: Math.round(c.wind_speed_10m), w: WMO.find(([k]) => c.weather_code <= k) || WMO[0] };
   } catch { meteo = meteo || null; }
   renderMeteo();
   if (state && !$('game').hidden) render(); // la mappa cambia meteo con quello vero
 }
+// icone del meteo disegnate a linee, come nello schizzo: goccia (umidità), vento, e il cielo (sereno, nuvoloso, pioggia, temporale)
+const MI = {
+  goccia: '<path d="M10 2C7 7 4 10 4 13a6 6 0 0 0 12 0c0-3-3-6-6-11Z"/>',
+  vento: '<path d="M2 7h11a3 3 0 1 0-3-3M2 12h15a3 3 0 1 1-3 3M2 17h7"/>',
+  sereno: '<circle cx="10" cy="10" r="4"/><path d="M10 1v3M10 16v3M1 10h3M16 10h3M3.6 3.6l2.1 2.1M14.3 14.3l2.1 2.1M3.6 16.4l2.1-2.1M14.3 5.7l2.1-2.1"/>',
+  nuvoloso: '<path d="M5 15h10a3.5 3.5 0 0 0 0-7 5 5 0 0 0-9.6 1.4A3 3 0 0 0 5 15Z"/>',
+  pioggia: '<path d="M5 12h10a3.5 3.5 0 0 0 0-7 5 5 0 0 0-9.6 1.4A3 3 0 0 0 5 12Z"/><path d="M6 15l-1 3M10 15l-1 3M14 15l-1 3"/>',
+  temporale: '<path d="M5 12h10a3.5 3.5 0 0 0 0-7 5 5 0 0 0-9.6 1.4A3 3 0 0 0 5 12Z"/><path d="M10 13l-2 3h3l-2 3"/>',
+};
+const mi = (k, t) => `<svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${MI[k]}</svg>${t ? `<span>${t}</span>` : ''}`;
 function renderMeteo() {
-  const ora = new Intl.DateTimeFormat('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' }).format(new Date());
-  $('b-meteo').innerHTML = `<b class="city">Milano</b><span class="time">${ora}</span>${meteo ? `<span class="ico" aria-hidden="true">${meteo.w[2]}</span><b class="temp">${meteo.t}°</b><span class="cond">${meteo.w[1]}</span>` : '<span class="cond">meteo non disponibile</span>'}`;
+  const ora = new Intl.DateTimeFormat('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' }).format(new Date()).replace(':', '.');
+  $('b-meteo').innerHTML = `<b class="tit">Meteo</b><b class="where">Milano ${ora}</b>${meteo ? `<span class="row">
+    <span class="mv" title="Umidità">${mi('goccia', meteo.h + '%')}</span><span class="mv" title="Vento">${mi('vento', meteo.v + ' km/h')}</span>
+    <span class="mv sky" title="${meteo.w[1]}">${mi(meteo.w[3])}</span><b class="temp" title="Temperatura">${meteo.t}°</b></span>` : '<span class="cond">meteo non disponibile</span>'}`;
 }
 loadMeteo(); setInterval(loadMeteo, 15 * 60 * 1000); setInterval(renderMeteo, 30 * 1000);
 
