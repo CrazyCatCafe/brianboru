@@ -418,6 +418,10 @@ export async function createCity(container, overlay, view = {}) {
       const o = s.claims?.[k]?.owner ?? null;
       r.owner = o === null ? null : new THREE.Color(T.players[o]);
       r.tint.material.color.copy(r.owner || r.color);
+      // municipio che va in palio: il cartello si gira; cambio di proprietario: il cartello lampeggia
+      const up = !!s.claims?.[k]?.up, ow = s.claims?.[k]?.owner ?? null;
+      if (r.title && r.seenClaim && (up !== r.wasUp || ow !== r.wasOwner)) { const cls = up !== r.wasUp ? 'flipin' : 'ownin'; r.title.classList.remove('flipin', 'ownin'); void r.title.offsetWidth; r.title.classList.add(cls); }
+      r.wasUp = up; r.wasOwner = ow; r.seenClaim = true;
       // cartello: zona controllata → quadratino e nome della banda al posto di triangolino e nome della zona
       const b = r.title?.querySelector('b'), who = o === null ? null : (s.names?.[o] || `Banda ${o + 1}`);
       if (b && b.dataset.who !== String(who)) {

@@ -747,3 +747,17 @@ tr:nth-child(2n) .logo { animation-delay: -3s; }
   #game .rp-left, body.rp #game .rp-left { max-height: calc(100vh - 2 * var(--gap)) !important; }
   #game .hand { padding-left: calc(var(--board-w) + 2 * var(--gap)); }
 }
+/* animazioni: tocca a te, carte del draft, municipio in palio, vincitore */
+#game .rp-stage.turnin { animation: turnin .5s cubic-bezier(.2, .8, .2, 1); }
+@keyframes turnin { 30% { transform: translateY(-8px); box-shadow: 0 0 0 3px var(--rp-red); } }
+#game .hand.mine .card:not(.off):not([aria-disabled="true"]) { translate: 0 -6px; transition: translate .25s; }
+#game .hand .card.deal { animation: deal .4s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes deal { from { opacity: 0; transform: translateX(-120px) rotate(-8deg); } }
+.rp .rlabel.flipin { animation: flipin .8s ease-out; }
+@keyframes flipin { 0% { transform: rotateY(90deg); } 60% { transform: rotateY(-15deg); box-shadow: 0 0 0 3px #ffd400; } 100% { transform: none; } }
+.rp .rlabel.ownin { animation: ownin 1.2s ease-out; }
+@keyframes ownin { 0%, 40% { box-shadow: 0 0 0 4px var(--rc, #ffd400); } }
+.confetti { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.confetti i { position: absolute; top: -10px; left: var(--x); width: 7px; height: 11px; background: var(--c); rotate: var(--r); animation: fall 2.4s var(--d) ease-in infinite; }
+@keyframes fall { to { transform: translateY(420px) rotate(540deg); opacity: .2; } }
+@media (prefers-reduced-motion: reduce) { #game .rp-stage.turnin, #game .hand .card.deal, .rp .rlabel.flipin, .rp .rlabel.ownin { animation: none; } .confetti { display: none; } }

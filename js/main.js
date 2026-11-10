@@ -678,14 +678,16 @@ function renderTurn(s, pd, wk) {
 const SUIT_WORD = { red: 'Guerrilla', blue: 'Community Projects', yellow: 'Underground Party' };
 const coarse = matchMedia('(pointer: coarse)').matches; // su touch la carta in presa va confermata
 
+let lastPacket = '';
 function renderHand(s, pd) {
   const el = $('hand');
   if (seat < 0) { el.innerHTML = ''; return; }
   const card = (v, attrs = '', cls = '') => `<button class="card${cls}" data-c="${v}" ${attrs}>${cardSVG(v)}</button>`;
   if (pd?.type === 'draft' && !s.draft.picks[seat] && !showing) {
-    const sel = ui.draft || [], kept = sorted(s.players[seat].hand);
+    const sel = ui.draft || [], kept = sorted(s.players[seat].hand), pk = s.draft.packets[seat].join(','), dealt = pk !== lastPacket; // mazzetto nuovo: le carte arrivano da sinistra
+    lastPacket = pk;
     el.innerHTML = (kept.length ? `<div class="kept" aria-label="Carte già tenute"><span>Già tenute</span><div>${kept.map(v => `<figure>${cardSVG(v)}</figure>`).join('')}</div></div>` : '') +
-      sorted(s.draft.packets[seat]).map((v, i) => card(v, `aria-pressed="${sel.includes(v)}" aria-keyshortcuts="${i + 1}"`)).join('');
+      sorted(s.draft.packets[seat]).map((v, i) => card(v, `aria-pressed="${sel.includes(v)}" aria-keyshortcuts="${i + 1}"${dealt ? ` style="animation-delay:${i * 70}ms"` : ''}`, dealt ? ' deal' : '')).join('');
     el.querySelectorAll('[data-c]').forEach(b => (b.onclick = () => {
       const v = +b.dataset.c;
       if (sel.includes(v)) ui.draft = sel.filter(x => x !== v);
@@ -776,7 +778,10 @@ function endRecap(s) { // riepilogo di fine partita: come si è vinto
     <span class="facts">${towns(i)} quartieri · ${projects(i)} progetti · ${p.renown} street cred${p.claims.length ? ' · zone: ' + p.claims.map(r => REGIONS[r].name).join(', ') : ''}${p.marriages.length ? ' · ' + p.marriages.map(characterName).join(', ') : ''}</span></li>`; }).join('')}</ol>`;
 }
 
+// coriandoli nei colori delle fazioni (vincitore)
+const confetti = () => `<div class="confetti" aria-hidden="true">${Array.from({ length: 36 }, (_, k) => `<i style="--x:${(k * 37) % 100}%;--d:${(k % 9) * 0.15}s;--c:${THEME.players[k % 5]};--r:${(k * 53) % 360}deg"></i>`).join('')}</div>`;
 const exitGame = () => { showing = null; queue = []; if (local) { local = false; state = null; clearTimeout(botTimer); } show(!net || me ? 'lobby' : 'auth'); }; // a partita finita si esce senza conferma
+let wasMine = false;
 function renderStage(s = state, pd = current(state)) {
   const el = $('stage');
   if (showing?.k === 'final') city.highlight(steps(showing)[Math.min(step, steps(showing).length - 1)].zone ?? null); // la zona che si sta contando si alza
@@ -784,7 +789,10 @@ function renderStage(s = state, pd = current(state)) {
   // titolo prima, informazioni di contorno sotto (niente etichetta sopra il titolo)
   const head = (h, meta = '', body = '') => `<h2>${h}</h2>${meta ? `<p class="meta">${meta}</p>` : ''}${body}`;
   const mineTurn = pd && pd.p === seat && !showing && !(pd.type === 'draft' && s.draft.picks[seat]);
-  el.classList.toggle('mine', !!mineTurn || (pd?.type === 'draft' && seat >= 0 && !s.draft.picks[seat] && !showing));
+  const nowMine = !!mineTurn || (pd?.type === 'draft' && seat >= 0 && !s.draft.picks[seat] && !showing);
+  el.classList.toggle('mine', nowMine); $('hand').classList.toggle('mine', nowMine);
+  if (nowMine && !wasMine) { el.classList.remove('turnin'); void el.offsetWidth; el.classList.add('turnin'); } // tocca a te: il riquadro fa un piccolo salto
+  wasMine = nowMine;
   el.classList.toggle('compact', !!mapPicking);
   el.classList.remove('strip');
   if (showing) {
@@ -802,11 +810,12 @@ function renderStage(s = state, pd = current(state)) {
       return;
     }
     el.innerHTML = head(cur.t, `${showing.k === 'final' ? 'Punteggio finale' : PHASES.find(p => p[0] === (SHOW_PHASE[showing.k] || showing.k))?.[1] || ''} · passo ${step + 1} di ${st.length}`, cur.b) +
-      (showing.k === 'final' && step >= st.length - 1 ? '<div class="row end"><button class="btn" id="endexit">Esci</button></div>' // vincitore: ultima schermata, si esce da qui
+      (showing.k === 'final' && step >= st.length - 1 ? confetti() + '<div class="row end"><button class="btn" id="endexit">Esci</button></div>' // vincitore: ultima schermata, si esce da qui
         : waitingAcks().length && acked === showing.n ? `<p class="waitack">In attesa che clicchino Avanti: ${waitingAcks().map(i => `<span class="blink">${who(s, i)}</span>`).join(' ')}</p>`
         : `<div class="row end"><button class="btn small" id="next" aria-keyshortcuts="Space">Avanti</button></div>`);
     $('next') && ($('next').onclick = advance);
     $('endexit') && ($('endexit').onclick = exitGame);
+    if (showing.k === 'final' && step >= st.length - 1) city.setFireworks(s.towns.map((t, i) => (showing.winner.includes(t.owner) ? i : -1)).filter(i => i >= 0)); // vincitore: fuochi d'artificio sui suoi quartieri
     return;
   }
   if (!pd) { // fine partita
