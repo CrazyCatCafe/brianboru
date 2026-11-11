@@ -1269,3 +1269,22 @@ body #game nav.rp-phases { right: calc(var(--right-w) + 24px) !important; }
 .hygo { position: absolute; top: 28px; width: calc(100% / 9); display: grid; place-items: center; left: calc((var(--to) - 1) * 100% / 9); animation-name: hygo; animation-fill-mode: both; z-index: 2; }
 .hygo .flogo { width: 26px !important; height: 26px !important; box-shadow: 0 0 0 3px var(--pc), 0 0 10px #ffd400 !important; }
 @keyframes hygo { from { left: calc((var(--from) - 1) * 100% / 9); } }
+/* ===== Process Phase: banda nera al centro (non a tutto schermo) ===== */
+#game section.rp-stage.band { position: fixed !important; left: 0 !important; right: 0 !important; top: 17vh !important; bottom: auto !important; width: auto !important; max-width: none !important; max-height: 70vh !important; margin: 0 !important; transform: none !important; translate: none !important;
+  z-index: 90; display: block !important; padding: 18px max(24px, calc(50vw - 480px)) 20px !important; background: #07090b !important; border: 0 !important; border-top: 3px solid var(--rp-red) !important; border-bottom: 3px solid var(--rp-red) !important; box-shadow: 0 20px 60px rgba(0, 0, 0, .7); overflow: hidden; }
+#game .rp-stage.band h2 { display: flex; align-items: center; gap: 12px; margin: 0 0 14px; font-size: 30px; }
+#game .rp-stage.band h2 small { font: 700 12px var(--num); letter-spacing: .14em; text-transform: uppercase; color: #fff; background: var(--rp-red); padding: 4px 8px; }
+#game .rp-stage.band h2 .logo { width: 34px; height: 34px; display: inline-grid; place-items: center; background: #eef1f3; }
+.band .rv { animation: vsinfo .5s var(--d) cubic-bezier(.2, .8, .2, 1) both; }
+.band.still .rv, .band.still .rv * { animation: none !important; }
+.band .bl { margin: 6px 0; font: 600 17px var(--num); color: #e6ecef; } .band .bl.big { font: 800 21px var(--num); color: #fff; }
+.band .bgo { display: flex; justify-content: flex-end; margin-top: 12px; } .band .bgo .btn { min-width: 200px; font-size: 15px; padding: 12px 24px; }
+.band .bwin { display: flex; align-items: center; gap: 18px; margin: 10px 0 4px; } .band .bwin figure { margin: 0; width: 110px; flex: none; } .band .bwin figure svg { width: 100%; height: auto; display: block; }
+.band .trk .ptrack { margin: 4px 0 8px; } .band .pt[data-move] { animation-delay: 2.6s !important; }
+.band .bvals { display: flex; flex-wrap: wrap; gap: 8px 22px; } .band .bvals span { font: 600 17px var(--num); color: #e6ecef; display: inline-flex; align-items: center; gap: 6px; } .band .bvals b { font: 800 24px var(--num); color: #1fd16b; }
+/* track nella banda: caselle alte, segnalini grandi affiancati dentro la casella */
+.band .ptrack .cells .pc { height: 64px; }
+.band .ptrack .pt { width: 18px !important; height: 18px !important; bottom: 6px !important; left: calc(var(--x) * 10% + 5px + var(--y) * 19px) !important; }
+.band .ptrack .pt .flogo, .band .ptrack .pt .flogo svg { width: 14px !important; height: 14px !important; }
+.band .ptrack .pt[data-move] { animation: bandback 1s 2.6s ease-in-out both !important; }
+@keyframes bandback { from { left: calc(var(--fx) * 10% + 5px); } }

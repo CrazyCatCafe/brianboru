@@ -427,7 +427,7 @@ function phaseBanner(k) {
   el.innerHTML = `<div class="pb">${PHASE_LOGO[k] ? logo(PHASE_LOGO[k], 34) : ''}<b>${name}</b></div>`;
   el.classList.remove('go'); void el.offsetWidth; el.classList.add('go'); sound('phase');
   document.body.classList.add('phasefly'); // finché il cartello non arriva, il box non ha titolo
-  clearTimeout(phaseBanner.t); phaseBanner.t = setTimeout(() => { document.body.classList.remove('phasefly'); pixelSwap(document.querySelector('#stage h2 .ttl') || document.querySelector('#stage h2'), name); }, 1700); // atterrato: il nome della fase si sgretola nel titolo vero
+  clearTimeout(phaseBanner.t); phaseBanner.t = setTimeout(() => { document.body.classList.remove('phasefly'); if (!$('stage').matches('.band, .vs')) pixelSwap(document.querySelector('#stage h2 .ttl') || document.querySelector('#stage h2'), name); }, 1700); // atterrato: il nome della fase si sgretola nel titolo vero
   requestAnimationFrame(() => { // il box viene disegnato dopo: si legge dove sta il suo titolo e ci si vola sopra
     const pb = el.querySelector('.pb'), h = document.querySelector('#stage h2 .phchip') || document.querySelector('#stage h2'), a = pb.getBoundingClientRect(), t = h?.getBoundingClientRect();
     const end = t && t.width ? `translate(${t.left - a.left}px, ${t.top + t.height / 2 - (a.top + a.height / 2)}px) scale(${Math.min(1, t.height / a.height * 1.4)})` : 'translateY(-140px) scale(.5)';
@@ -438,7 +438,7 @@ function phaseBanner(k) {
 }
 function renderPhases(s, pd) {
   const cur = showing ? SHOW_PHASE[showing.k] || showing.k : pd ? PEND_PHASE[pd.type] : 'uprising';
-  if (cur !== phaseNow && phaseNow !== null) { if (!['prep', 'pregame'].includes(showing?.k)) phaseBanner(cur); // sulle schermate a tutto schermo niente banner
+  if (cur !== phaseNow && phaseNow !== null) { if (!['prep', 'pregame', 'party', 'guerrilla', 'community', 'uprising'].includes(showing?.k)) phaseBanner(cur); // sulle schermate a tutto schermo niente banner
     hypeLit = false; city?.highlight(null); $('peekcard').hidden = true; } // cambio di fase: cartello grande, e si spegne l'illuminazione della fase prima
   phaseNow = cur;
   const SHORT = { party: 'Party', guerrilla: 'Guerrilla', community: 'Community', uprising: 'Uprising' }; // nomi brevi quando lo schermo è stretto
@@ -469,7 +469,21 @@ function advance() {
 // fine di un racconto: dopo la Panoramica parte il caricamento con la canzone; la partita comincia allo stacco della musica
 // Panoramica: canzone e caricamento partono subito, intanto tutti cliccano Pronto; si entra in gioco al 100% se sono tutti pronti, altrimenti appena l'ultimo clicca
 let loadDone = false, allReady = false;
+// effetto pixel: la schermata si ricompone dai pixel (entrata) o si sgretola (uscita)
+function pixFx(el, from, to, ms, done) {
+  const f = $('pxcrash'), [flood, comp, , , morph] = f.children, t0 = performance.now();
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) { el.style.filter = ''; return done?.(); }
+  el.style.filter = 'url(#pxcrash)';
+  (function frame() {
+    const k = Math.min(1, (performance.now() - t0) / ms), z = Math.max(1, Math.round(from + (to - from) * k * k));
+    flood.setAttribute('x', z / 2); flood.setAttribute('y', z / 2); comp.setAttribute('width', z); comp.setAttribute('height', z); morph.setAttribute('radius', z / 2);
+    if (k < 1) requestAnimationFrame(frame); else { el.style.filter = ''; done?.(); }
+  })();
+}
+const pixIn = el => pixFx(el, 40, 1, 650);
+const pixOut = done => pixFx($('stage'), 1, 40, 500, done);
 function endEvent() {
+  if (showing && (steps(showing)[0]?.band || showing.k === 'prep')) return pixOut(nextEvent); // si passa alla schermata dopo sgretolando quella di prima
   if (showing?.k !== 'pregame') return nextEvent();
   allReady = true; goGame(); // tutti pronti: sgretolamento in pixel e si entra
 }
@@ -522,7 +536,7 @@ function waitingAcks() {
   if (!showing || !ACK_ALL.has(showing.k) || local || !room) return [];
   return room.players.map((p, i) => [p, i]).filter(([p]) => !p.bot && (room.acks?.[p.uid] ?? -1) < showing.n).map(([, i]) => i);
 }
-const ACK_ALL = new Set(['pregame', 'prep', 'party', 'final']);
+const ACK_ALL = new Set(['pregame', 'prep', 'party', 'guerrilla', 'community', 'uprising', 'final']);
 const SHOW_PHASE = { pregame: 'setup', discard: 'trick', setup: 'setup', final: 'uprising', estrid: 'party' };
 function checkAcks() { if (ACK_ALL.has(showing?.k) && acked === showing.n && !waitingAcks().length) { acked = null; endEvent(); } }
 
@@ -595,68 +609,45 @@ function steps(e) {
     case 'pregame': return [{ vs: true, t: 'Panoramica di gioco', b: '' }];
     case 'setup': return [{ t: `${esc(s.players[e.p].name)} parte da ${esc(TOWNS[e.town].name)}`, b: `<p>${who(s, e.p)} sceglie ${townChip(e.town)} in <b>${REGIONS[TOWNS[e.town].region].name}</b>. <button class="btn ghost small goto" data-goto="${e.town}">Portami lì</button></p>` }];
     case 'prep': return [{ vs: true, t: `Round ${e.round}`, b: '' }]; // tra un round e l'altro: punteggi provvisori, Fazione Attiva, polizia e Hype
-    case 'party': { // la track in orizzontale si avvicina; dal più avanti: usa la carta, torna all'inizio, gli altri prendono i bonus
-      const c = e.card, W = e.winner, after = e.track.map((p, i) => (i === W ? 0 : p));
-      if (W === null) return [{ t: 'Hype', b: partyTrack(e.track, { zoom: true }) + '<p>Nessuno ha hype: il personaggio se ne va.</p>' }];
-      const eff = c.princess ? 'sceglie come usare la Regina Estrid' : `+${c.points} punti${c.renown ? ', +1 street cred' : ''}${c.region ? `, un quartiere in ${REGIONS[c.region].name}` : ''}`;
+    case 'party': { // la track con le posizioni, la carta, chi la vince; poi il suo segnalino torna all'inizio e gli altri prendono i bonus
+      const c = e.card, W = e.winner, after = e.track.map((p, i) => (i === W ? 0 : p)), rv = (d, h, cls = '') => `<div class="rv ${cls}" style="--d:${d}s">${h}</div>`;
+      if (W === null) return [{ band: true, t: 'Hype', end: 1.6, b: rv(.2, partyTrackOld(e.track)) + rv(.9, '<p class="bl">Nessuno ha hype: il personaggio se ne va.</p>') }];
+      const eff = c.princess ? 'sceglie come usare la Regina Estrid' : [`+${c.points} punti`, c.renown ? '+1 street cred' : '', c.region ? `un quartiere in ${REGIONS[c.region].name}` : ''].filter(Boolean).join(', ');
       const order = s.players.map((p, i) => i).filter(i => i !== W).sort((a, b) => e.track[b] - e.track[a]);
       const bonusOf = i => e.bonuses.find(x => x.p === i)?.b;
-      const res = (upto, cardHi) => `<div class="partyres"><figure class="${cardHi ? 'hi' : ''}">${characterSVG(characterIndex(c))}</figure><table class="ptable">
-        <tr class="win${upto >= 0 ? ' on' : ''}"><td>${who(s, W)}</td><td>${upto >= 0 ? `ingaggia il personaggio: ${eff}${e.before && !c.princess ? ` · <b class="ptsup">punti ${e.before[W]} → ${e.before[W] + c.points}</b>` : ''}${upto >= 1 ? ' · torna alla partenza' : ''}` : 'ottiene più hype'}</td></tr>
-        ${order.map((i, k) => `<tr class="${upto >= 2 + k ? 'on' : 'dim'}"><td>${who(s, i)}</td><td>${upto >= 2 + k ? (bonusOf(i) ? BONUS[bonusOf(i)] : 'nessun bonus') : ''}</td></tr>`).join('')}</table></div>`;
-      const out = [
-        { t: 'Hype', b: partyTrack(e.track, { zoom: true }) + '<p>Chi è più avanti nell\'hype ingaggia il personaggio.</p>' },
-        { t: `${esc(s.players[W].name)} ottiene più hype`, b: partyTrack(e.track, { hi: W }) + res(0, true) },
-        { t: `${esc(s.players[W].name)} torna all'inizio`, b: partyTrack(after, { hi: W, from: { [W]: e.track[W] } }) + res(1) },
-      ];
-      order.forEach((i, k) => out.push({ t: bonusOf(i) ? `${esc(s.players[i].name)}: ${BONUS[bonusOf(i)]}` : `${esc(s.players[i].name)}: nessun bonus`,
-        b: partyTrack(after, { hi: i, bonus: i }) + res(2 + k) }));
-      return out;
+      let d = 3.4; const others = order.map(i => rv((d += .5), `<p class="bl">${who(s, i)} ${bonusOf(i) ? BONUS[bonusOf(i)] : 'nessun bonus'}</p>`)).join('');
+      return [{ band: true, t: 'Hype', end: d + .7, b: rv(.2, partyTrackOld(after, { hi: W, from: { [W]: e.track[W] } }), 'trk')
+        + rv(.9, `<div class="bwin"><figure>${characterSVG(characterIndex(c))}</figure><div><p class="bl big">${who(s, W)} vince l'Hype</p><p class="bl">${eff}</p></div></div>`)
+        + rv(2.6, `<p class="bl">${who(s, W)} torna all'inizio della track</p>`) + others }];
     }
-    case 'guerrilla': { // animata: la polizia arriva, le barre delle unità neutralizzate crescono, retata, premi, ritirata
-      const n = s.players.length, order = s.players.map((p, i) => i).sort((a, b) => e.raiders[a] - e.raiders[b]);
-      const after = e.raiders.map((r, i) => (i === e.first ? 0 : r)).map((r, i) => (e.ties.includes(i) ? r - 1 : r));
-      const lost = new Set(e.losses.map(l => l.victim));
-      const out = [{ t: 'Guerrilla', b: guerBoard(e, order, e.raiders, { grow: true }) + `<p>Chi ha neutralizzato meno unità rischia la retata.</p>` }];
-      out.push(e.area > 0
-        ? { t: 'Retata!', b: guerBoard(e, order, e.raiders, { lose: lost, raid: true }) + `<p>${e.area} ${e.area === 1 ? 'poliziotto attacca' : 'poliziotti attaccano'}: ${e.raiders.every(r => r === 0) ? 'tutti sono a 0 in Guerrilla, tutti perdono un quartiere.' : 'chi ha la Guerrilla più bassa perde un quartiere.'}</p>` + (e.losses.length ? `<ul class="plain">${list(e.losses.map(l => `<li>${who(s, l.victim)} perde un quartiere${l.chooser !== l.victim ? ` · lo sceglie ${who(s, l.chooser)}` : ''}</li>`))}</ul>` : '<p>Nessuno ha quartieri da perdere.</p>') }
-        : { t: 'Polizia respinta', b: guerBoard(e, order, e.raiders, { gone: true }) + '<p>Non ci sono più poliziotti: non succede nulla!</p>' });
-      const quiet = Math.max(...e.raiders) === 0; // nessuno ha neutralizzato poliziotti
-      if (quiet) { // niente premi né ritirata: un passo solo (due se c'è la retata)
-        const last = out[out.length - 1]; last.b += '<p>Nessuno ha neutralizzato poliziotti: niente street cred e niente punti.</p>';
-        if (e.area === 0) return [{ t: 'Guerrilla', b: guerBoard(e, order, e.raiders, { gone: true }) + '<p>Nessuna retata e nessuno ha neutralizzato poliziotti: non succede niente.</p>' }];
-        return out;
-      }
-      out.push(e.first !== null
-        ? { t: `${esc(s.players[e.first].name)} guida la guerriglia`, b: guerBoard(e, order, e.raiders, { hi: e.first }) + `<p>${who(s, e.first)}: +1 street cred (ora ${e.renown[e.first] + 1}) e <b class="ptsup">+${e.gain} punti</b>, uno per ogni street cred · punti ${e.before[e.first]} → ${e.before[e.first] + e.gain}. Rimette tutte le sue unità.</p>` }
-        : Math.max(...e.raiders) === 0
-          ? { t: 'Nessun premio', b: guerBoard(e, order, e.raiders, {}) + '<p>Nessuno ha neutralizzato poliziotti: nessuno guida la guerriglia, niente street cred e niente punti.</p>' }
-          : { t: 'Pareggio', b: guerBoard(e, order, e.raiders, {}) + '<p>Quando più giocatori pareggiano per la Guerrilla più alta, chi ha il valore di Guerrilla più basso sceglie il proprio quartiere con retata.</p>' });
-      if (e.ties.length) out.push({ t: '+1 punto', b: guerBoard(e, order, e.raiders, { hi: e.ties }) + `<p>${e.ties.map(i => who(s, i)).join(', ')}: più unità rimaste, +1 punto e ne rimette una.</p>` });
-      if (after.some((r, i) => r !== e.raiders[i])) out.push({ t: 'La polizia si ritira', b: guerBoard(e, order, after, { from: e.raiders }) + '<p>Le unità rimaste restano per il prossimo round.</p>' }); // solo se qualcosa cambia
-      return out;
+    case 'guerrilla': { // quanti poliziotti ha respinto ognuno, se la polizia attacca, poi si risolve: prima chi ha vinto, poi gli altri
+      const order = s.players.map((p, i) => i).sort((a, b) => e.raiders[b] - e.raiders[a]), rv = (d, h) => `<div class="rv" style="--d:${d}s">${h}</div>`;
+      let d = 1.6, h = rv(.2, guerBoard(e, order, e.raiders, { grow: true }));
+      h += rv(d, e.area > 0 ? `<p class="bl big">La polizia attacca con ${e.area} ${e.area === 1 ? 'unità' : 'unità'}</p>` : '<p class="bl big">Nessun poliziotto rimasto: la polizia non attacca</p>');
+      const max = Math.max(...e.raiders);
+      h += rv((d += .9), e.first !== null ? `<p class="bl">${who(s, e.first)} vince la Guerrilla: +1 street cred e <b class="ptsup">+${e.gain} punti</b></p>` : max === 0 ? '<p class="bl">Nessuno ha respinto poliziotti: nessun premio</p>' : '<p class="bl">Pareggio: nessuno vince la Guerrilla</p>');
+      if (e.ties.length) h += rv((d += .6), `<p class="bl">${e.ties.map(i => who(s, i)).join(', ')}: +1 punto</p>`);
+      e.losses.forEach(l => (h += rv((d += .6), `<p class="bl">${who(s, l.victim)} perde un quartiere alla polizia${l.chooser !== l.victim ? ` (lo sceglie ${who(s, l.chooser)})` : ''}</p>`)));
+      return [{ band: true, t: 'Guerrilla', end: d + .7, b: h }];
     }
-    case 'community': {
-      if (e.church.every(c => c === 0)) return [{ t: 'Community', b: '<p>Nessuno ha punti community: nessun progetto urbano in questo round.</p>' }];
-      const out = [{ t: 'Community', b: `<ul class="plain">${list(e.church.map((c, i) => `<li>${who(s, i)} ${c} di comunità</li>`))}</ul>` }];
-      if (e.first !== null) out.push({ t: `${who(s, e.first)} guida la comunità`, b: '<p>Avvia un progetto urbano e diventa First Player.</p>' });
-      else out[0].b += '<p><b>Pareggio</b>: niente progetto principale.</p>'; // pareggio: nello stesso passo
-      if (e.ties.length) out.push({ t: '+1 punto', b: `<p>${e.ties.map(i => who(s, i)).join(', ')}</p>` });
-      if (e.fours.length) out.push({ t: 'Progetti con 4 o più', b: `<p>${e.fours.map(i => who(s, i)).join(', ')} avviano un progetto urbano.</p>` });
-      return out;
+    case 'community': { // i punti community di ognuno, poi chi vince avvia il progetto e diventa First Player, poi gli altri
+      const rv = (d, h) => `<div class="rv" style="--d:${d}s">${h}</div>`, order = s.players.map((p, i) => i).sort((a, b) => e.church[b] - e.church[a]);
+      let d = .2, h = rv(d, `<div class="bvals">${order.map(i => `<span>${who(s, i)} <b>${e.church[i]}</b></span>`).join('')}</div>`);
+      h += rv((d += 1), e.first !== null ? `<p class="bl big">${who(s, e.first)} vince la Community: avvia un progetto urbano e diventa First Player</p>` : e.church.every(c => c === 0) ? '<p class="bl big">Nessuno ha punti community</p>' : '<p class="bl big">Pareggio: nessun progetto principale</p>');
+      if (e.ties.length) h += rv((d += .6), `<p class="bl">${e.ties.map(i => who(s, i)).join(', ')}: +1 punto</p>`);
+      if (e.fours.length) h += rv((d += .6), `<p class="bl">${e.fours.map(i => who(s, i)).join(', ')}: 4 o più, avviano un progetto urbano</p>`);
+      return [{ band: true, t: 'Community', end: d + .7, b: h }];
     }
-    case 'uprising': return (() => { const st = [
-      { t: 'Uprising', b: e.flips.length ? `<p>Ora in palio: ${e.flips.map(r => `<b>${REGIONS[r].name}</b>`).join(', ')}.</p>` : '<p>Nessuna nuova zona in palio.</p>' },
-      ...(e.values && Object.keys(e.values).length ? [{ t: 'Valore nelle zone in palio', b: `<ul class="plain">${list(Object.entries(e.values).map(([r, z]) => {
+    case 'uprising': { // zone che entrano in palio, il valore di ognuno, chi controlla
+      const rv = (d, h) => `<div class="rv" style="--d:${d}s">${h}</div>`;
+      let d = .2, h = rv(d, `<p class="bl big">${e.flips.length ? `Ora in palio: ${e.flips.map(r => `<b>${REGIONS[r].name}</b>`).join(', ')}` : 'Nessuna nuova zona in palio'}</p>`);
+      Object.entries(e.values || {}).forEach(([r, z]) => {
         const res = z.max === 0 ? 'nessuna fazione' : z.tie ? (z.owner !== null ? `resta a ${who(s, z.owner)}` : 'contesa') : `controlla ${who(s, z.owner)}`;
-        return `<li><b>${REGIONS[r].name}</b>: ${Object.entries(z.values).sort(([, a], [, b]) => b - a).map(([i, x]) => `${pname(s, Number(i))} ${x}`).join(' · ') || '—'} → ${res}</li>`;
-      }))}</ul>` }] : []),
-      { t: 'Controllo delle zone', b: e.changes.length ? `<ul class="plain">${list(e.changes.map(c => `<li><b>${REGIONS[c.r].name}</b>: ${c.owner === null ? 'nessuno la controlla' : `${who(s, c.owner)}${c.from != null ? ` (la toglie a ${who(s, c.from)})` : ''} · vale <b class="ptsup">${REGIONS[c.r].points} punti</b>`}</li>`))}</ul><p class="note">I punti dei municipi sono provvisori: si vedono nella riga col pugno e si contano a fine partita, a chi li controlla in quel momento.</p>` : '<p>Nessun cambio di controllo.</p>' },
-    ];
-      const vals = e.values && Object.keys(e.values).length;
-      if (!vals) return [{ t: 'Uprising', b: st[0].b.replace('</p>', ' Nessun cambio di controllo.</p>') }]; // niente zone in palio: un passo solo
-      return st.filter((x, k) => !(k === 0 && !e.flips.length) && !(x.t === 'Controllo delle zone' && !e.changes.length)); // via i passi senza novità
-    })();
+        h += rv((d += .6), `<p class="bl"><b>${REGIONS[r].name}</b>: ${Object.entries(z.values).sort(([, a], [, b]) => b - a).map(([i, x]) => `${pname(s, Number(i))} ${x}`).join(' · ') || '—'} → ${res}</p>`);
+      });
+      e.changes.forEach(c => (h += rv((d += .6), `<p class="bl">${who(s, c.owner)} prende <b>${REGIONS[c.r].name}</b>${c.from != null ? ` (la toglie a ${who(s, c.from)})` : ''} · <b class="ptsup">${REGIONS[c.r].points} punti</b> a fine partita</p>`)));
+      return [{ band: true, t: 'Uprising', end: d + .7, b: h }];
+    }
   }
   return [];
 }
@@ -765,7 +756,7 @@ function render() {
   if (fkey) document.querySelector(fkey)?.focus({ preventScroll: true }); // il focus non si perde quando il pannello si aggiorna
   const tEl = $('stage').querySelector('h2 .ttl') || $('stage').querySelector('h2'), said = tEl?.textContent || '';
   if (said !== lastSaid) { // titolo nuovo: la scritta vecchia si sgretola e la nuova si ricompone (mentre vola il cartello di fase ci pensa lui)
-    if (lastSaid && !document.body.classList.contains('phasefly')) pixelSwap(tEl, lastSaid);
+    if (lastSaid && !document.body.classList.contains('phasefly') && !$('stage').matches('.band, .vs')) pixelSwap(tEl, lastSaid); // le schermate a banda hanno già il loro effetto pixel
     $('announce').textContent = said; lastSaid = said;
   } // lo screen reader sente solo il titolo nuovo
   $('log').innerHTML = [...s.log].reverse().map(l => `<li>${logLine(s, l)}</li>`).join('');
@@ -1045,7 +1036,7 @@ function endRecap(s) { // riepilogo di fine partita: come si è vinto
 // coriandoli nei colori delle fazioni (vincitore)
 const confetti = () => `<div class="confetti" aria-hidden="true">${Array.from({ length: 36 }, (_, k) => `<i style="--x:${(k * 37) % 100}%;--d:${(k % 9) * 0.15}s;--c:${THEME.players[k % 5]};--r:${(k * 53) % 360}deg"></i>`).join('')}</div>`;
 const exitGame = () => leaveGame(); // a partita finita si esce senza conferma
-let wasMine = false, vsShown = null;
+let wasMine = false, vsShown = null, bandShown = null;
 function renderStage(s = state, pd = current(state)) {
   const el = $('stage');
   if (showing?.k === 'final') city.highlight(steps(showing)[Math.min(step, steps(showing).length - 1)].zone ?? null); // la zona che si sta contando si alza
@@ -1063,11 +1054,20 @@ function renderStage(s = state, pd = current(state)) {
   if (nowMine && !wasMine) { sound('turn'); el.classList.remove('turnin'); void el.offsetWidth; el.classList.add('turnin'); } // tocca a te: il riquadro fa un piccolo salto
   wasMine = nowMine;
   el.classList.toggle('compact', !!mapPicking);
-  el.classList.remove('strip', 'vs', 'still');
+  el.classList.remove('strip', 'vs', 'still', 'band');
   if (showing) {
     const st = steps(showing), cur = st[Math.min(step, st.length - 1)];
+    if (cur.band) { // Process Phase: banda nera al centro, si risolve tutto in ordine; Continua per la fase dopo (si passa quando tutti hanno premuto)
+      el.classList.add('band'); const first = bandShown !== showing.n; bandShown = showing.n; el.classList.toggle('still', !first);
+      el.innerHTML = `<h2><small>Process Phase</small>${PHASE_LOGO[SHOW_PHASE[showing.k] || showing.k] ? logo(PHASE_LOGO[SHOW_PHASE[showing.k] || showing.k], 26) : ''}${cur.t}</h2>${cur.b}
+        <div class="rv bgo" style="--d:${cur.end}s">${waitingAcks().length && acked === showing.n ? `<p class="waitack">Aspettiamo: ${waitingAcks().map(i => `<span class="blink">${who(s, i)}</span>`).join(' ')}</p>`
+          : `<button class="btn" id="next" aria-keyshortcuts="Space">Continua</button>`}</div>`;
+      $('next') && ($('next').onclick = advance);
+      if (first) pixIn(el);
+      return;
+    }
     if (cur.vs) { // Panoramica di gioco (inizio partita) e schermata tra un round e l'altro: box dei giocatori, Pronto
-      el.classList.add('vs'); if (vsShown === showing.n) el.classList.add('still'); vsShown = showing.n; // ridisegnando (es. dopo Pronto) i giocatori non rientrano
+      el.classList.add('vs'); if (vsShown === showing.n) el.classList.add('still'); else requestAnimationFrame(() => pixIn(el)); vsShown = showing.n; // ridisegnando (es. dopo Pronto) i giocatori non rientrano
       const isReady = i => isBot(i) || (local ? acked === showing.n : (room.acks?.[room.players[i]?.uid] ?? -1) >= showing.n);
       const first = showing.k === 'pregame' ? showing.start : s.active, round = showing.k === 'prep';
       const cards = s.players.map((p, i) => `<div class="vscard" style="--pc:${THEME.players[i] === '#1b1b1b' ? '#cfd6dc' : THEME.players[i]};--d:${i * 0.18}s">
