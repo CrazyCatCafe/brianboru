@@ -575,6 +575,12 @@ function tieNote(e) {
   const t = e.total, w = e.winner[0], second = e.rank[1];
   return t[second] === t[w] ? `<p>Pari punti con ${who(state, second)}: vince chi controlla più zone, poi chi ha più carte Hype.</p>` : `<p>${who(state, w)} vince con <b>${t[w]} punti</b>.</p>`;
 }
+// carte dei giocatori nelle Process Phase, come nella schermata di preparazione
+function bandCards(s, rows) { // rows: [{ i, val, note, noteAt, win }]
+  return `<div class="vsrow bcards">${rows.map((r, k) => `<div class="vscard${r.win ? ' bwinner' : ''}" style="--pc:${THEME.players[r.i] === '#1b1b1b' ? '#cfd6dc' : THEME.players[r.i]};--d:${.15 + k * .15}s">
+    <span class="vslogo">${factionLogo(gangOf(r.i), 84)}</span><b class="vsname">${esc(s.players[r.i].name)}</b><span class="vsfac">${esc(gangOf(r.i))}</span>
+    <span class="bval">${r.val}</span>${r.note ? `<span class="bnote rv" style="--d:${r.noteAt}s">${r.note}</span>` : ''}</div>`).join('')}</div>`;
+}
 function partyTrack() { return ''; } // il racconto dell'Hype usa la track in alto (vedi hypePos)
 function partyTrackOld(pos, { zoom = false, hi = null, from = {}, bonus = null } = {}) {
   const cells = MARRIAGE_TRACK.map((b, c) => `<div class="pc${b ? ' bonus' : ''}${bonus !== null && pos[bonus] === c ? ' got' : ''}"><span class="n">${c || 'Via'}</span><span class="b">${b === 'CC' ? icon('C', 12) + icon('C', 12) : b ? icon(b, 13) : ''}</span></div>`).join('');
@@ -611,36 +617,36 @@ function steps(e) {
     case 'prep': return [{ vs: true, t: `Round ${e.round}`, b: '' }]; // tra un round e l'altro: punteggi provvisori, Fazione Attiva, polizia e Hype
     case 'party': { // la track con le posizioni, la carta, chi la vince; poi il suo segnalino torna all'inizio e gli altri prendono i bonus
       const c = e.card, W = e.winner, after = e.track.map((p, i) => (i === W ? 0 : p)), rv = (d, h, cls = '') => `<div class="rv ${cls}" style="--d:${d}s">${h}</div>`;
-      if (W === null) return [{ band: true, t: 'Hype', end: 1.6, b: rv(.2, partyTrackOld(e.track)) + rv(.9, '<p class="bl">Nessuno ha hype: il personaggio se ne va.</p>') }];
+      if (W === null) return [{ band: true, t: 'Hype', end: 1.6, b: bandCards(s, s.players.map((p, i) => ({ i, val: `${logo('hype', 20)}<b>0</b>` }))) + rv(.9, '<p class="bl big">Nessuno ha hype: il personaggio se ne va.</p>') }];
       const eff = c.princess ? 'sceglie come usare la Regina Estrid' : [`+${c.points} punti`, c.renown ? '+1 street cred' : '', c.region ? `un quartiere in ${REGIONS[c.region].name}` : ''].filter(Boolean).join(', ');
       const order = s.players.map((p, i) => i).filter(i => i !== W).sort((a, b) => e.track[b] - e.track[a]);
       const bonusOf = i => e.bonuses.find(x => x.p === i)?.b;
-      let d = 3.4; const others = order.map(i => rv((d += .5), `<p class="bl">${who(s, i)} ${bonusOf(i) ? BONUS[bonusOf(i)] : 'nessun bonus'}</p>`)).join('');
-      return [{ band: true, t: 'Hype', end: d + .7, b: rv(.2, partyTrackOld(after, { hi: W, from: { [W]: e.track[W] } }), 'trk')
-        + rv(.9, `<div class="bwin"><figure>${characterSVG(characterIndex(c))}</figure><div><p class="bl big">${who(s, W)} vince l'Hype</p><p class="bl">${eff}</p></div></div>`)
-        + rv(2.6, `<p class="bl">${who(s, W)} torna all'inizio della track</p>`) + others }];
+      const cards = bandCards(s, [W, ...order].map((i, k) => ({ i, val: `${logo('hype', 20)}<b>${e.track[i]}</b>`, win: i === W,
+        note: i === W ? `Vince l'Hype · ${eff} · torna all'inizio` : bonusOf(i) ? BONUS[bonusOf(i)] : 'nessun bonus', noteAt: i === W ? 1.2 : 3.4 + k * .4 })));
+      return [{ band: true, t: 'Hype', end: 3.6 + order.length * .4 + .6, b: cards + rv(.6, partyTrackOld(after, { hi: W, from: { [W]: e.track[W] } }), 'trk')
+        + rv(1.2, `<div class="bwin"><figure>${characterSVG(characterIndex(c))}</figure><div><p class="bl big">${who(s, W)} ingaggia il personaggio</p><p class="bl">${eff}</p></div></div>`) }];
     }
     case 'guerrilla': { // quanti poliziotti ha respinto ognuno, se la polizia attacca, poi si risolve: prima chi ha vinto, poi gli altri
       const order = s.players.map((p, i) => i).sort((a, b) => e.raiders[b] - e.raiders[a]), rv = (d, h) => `<div class="rv" style="--d:${d}s">${h}</div>`;
-      let d = 1.6, h = rv(.2, guerBoard(e, order, e.raiders, { grow: true }));
-      h += rv(d, e.area > 0 ? `<p class="bl big">La polizia attacca con ${e.area} ${e.area === 1 ? 'unità' : 'unità'}</p>` : '<p class="bl big">Nessun poliziotto rimasto: la polizia non attacca</p>');
-      const max = Math.max(...e.raiders);
-      h += rv((d += .9), e.first !== null ? `<p class="bl">${who(s, e.first)} vince la Guerrilla: +1 street cred e <b class="ptsup">+${e.gain} punti</b></p>` : max === 0 ? '<p class="bl">Nessuno ha respinto poliziotti: nessun premio</p>' : '<p class="bl">Pareggio: nessuno vince la Guerrilla</p>');
-      if (e.ties.length) h += rv((d += .6), `<p class="bl">${e.ties.map(i => who(s, i)).join(', ')}: +1 punto</p>`);
-      e.losses.forEach(l => (h += rv((d += .6), `<p class="bl">${who(s, l.victim)} perde un quartiere alla polizia${l.chooser !== l.victim ? ` (lo sceglie ${who(s, l.chooser)})` : ''}</p>`)));
-      return [{ band: true, t: 'Guerrilla', end: d + .7, b: h }];
+      const lostBy = i => e.losses.find(l => l.victim === i), max = Math.max(...e.raiders);
+      const note = i => [i === e.first ? `Vince: +1 street cred, +${e.gain} punti` : '', e.ties.includes(i) ? '+1 punto' : '', lostBy(i) ? 'perde un quartiere alla polizia' : ''].filter(Boolean).join(' · ');
+      const cards = bandCards(s, order.map((i, k) => ({ i, val: `${token('guerrilla', e.raiders[i], 'width="34" height="34"')}<small>respinti</small>`, win: i === e.first, note: note(i), noteAt: i === e.first ? 2.4 : 3 + k * .4 })));
+      return [{ band: true, t: 'Guerrilla', end: 3.2 + order.length * .4 + .6, b: `<div class="bpol rv" style="--d:.9s">${logo('polizia', 30)}<b>${e.area}</b><span>${e.area > 0 ? 'La polizia attacca' : 'Nessun poliziotto rimasto: la polizia non attacca'}</span></div>` + cards
+        + rv(2.1, `<p class="bl big">${e.first !== null ? `${who(s, e.first)} vince la Guerrilla` : max === 0 ? 'Nessuno ha respinto poliziotti' : 'Pareggio: nessuno vince la Guerrilla'}</p>`) }];
     }
     case 'community': { // i punti community di ognuno, poi chi vince avvia il progetto e diventa First Player, poi gli altri
       const rv = (d, h) => `<div class="rv" style="--d:${d}s">${h}</div>`, order = s.players.map((p, i) => i).sort((a, b) => e.church[b] - e.church[a]);
-      let d = .2, h = rv(d, `<div class="bvals">${order.map(i => `<span>${who(s, i)} <b>${e.church[i]}</b></span>`).join('')}</div>`);
-      h += rv((d += 1), e.first !== null ? `<p class="bl big">${who(s, e.first)} vince la Community: avvia un progetto urbano e diventa First Player</p>` : e.church.every(c => c === 0) ? '<p class="bl big">Nessuno ha punti community</p>' : '<p class="bl big">Pareggio: nessun progetto principale</p>');
-      if (e.ties.length) h += rv((d += .6), `<p class="bl">${e.ties.map(i => who(s, i)).join(', ')}: +1 punto</p>`);
-      if (e.fours.length) h += rv((d += .6), `<p class="bl">${e.fours.map(i => who(s, i)).join(', ')}: 4 o più, avviano un progetto urbano</p>`);
-      return [{ band: true, t: 'Community', end: d + .7, b: h }];
+      const note = i => [i === e.first ? 'Vince: progetto urbano e First Player' : '', e.ties.includes(i) ? '+1 punto' : '', e.fours.includes(i) ? 'progetto urbano (4 o più)' : ''].filter(Boolean).join(' · ');
+      const cards = bandCards(s, order.map((i, k) => ({ i, val: `${token('community', e.church[i], 'width="34" height="34"')}<small>community</small>`, win: i === e.first, note: note(i), noteAt: i === e.first ? 1.4 : 2 + k * .4 })));
+      return [{ band: true, t: 'Community', end: 2.2 + order.length * .4 + .6, b: cards
+        + rv(1.1, `<p class="bl big">${e.first !== null ? `${who(s, e.first)} vince la Community` : e.church.every(c => c === 0) ? 'Nessuno ha punti community' : 'Pareggio: nessun progetto principale'}</p>`) }];
     }
     case 'uprising': { // zone che entrano in palio, il valore di ognuno, chi controlla
       const rv = (d, h) => `<div class="rv" style="--d:${d}s">${h}</div>`;
-      let d = .2, h = rv(d, `<p class="bl big">${e.flips.length ? `Ora in palio: ${e.flips.map(r => `<b>${REGIONS[r].name}</b>`).join(', ')}` : 'Nessuna nuova zona in palio'}</p>`);
+      const ctrl = i => Object.keys(REGIONS).filter(r => s.claims[r].owner === i), cards = bandCards(s, s.players.map((p, i) => i).map((i, k) => ({ i, win: e.changes.some(c => c.owner === i),
+        val: ctrl(i).length ? ctrl(i).map(r => `<span class="bflag" style="--fc:${THEME.region[r]}" title="${REGIONS[r].name}">${token('bandiera', REGIONS[r].points, `width="30" height="30" style="--fc:${THEME.region[r]}"`)}</span>`).join('') : '<small>nessun municipio</small>',
+        note: e.changes.filter(c => c.owner === i).map(c => `prende ${REGIONS[c.r].name}`).join(' · '), noteAt: 2 })));
+      let d = .2, h = cards + rv(d + .8, `<p class="bl big">${e.flips.length ? `Ora in palio: ${e.flips.map(r => `<b>${REGIONS[r].name}</b>`).join(', ')}` : 'Nessuna nuova zona in palio'}</p>`);
       Object.entries(e.values || {}).forEach(([r, z]) => {
         const res = z.max === 0 ? 'nessuna fazione' : z.tie ? (z.owner !== null ? `resta a ${who(s, z.owner)}` : 'contesa') : `controlla ${who(s, z.owner)}`;
         h += rv((d += .6), `<p class="bl"><b>${REGIONS[r].name}</b>: ${Object.entries(z.values).sort(([, a], [, b]) => b - a).map(([i, x]) => `${pname(s, Number(i))} ${x}`).join(' · ') || '—'} → ${res}</p>`);

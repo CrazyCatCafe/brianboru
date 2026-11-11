@@ -1288,3 +1288,14 @@ body #game nav.rp-phases { right: calc(var(--right-w) + 24px) !important; }
 .band .ptrack .pt .flogo, .band .ptrack .pt .flogo svg { width: 14px !important; height: 14px !important; }
 .band .ptrack .pt[data-move] { animation: bandback 1s 2.6s ease-in-out both !important; }
 @keyframes bandback { from { left: calc(var(--fx) * 10% + 5px); } }
+/* Process Phase come la preparazione: carte dei giocatori al neon dentro la banda */
+.band .bcards { justify-content: flex-start; margin: 4px 0 14px; gap: 12px; }
+.band .vscard { width: 168px; padding: 14px 10px 12px; }
+.band .vscard .vslogo .flogo { width: 74px; height: 74px; } .band .vscard .vslogo .flogo svg { width: 58px; height: 58px; }
+.band .vscard .vsname { font: italic 800 18px var(--num); text-transform: uppercase; }
+.band .bval { display: inline-flex; align-items: center; gap: 6px; margin-top: 2px; } .band .bval b { font: 800 26px var(--num); color: #fff; } .band .bval small { font: 700 11px var(--num); text-transform: uppercase; color: var(--rp-muted); }
+.band .bval .logo { width: 26px; height: 26px; display: inline-grid; place-items: center; background: #eef1f3; }
+.band .bnote { display: block; margin-top: 4px; font: 700 12px/1.25 var(--num); color: #ffd400; min-height: 1.2em; }
+.band .vscard.bwinner { box-shadow: 0 0 0 3px #ffd400, 0 0 34px color-mix(in srgb, var(--pc) 60%, transparent); }
+.band .bpol { display: inline-flex; align-items: center; gap: 10px; margin-bottom: 10px; } .band .bpol .logo { width: 36px; height: 36px; display: grid; place-items: center; background: #eef1f3; } .band .bpol b { font: 800 32px var(--num); color: #7fb6ff; } .band .bpol span { font: 800 19px var(--num); color: #fff; }
+.band .bflag { display: inline-block; } .band .bwin figure { width: 90px; }
