@@ -995,7 +995,8 @@ function resultText(s, r) {
   if (r.renown) parts.push(`+${r.renown} street cred`);
   if (r.expand != null) parts.push(`paga 5 crediti e si espande a ${townChip(r.expand)}`);
   if (r.viking != null) parts.push(`rimuove il presidio a ${townChip(r.viking)}`);
-  return `${who(s, r.p)} gioca carta ${r.card}${r.won ? ' e vince la presa' : ''}: ${parts.join(', ') || 'niente'}`;
+  const c = CARDS[r.card].color, bg = { yellow: '#ffc20e', red: '#d42424', blue: '#1666d0', white: '#111' }[c];
+  return `<b class="lnm" style="--pc:${THEME.players[r.p]}">${esc(s.players[r.p].name)}</b> <b class="lcard" style="--cb:${bg};--ci:${c === 'yellow' ? '#111' : '#fff'}">${r.card}</b>${r.won ? ' <em class="lwin">vince</em>' : ''} ${parts.join(', ')}`;
 }
 function resultsList(s) {
   if (showing || s.stage !== 'trick') return ''; // in upkeep il riepilogo della presa non serve più

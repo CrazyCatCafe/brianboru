@@ -1332,3 +1332,9 @@ body.cardpick #game .plates.mine .plate .pcard .mc svg { width: 22px !important;
 .pcard .actbox { left: 0 !important; right: 0; bottom: calc(100% + 8px) !important; width: auto !important; height: auto !important; min-height: 48px; flex-wrap: wrap; justify-content: space-between; padding: 6px 8px !important; }
 .pcard .actbox .dok { width: 100% !important; order: 9; }
 .pcard .actbox .dtx:empty { display: none; }
+/* cronaca della presa: NOME e la carta sul quadrato del suo colore */
+.results .lnm { font: italic 800 15px var(--num); text-transform: uppercase; color: #fff; }
+.results .lcard { display: inline-grid; place-items: center; min-width: 26px; height: 22px; padding: 0 4px; background: var(--cb); color: var(--ci); font: 800 14px var(--num); border: 1.5px solid #000; vertical-align: middle; }
+.results .lwin { font: 800 11px var(--num); font-style: normal; text-transform: uppercase; background: #ffd400; color: #111; padding: 1px 5px; }
+/* riquadro dell'azione: accanto alla carta grande, non sopra gli altri */
+body.cardpick .pcard .actbox { left: calc(100% + 10px) !important; right: auto !important; bottom: 0 !important; width: 210px !important; flex-direction: column !important; align-items: stretch; }

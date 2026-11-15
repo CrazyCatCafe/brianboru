@@ -135,8 +135,8 @@ const pxShape = k => {
 const SHAPES = Object.fromEntries(Object.keys(SH).map(k => [k, pxShape(k)]));
 const FLAG = (() => { let o = ''; for (let y = 1; y < 16; y++) o += `<rect x="1" y="${y}" width="1.02" height="1.02" fill="#dfe4e8"/>`;
   for (let y = 1; y < 10; y++) for (let x = 2; x < 15; x++) { if (x > 11 && Math.abs(y - 5) < x - 11) continue; const e = y === 1 || y === 9 || x === 2 || (x >= 11 && Math.abs(y - 5) === x - 11 + 1); o += `<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="${e ? '#eef1f3' : 'var(--fc,#111)'}"/>`; } return o; })();
-const tnum = (n, y, col) => `<text x="${8}" y="${y}" text-anchor="middle" font-family="Silkscreen, monospace" font-weight="700" font-size="${String(n).length > 1 ? 5.4 : 6.6}" fill="${col}">${n}</text>`;
+const tnum = (n, y, col) => `<text x="8" y="${y}" dominant-baseline="central" text-anchor="middle" font-family="Silkscreen, monospace" font-weight="700" font-size="${String(n).length > 1 ? 5.4 : 6.6}" fill="${col}">${n}</text>`;
 export const TOKEN_NAMES = { punti: 'Punti vittoria', bandiera: 'Municipio', crediti: 'Crediti', guerrilla: 'Guerrilla', cred: 'Street cred', community: 'Community' };
 export const token = (kind, n, extra = '') => kind === 'bandiera'
-  ? `<svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true" ${extra}>${FLAG}<text x="7.5" y="7.6" text-anchor="middle" font-family="Silkscreen, monospace" font-weight="700" font-size="5.2" fill="#fff">${n}</text></svg>`
-  : `<svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true" ${extra}>${SHAPES[kind]}${tnum(n, kind === 'community' ? 11.6 : 10.4, COL[kind][2])}</svg>`;
+  ? `<svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true" ${extra}>${FLAG}<text x="7.5" y="5.3" dominant-baseline="central" text-anchor="middle" font-family="Silkscreen, monospace" font-weight="700" font-size="5.2" fill="#fff">${n}</text></svg>`
+  : `<svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true" ${extra}>${SHAPES[kind]}${tnum(n, kind === 'community' ? 9.6 : 8.2, COL[kind][2])}</svg>`;
