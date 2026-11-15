@@ -704,7 +704,7 @@ function render() {
   botTurn(s, pd);
   $('code').textContent = local ? 'partita locale' : `partita ${roomCode}`;
   if (!hypeLit && !(showing && ['prep', 'final'].includes(showing.k))) city.highlight(null); // zone accese solo quando servono: schermata del round (carta Hype), punteggio finale o "Vedi carta"
-  city.update({ towns: s.towns, activeTown: showing ? null : s.trick?.town ?? null, /* durante i racconti nessun quartiere in gioco acceso */ claims: s.claims, names: s.players.map(p => p.name), factions: s.players.map((p, i) => room?.players?.[i]?.gang || FACTION_NAMES[i % FACTION_NAMES.length]) });
+  city.update({ showOwners: ['uprising', 'final'].includes(showing?.k) || (!showing && s.stage === 'end'), towns: s.towns, activeTown: showing ? null : s.trick?.town ?? null, /* durante i racconti nessun quartiere in gioco acceso */ claims: s.claims, names: s.players.map(p => p.name), factions: s.players.map((p, i) => room?.players?.[i]?.gang || FACTION_NAMES[i % FACTION_NAMES.length]) });
   // si illumina solo la scelta provvisoria di chi sta giocando: finito il suo turno, si spegne
   city.select(showing?.k === 'setup' ? showing.town : pd && pd.p === seat && !showing ? (ui.town ?? ui.expand ?? ui.viking ?? null) : null); // si vede il quartiere di partenza appena scelto
   const wk = meteo?.w[3] || WKEYS[(s.round * 5 + s.start * 3) % WKEYS.length]; // meteo vero di Milano; se non arriva, uno a round

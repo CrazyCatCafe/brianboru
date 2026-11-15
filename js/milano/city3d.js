@@ -417,7 +417,7 @@ export async function createCity(container, overlay, view = {}) {
     }
     for (const [k, r] of Object.entries(regions)) { // municipio controllato (zona assegnata): diventa del colore della banda
       const o = s.claims?.[k]?.owner ?? null;
-      r.owner = o === null ? null : new THREE.Color(T.players[o]);
+      r.owner = o === null || !s.showOwners ? null : new THREE.Color(T.players[o]); // colore del padrone sulla zona solo nella fase Uprising
       r.tint.material.color.copy(r.owner || r.color);
       // municipio che va in palio: il cartello si gira; cambio di proprietario: il cartello lampeggia
       const up = !!s.claims?.[k]?.up, ow = s.claims?.[k]?.owner ?? null;
