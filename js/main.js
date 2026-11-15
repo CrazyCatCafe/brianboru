@@ -1064,8 +1064,9 @@ function renderStage(s = state, pd = current(state)) {
   if (showing) {
     const st = steps(showing), cur = st[Math.min(step, st.length - 1)];
     if (cur.band) { // Process Phase: banda nera al centro, si risolve tutto in ordine; Continua per la fase dopo (si passa quando tutti hanno premuto)
-      el.classList.add('band'); const first = bandShown !== showing.n; bandShown = showing.n; el.classList.toggle('still', !first);
-      el.innerHTML = `<h2><small>Process Phase</small>${PHASE_LOGO[SHOW_PHASE[showing.k] || showing.k] ? logo(PHASE_LOGO[SHOW_PHASE[showing.k] || showing.k], 26) : ''}${cur.t}</h2>${cur.b}
+      el.classList.add('vs', 'band'); const first = bandShown !== showing.n; bandShown = showing.n; el.classList.toggle('still', !first); // a tutto schermo come la schermata del round
+      const lg = PHASE_LOGO[SHOW_PHASE[showing.k] || showing.k];
+      el.innerHTML = `<h2>Process Phase</h2><p class="pph">${lg ? logo(lg, 26) : ''}<b>${cur.t}</b></p>${cur.b}
         <div class="rv bgo" style="--d:${cur.end}s">${waitingAcks().length && acked === showing.n ? `<p class="waitack">Aspettiamo: ${waitingAcks().map(i => `<span class="blink">${who(s, i)}</span>`).join(' ')}</p>`
           : `<button class="btn" id="next" aria-keyshortcuts="Space">Continua</button>`}</div>`;
       $('next') && ($('next').onclick = advance);

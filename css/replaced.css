@@ -1299,3 +1299,12 @@ body #game nav.rp-phases { right: calc(var(--right-w) + 24px) !important; }
 .band .vscard.bwinner { box-shadow: 0 0 0 3px #ffd400, 0 0 34px color-mix(in srgb, var(--pc) 60%, transparent); }
 .band .bpol { display: inline-flex; align-items: center; gap: 10px; margin-bottom: 10px; } .band .bpol .logo { width: 36px; height: 36px; display: grid; place-items: center; background: #eef1f3; } .band .bpol b { font: 800 32px var(--num); color: #7fb6ff; } .band .bpol span { font: 800 19px var(--num); color: #fff; }
 .band .bflag { display: inline-block; } .band .bwin figure { width: 90px; }
+/* Process Phase a tutto schermo, come la schermata del round */
+#game section.rp-stage.vs.band { top: 0 !important; bottom: 0 !important; max-height: none !important; padding: 24px !important; background: rgba(10, 12, 15, .95) !important; border: 0 !important; box-shadow: none; overflow: hidden; display: flex !important; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
+#game .rp-stage.vs.band h2 { display: block; margin: 0; font-size: clamp(22px, 3vw, 38px); }
+#game .rp-stage.vs.band .pph { display: inline-flex; align-items: center; gap: 10px; margin: -4px 0 4px; } .pph b { font: 700 18px var(--pix); letter-spacing: .14em; text-transform: uppercase; background: #ffd400; color: #111; padding: 4px 12px; }
+.pph .logo { width: 30px; height: 30px; display: inline-grid; place-items: center; background: #eef1f3; }
+.band .bcards { justify-content: center !important; }
+.band .rv:not(.vscard *) { text-align: center; } .band .bwin { justify-content: center; } .band .bgo { justify-content: center !important; }
+.band .trk { width: min(900px, 90vw); } .band .bpol { justify-content: center; }
+.band .trk { margin: 0 auto; align-self: center; } .band .bwin { align-self: center; }
