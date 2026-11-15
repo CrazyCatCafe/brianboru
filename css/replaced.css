@@ -1308,3 +1308,27 @@ body #game nav.rp-phases { right: calc(var(--right-w) + 24px) !important; }
 .band .rv:not(.vscard *) { text-align: center; } .band .bwin { justify-content: center; } .band .bgo { justify-content: center !important; }
 .band .trk { width: min(900px, 90vw); } .band .bpol { justify-content: center; }
 .band .trk { margin: 0 auto; align-self: center; } .band .bwin { align-self: center; }
+/* gettoni pixel: nitidi */
+.tk svg, .band .bval svg { image-rendering: pixelated; }
+/* 1. icone nell'angolo in alto a destra, il meteo sotto */
+#game .rtools { top: 8px !important; right: 8px !important; }
+/* 2. colonna destra: meteo in alto, Uprising e Player Aid in fondo */
+#game .rp-left, body.rp #game .rp-left { top: 82px !important; bottom: 12px !important; max-height: none !important; display: flex !important; flex-direction: column; }
+#game .rp-left #b-uprising { margin-top: auto; }
+/* 4. barra delle fasi allineata alla barra dell'Hype */
+#game nav.rp-phases, body #game nav.rp-phases { max-width: 920px; margin: 0 auto !important; display: flex !important; justify-content: stretch !important; }
+#game .rp-phases .chev { flex: 1 1 auto; text-align: center; justify-content: center; }
+/* 5. polizia: logo e numero grandi, etichetta sotto */
+#game .topbar #b-pol { width: 120px !important; display: grid !important; grid-template-columns: auto auto; justify-content: center; align-content: center; gap: 2px 8px !important; }
+#game .topbar #b-pol .logo { width: 36px !important; height: 36px !important; } #game .topbar #b-pol b { font-size: 34px !important; align-self: center; }
+#game .topbar #b-pol::after { content: 'Polizia'; grid-column: 1 / -1; text-align: center; font: 700 11px var(--num); text-transform: uppercase; letter-spacing: .1em; color: var(--rp-muted); }
+/* 3. scelta dell'azione: la tua carta grande a sinistra, Conferma sopra */
+body.cardpick #game .plates.mine .plate .pcard { position: fixed !important; left: 18px !important; bottom: 168px !important; top: auto !important; width: 250px !important; z-index: 30; }
+body.cardpick #game .plates.mine .plate .pcard .mc .n { font-size: 26px; padding: 4px 10px; }
+body.cardpick #game .plates.mine .plate .pcard .mc .r { padding: 10px 10px; }
+body.cardpick #game .plates.mine .plate .pcard .mc .r small { font-size: 13px; width: 78px; }
+body.cardpick #game .plates.mine .plate .pcard .mc svg { width: 22px !important; height: 22px !important; }
+.pcard.pick::before { content: none !important; }
+.pcard .actbox { left: 0 !important; right: 0; bottom: calc(100% + 8px) !important; width: auto !important; height: auto !important; min-height: 48px; flex-wrap: wrap; justify-content: space-between; padding: 6px 8px !important; }
+.pcard .actbox .dok { width: 100% !important; order: 9; }
+.pcard .actbox .dtx:empty { display: none; }

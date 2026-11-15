@@ -111,16 +111,32 @@ export const LOGO_NAMES = { quartiere: 'Quartiere', carte: 'Draft', cred: 'Stree
 export const logo = (kind, size = 20) =>
   `<span class="logo" style="--hole:#eef1f3" title="${LOGO_NAMES[kind]}"><svg viewBox="0 0 40 40" width="${size}" height="${size}" shape-rendering="crispEdges" aria-hidden="true">${LOGOS[kind](LOGO_COLORS[kind])}</svg></span>`;
 
-// Gettoni delle targhe dei giocatori: la forma dice la risorsa, il numero sta dentro
-const burst = (cx, cy, R, r, n) => Array.from({ length: n * 2 }, (_, k) => { const a = Math.PI * k / n - Math.PI / 2, d = k % 2 ? r : R; return `${(cx + d * Math.cos(a)).toFixed(1)},${(cy + d * Math.sin(a)).toFixed(1)}`; }).join(' ');
-const tnum = (n, x, y, size, fill) => `<text x="${x}" y="${y}" text-anchor="middle" font-family="Saira, sans-serif" font-weight="800" font-size="${size}" fill="${fill}" paint-order="stroke" stroke="rgba(0,0,0,.35)" stroke-width="1">${n}</text>`;
-const TOKENS = {
-  punti: n => `<polygon points="${burst(20, 20, 19.5, 14.5, 12)}" fill="#ffb81c" stroke="#7a4a00" stroke-width="1.8" stroke-linejoin="round"/><circle cx="20" cy="20" r="12" fill="#ffd45c"/>${tnum(n, 20, 27, String(n).length > 1 ? 18 : 20, '#3a2200')}`,
-  bandiera: n => `<rect x="5" y="2" width="3" height="36" fill="#dfe4e8"/><path d="M8 3h27l-5 8.5 5 8.5H8Z" fill="var(--fc,#111)" stroke="#eef1f3" stroke-width="1.6"/>${tnum(n, 21, 17, 13, '#fff')}`,
-  crediti: n => `<circle cx="20" cy="20" r="18" fill="#ffc20e" stroke="#7a5a00" stroke-width="2.2"/><circle cx="20" cy="20" r="13.5" fill="none" stroke="#7a5a00" stroke-width="1.2" stroke-dasharray="2 2"/>${tnum(n, 20, 27, 20, '#2b1f00')}`,
-  guerrilla: n => `<path d="M20 0c4 4 4 7 1 9-1-2-3-3-4-3 0 2 1 3 3 3" fill="#ffd400"/><path d="M16 8h8v6l6 6v16a3 3 0 0 1-3 3H13a3 3 0 0 1-3-3V20l6-6Z" fill="#e23b2e" stroke="#6e120c" stroke-width="1.8"/><rect x="16" y="6" width="8" height="3" fill="#c9b79a"/>${tnum(n, 20, 34, 16, '#fff')}`,
-  cred: n => `<path d="M7 14q0-5 5-5h3q1-3 5-3t5 3h1q4 0 5 3t2 4v13q0 8-8 9H15q-8 0-8-8Z" fill="#d9a400" stroke="#5c3f00" stroke-width="1.8"/><path d="M14 9v9M21 7v11M28 11v7M7 21h14" stroke="#5c3f00" stroke-width="1.5" fill="none"/>${tnum(n, 22, 35, 14, '#2b1f00')}`,
-  community: n => `<path d="M20 2l17 8.5v19L20 38 3 29.5v-19Z" fill="#1666d0" stroke="#0b2f63" stroke-width="1.8"/><path d="M3 10.5 20 19l17-8.5L20 2Z" fill="#4d90ff" stroke="#0b2f63" stroke-width="1.4"/><path d="M20 19v19" stroke="#0b2f63" stroke-width="1.4"/>${tnum(n, 28, 33, 14, '#fff')}`,
+// Gettoni delle targhe dei giocatori in pixel art 16x16 (come il resto del gioco): la forma e il colore dicono la risorsa, il numero sta dentro
+const SH = {
+  punti: (x, y) => { const dx = x - 7.5, dy = y - 7.5, a = Math.atan2(dy, dx), r = Math.hypot(dx, dy); return r <= 5.4 + 2.4 * (Math.cos(a * 8) > 0 ? 1 : 0); },
+  crediti: (x, y) => Math.hypot(x - 7.5, y - 7.5) <= 7.6,
+  guerrilla: (x, y) => Math.abs(x - 7.5) + Math.abs(y - 7.5) <= 8.2,
+  cred: (x, y) => { const dx = Math.abs(x - 7.5), dy = Math.abs(y - 7.5); return dy <= 7 && dx <= 7.6 - dy * 0.5; },
+  community: (x, y) => x >= 1 && x <= 14 && y >= 1 && y <= 14,
 };
+const COL = { punti: ['#ffb81c', '#6b3f00', '#2b1a00'], crediti: ['#ffc20e', '#6b4f00', '#2b1f00'], guerrilla: ['#e23b2e', '#5e0f0a', '#fff'], cred: ['#1fa35a', '#0a4423', '#fff'], community: ['#1666d0', '#0a2a5c', '#fff'] };
+const pxShape = k => {
+  const f = SH[k], [fill, edge] = COL[k]; let o = '';
+  for (let y = 0; y < 16; y++) for (let x = 0; x < 16; x++) {
+    if (!f(x, y)) continue;
+    const e = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([a, b]) => x + a < 0 || x + a > 15 || y + b < 0 || y + b > 15 || !f(x + a, y + b));
+    let c = e ? edge : fill;
+    if (!e && k === 'community' && y <= 4) c = '#4d90ff'; // coperchio del pacco
+    if (!e && k !== 'community' && (x + y) % 9 === 0 && y < 7) c = 'rgba(255,255,255,.45)'; // riflesso
+    o += `<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="${c}"/>`;
+  }
+  return o;
+};
+const SHAPES = Object.fromEntries(Object.keys(SH).map(k => [k, pxShape(k)]));
+const FLAG = (() => { let o = ''; for (let y = 1; y < 16; y++) o += `<rect x="1" y="${y}" width="1.02" height="1.02" fill="#dfe4e8"/>`;
+  for (let y = 1; y < 10; y++) for (let x = 2; x < 15; x++) { if (x > 11 && Math.abs(y - 5) < x - 11) continue; const e = y === 1 || y === 9 || x === 2 || (x >= 11 && Math.abs(y - 5) === x - 11 + 1); o += `<rect x="${x}" y="${y}" width="1.02" height="1.02" fill="${e ? '#eef1f3' : 'var(--fc,#111)'}"/>`; } return o; })();
+const tnum = (n, y, col) => `<text x="${8}" y="${y}" text-anchor="middle" font-family="Silkscreen, monospace" font-weight="700" font-size="${String(n).length > 1 ? 5.4 : 6.6}" fill="${col}">${n}</text>`;
 export const TOKEN_NAMES = { punti: 'Punti vittoria', bandiera: 'Municipio', crediti: 'Crediti', guerrilla: 'Guerrilla', cred: 'Street cred', community: 'Community' };
-export const token = (kind, n, extra = '') => `<svg viewBox="0 0 40 40" aria-hidden="true" ${extra}>${TOKENS[kind](n)}</svg>`;
+export const token = (kind, n, extra = '') => kind === 'bandiera'
+  ? `<svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true" ${extra}>${FLAG}<text x="7.5" y="7.6" text-anchor="middle" font-family="Silkscreen, monospace" font-weight="700" font-size="5.2" fill="#fff">${n}</text></svg>`
+  : `<svg viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true" ${extra}>${SHAPES[kind]}${tnum(n, kind === 'community' ? 11.6 : 10.4, COL[kind][2])}</svg>`;
