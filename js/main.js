@@ -1001,7 +1001,12 @@ function resultText(s, r) {
 }
 function resultsList(s) {
   if (showing || s.stage !== 'trick') return ''; // in upkeep il riepilogo della presa non serve più
-  const list = s.trick?.results?.length ? s.trick.results : !s.trick?.plays?.length ? s.lastTrick?.results : null;
+  if (s.trick?.plays?.length) { // presa in corso: appena uno gioca compare NOME e la carta; dopo l'azione si aggiunge l'effetto
+    const res = s.trick.results || [], chip = v => { const c = CARDS[v].color; return `<b class="lcard" style="--cb:${{ yellow: '#ffc20e', red: '#d42424', blue: '#1666d0', white: '#111' }[c]};--ci:${c === 'yellow' ? '#111' : '#fff'}">${v}</b>`; };
+    return `<ul class="results">${s.trick.plays.map(pl => { const r = res.find(x => x.p === pl.p && x.card === pl.card);
+      return `<li>${r ? resultText(s, r) : `<b class="lnm">${esc(s.players[pl.p].name)}</b> ${chip(pl.card)}`}</li>`; }).join('')}</ul>`;
+  }
+  const list = s.lastTrick?.results;
   return list?.length ? `<ul class="results">${list.map(r => `<li>${resultText(s, r)}</li>`).join('')}</ul>` : '';
 }
 // carta in versione compatta (presa in corso): numero nel colore del seme, poi Vinci / Perdi / Oppure coi simboli, senza illustrazione
